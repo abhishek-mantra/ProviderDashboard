@@ -1,0 +1,237 @@
+        <AnimatePresence>
+          {showAddMemberModal && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowAddMemberModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 z-10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
+                        Add Team Member
+                      </h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Send an invitation to a new team member
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddMemberModal(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      <X className="size-6" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        First Name *
+                      </label>
+                      <div className="relative">
+                        <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.firstName}
+                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                          placeholder="Enter first name"
+                          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Last Name *
+                      </label>
+                      <div className="relative">
+                        <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.lastName}
+                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                          placeholder="Enter last name"
+                          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email Address *
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="email@example.com"
+                          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Clinical Role *
+                      </label>
+                      <div className="space-y-3">
+                        <label
+                          className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.role === "Clinician"
+                              ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20"
+                              : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="Clinician"
+                            checked={formData.role === "Clinician"}
+                            onChange={(e) => setFormData({ ...formData, role: e.target.value as "Clinician" })}
+                            className="mt-1 size-4 text-[#4169E1] focus:ring-[#4169E1]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="size-4 text-blue-600 dark:text-blue-400" />
+                              <p className="font-medium text-gray-900 dark:text-white">Clinician</p>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              For team members who treat clients
+                            </p>
+                          </div>
+                        </label>
+                        <label
+                          className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.role === "Supervisor"
+                              ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20"
+                              : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="Supervisor"
+                            checked={formData.role === "Supervisor"}
+                            onChange={(e) => setFormData({ ...formData, role: e.target.value as "Supervisor" })}
+                            className="mt-1 size-4 text-[#4169E1] focus:ring-[#4169E1]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <UserCircle2 className="size-4 text-purple-600 dark:text-purple-400" />
+                              <p className="font-medium text-gray-900 dark:text-white">Supervisor</p>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              For team members who supervise clinicians
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isAdmin}
+                          onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
+                          className="mt-0.5 size-4 text-[#4169E1] rounded focus:ring-[#4169E1]"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Grant Admin access (can manage team, billing, and settings)
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="pt-1">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sendInvite}
+                          onChange={(e) => setSendInvite(e.target.checked)}
+                          className="mt-0.5 size-4 text-[#4169E1] rounded focus:ring-[#4169E1]"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Send invitation email to this person
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-750 border-t border-gray-200 dark:border-gray-700 p-6 flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddMember}
+                    disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.role}
+                    className="bg-[#4169E1] hover:bg-[#3557c7] text-white px-6 py-2.5 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Send className="size-4" />
+                    {sendInvite ? "Invite Member" : "Add Member"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showUpgradeModal && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowUpgradeModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 text-center">
+                  <div className="size-14 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="size-7 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Plan Limit Reached
+                  </h2>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">
+                    You've reached the <strong>{establishment?.planTier}</strong> plan limit of{" "}
+                    <strong>{planLimit}</strong> team members. Upgrade your plan to add more.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowUpgradeModal(false)}
+                      className="flex-1 px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUpgradeModal(false);
+                        navigate("/settings/billing");
+                      }}
+                      className="flex-1 bg-[#4169E1] hover:bg-[#3557c7] text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
+                    >
+                      Upgrade Plan
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>

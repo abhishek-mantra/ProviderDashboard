@@ -1216,7 +1216,7 @@ export function AITranscriber() {
                     setBriefOverview("");
                     setManualSessionDate(new Date().toISOString().split("T")[0]);
                     setManualSessionTime(new Date().toTimeString().slice(0, 5));
-                    navigate(`/view-transcript/${newId}`);
+                    navigate(`/view-transcription/${newId}`);
                   }}
                   className={`w-full h-12 rounded-xl font-bold text-[15px] transition-all ${
                     isFormValid

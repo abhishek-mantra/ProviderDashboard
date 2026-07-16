@@ -321,6 +321,25 @@ export function Availability() {
           {/* Time Slot Tab */}
           {activeTab === "timeSlot" && (
             <div>
+              {timeSlots.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="size-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center">
+                    <Clock className="size-8 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    No Time Slots Yet
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                    Set your weekly availability by adding time slots for each day you work.
+                  </p>
+                  <button
+                    onClick={() => setShowAddAvailabilityModal(true)}
+                    className="bg-[#00c0ff] hover:bg-[#00a8e8] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+                  >
+                    Add Your First Time Slot
+                  </button>
+                </div>
+              ) : (
               <div className="space-y-0">
                 {dayOrder.map((day, dayIndex) => {
                   const slots = groupedTimeSlots[day];
@@ -357,6 +376,7 @@ export function Availability() {
                   );
                 })}
               </div>
+              )}
 
               <button
                 onClick={() => setShowAddAvailabilityModal(true)}
@@ -370,6 +390,25 @@ export function Availability() {
           {/* Day Off Tab */}
           {activeTab === "dayOff" && (
             <div>
+              {daysOff.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="size-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center">
+                    <Calendar className="size-8 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    No Days Off Yet
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                    Schedule days off or holidays to automatically block unavailable time.
+                  </p>
+                  <button
+                    onClick={() => setShowAddDayOffModal(true)}
+                    className="bg-[#00c0ff] hover:bg-[#00a8e8] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+                  >
+                    Schedule Your First Day Off
+                  </button>
+                </div>
+              ) : (
               <div>
                 {/* Table Header - Hidden on Mobile */}
                 <div className="hidden md:grid grid-cols-[2fr_3fr_1.5fr_auto] gap-4 pb-2 mb-2">
@@ -476,6 +515,7 @@ export function Availability() {
                   ))}
                 </div>
               </div>
+              )}
 
               <button
                 onClick={() => setShowAddDayOffModal(true)}

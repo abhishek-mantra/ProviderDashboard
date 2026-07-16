@@ -163,7 +163,7 @@ No safety concerns identified. Client has good support system and effective copi
           {/* Header */}
           <div className="mb-6">
             <button
-              onClick={() => navigate(location.pathname.includes('/view-transcript/') ? `/view-transcript/${transcriptionId}` : `/view-transcription/${transcriptionId}`)}
+              onClick={() => navigate(`/view-transcription/${transcriptionId}`)}
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#14B8A6] dark:hover:text-[#14B8A6] transition-colors mb-6 font-medium"
             >
               <ArrowLeft className="size-4" />

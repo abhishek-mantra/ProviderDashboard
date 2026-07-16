@@ -252,9 +252,9 @@ export function Layout() {
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   // Nav item ordering — one per mode, persisted
-  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'prescriptions', 'refer-earn', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'ai-transcriber', 'session-notes', 'prescriptions', 'refer-earn', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'billing', 'messages', 'appointments', 'for-mantra-provider', 'refer-earn', 'settings'];
+  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -322,7 +322,7 @@ export function Layout() {
 // Auto-collapse sidebar for specific pages
   const isViewNotePage = location.pathname.includes('/notes/view/');
   const isAddNotePage = location.pathname.includes('/notes/add');
-  const isViewTranscriptionNotePage = (location.pathname.includes('/view-transcription/') || location.pathname.includes('/view-transcript/')) && location.pathname.includes('/note/');
+  const isViewTranscriptionNotePage = location.pathname.includes('/view-transcription/') && location.pathname.includes('/note/');
   const isCreatePrescriptionPage = location.pathname.includes('/prescriptions/create') || location.pathname === '/add-prescription';
 
   // Close profile menu when clicking outside
@@ -467,7 +467,7 @@ export function Layout() {
   };
 
   // Show More residents per mode (items that naturally live in Show More)
-  const allShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm']);
+  const allShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions']);
 
   // Handle dropping a main nav item onto the Show More section
   const handleDropToShowMore = (mode: 'transcriber' | 'ehr' | 'provider', insertBefore: string | null) => {
@@ -548,6 +548,7 @@ export function Layout() {
     'resources':          { icon: <Globe className="size-5 flex-shrink-0" />,          label: 'Resources' },
     'ai-crm':             { icon: <Brain className="size-5 flex-shrink-0" />,          label: 'AI CRM' },
     'admin-dashboard':    { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Admin Dashboard' },
+    'supervisor-dashboard': { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Supervisor Dashboard' },
   };
 
   const isActive = (path: string) => {
@@ -766,7 +767,7 @@ export function Layout() {
     <div className="relative" ref={settingsMenuRef}>
       {shouldShowCollapsed() ? (
         <Link
-          to="/settings/availability"
+          to="/settings/organization"
           onClick={() => setIsMobileMenuOpen(false)}
           className={`flex items-center md:justify-center py-[10px] px-3 rounded-xl transition-all ${
             isActive("/settings")
@@ -779,7 +780,7 @@ export function Layout() {
         </Link>
       ) : (
         <Link
-          to="/settings/availability"
+          to="/settings/organization"
           onClick={() => setIsMobileMenuOpen(false)}
           className={`w-full flex items-center py-[10px] px-3 rounded-xl transition-all ${
             isActive("/settings")
@@ -925,20 +926,23 @@ export function Layout() {
             );
 
             // Show More residents per mode (items that live in Show More, not main nav)
-            const providerShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm']);
-            const ehrShowMoreResidents = aiScribePrescriptionPref === "full"
-              ? new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm'])
-              : new Set(['resources', 'ai-crm']);
-            const transcriberShowMoreResidents = new Set(['resources', 'ai-crm']);
+            const providerShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']);
+            const ehrShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']);
+            const transcriberShowMoreResidents = new Set(['prescriptions', 'resources', 'ai-crm', 'refer-earn']);
 
             const normalItems = isTranscriberOnly
-              ? order.filter(k => !hiddenItems.includes(k) || transciberForcedVisible.has(k)).filter(k => k !== 'admin-dashboard' || isCurrentUserAdmin)
+              ? order.filter(k => !hiddenItems.includes(k) || transciberForcedVisible.has(k))
+                  .filter(k => k !== 'admin-dashboard' || isCurrentUserAdmin)
+                  .filter(k => !transcriberShowMoreResidents.has(k))
               : visibleItems(order).filter(k => {
                   if (k === 'prescriptions' && aiScribePrescriptionPref === 'no') return false;
                   if (k === 'admin-dashboard' && !isCurrentUserAdmin) return false;
+                  if (isProviderPlan && providerShowMoreResidents.has(k)) return false;
+                  if (!isProviderPlan && ehrShowMoreResidents.has(k)) return false;
                   return true;
                 });
             const itemsToRender = normalItems;
+            const mainNavKeys = new Set(itemsToRender);
 
             // ── Configure menu mode — three-section layout ──────────────────────────
             if (isConfigureMenuMode) {
@@ -952,7 +956,7 @@ export function Layout() {
               const hiddenConfigKeys: string[] = [];
 
               if (isProviderPlan) {
-                (['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm'] as const).forEach(k => {
+                (['ai-transcriber', 'session-notes', 'prescriptions'] as const).forEach(k => {
                   if (k === 'prescriptions' && aiScribePrescriptionPref === 'no') return;
                   if (showMorePromoted.includes(k)) return;
                   if (mainConfigKeys.includes(k)) return;
@@ -1206,12 +1210,10 @@ export function Layout() {
 
                         {/* Provider Show More: unified list of residents + user-moved items */}
                         {isProviderPlan && (() => {
-                          const providerDefaultResidents = ['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm']
-                            .filter(k => !(k === 'prescriptions' && aiScribePrescriptionPref === 'no'));
-                          const providerMainNavKeys = visibleItems(providerItemOrder);
+                          const providerDefaultResidents = ['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn'];
                           const providerShowMoreKeys = [...new Set([
-                            ...providerDefaultResidents.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreProvider.includes(k) && !providerMainNavKeys.includes(k)),
-                            ...userShowMoreProvider.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !providerMainNavKeys.includes(k)),
+                            ...providerDefaultResidents.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreProvider.includes(k) && !mainNavKeys.has(k)),
+                            ...userShowMoreProvider.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !mainNavKeys.has(k)),
                           ])];
                           return providerShowMoreKeys.map(k => (
                             <div key={k}>{renderEHRItem(k)}</div>
@@ -1237,10 +1239,8 @@ export function Layout() {
                             ))}
                             {/* Unified hideable residents + user-moved items */}
                             {(() => {
-                              const transcriberMainNavKeys = visibleItems(transcriberItemOrder);
                               const transcriberShowMoreKeys = [...new Set([
-                                ...(['resources', 'ai-crm'].filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreTranscriber.includes(k) && !transcriberMainNavKeys.includes(k))),
-                                ...userShowMoreTranscriber.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !transcriberMainNavKeys.includes(k)),
+                                ...userShowMoreTranscriber.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !mainNavKeys.has(k)),
                               ])];
                               return transcriberShowMoreKeys.map(k => (
                                 <div key={k}>{renderTranscriberItem(k)}</div>
@@ -1251,13 +1251,11 @@ export function Layout() {
 
                         {/* EHR: unified default residents + user-moved items */}
                         {!isTranscriberOnly && !isProviderPlan && (() => {
-                          const ehrMainNavKeys = visibleItems(ehrItemOrder);
-                          const ehrDefaultResidents = aiScribePrescriptionPref === "full"
-                            ? ['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm']
-                            : ['resources', 'ai-crm'];
+                          const ehrDefaultResidents = ['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']
+                            .filter(k => !(k === 'prescriptions' && aiScribePrescriptionPref === 'no'));
                           const ehrShowMoreKeys = [...new Set([
-                            ...ehrDefaultResidents.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreEhr.includes(k) && !ehrMainNavKeys.includes(k)),
-                            ...userShowMoreEhr.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !ehrMainNavKeys.includes(k)),
+                            ...ehrDefaultResidents.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreEhr.includes(k) && !mainNavKeys.has(k)),
+                            ...userShowMoreEhr.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !mainNavKeys.has(k)),
                           ])];
                           return ehrShowMoreKeys.map(k => (
                             <div key={k}>{renderEHRItem(k)}</div>

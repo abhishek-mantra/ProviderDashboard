@@ -309,7 +309,11 @@ export function Tasks() {
 
               {/* Tasks */}
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {todayTasks.map((task, index) => {
+                {todayTasks.length === 0 ? (
+                  <div className="px-3 md:px-6 py-12 text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No tasks for today. Check back soon!</p>
+                  </div>
+                ) : todayTasks.map((task, index) => {
                   const getIconColor = (color: string) => {
                     switch (color) {
                       case 'orange':
@@ -444,7 +448,11 @@ export function Tasks() {
 
           {/* Journey Items */}
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {journeyTasks.map((item, index) => (
+            {journeyTasks.length === 0 ? (
+              <div className="px-3 md:px-6 py-12 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">No journey items yet. Complete activities to see them here!</p>
+              </div>
+            ) : journeyTasks.map((item, index) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0 }}

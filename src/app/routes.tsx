@@ -43,7 +43,6 @@ import { AICRM } from "./pages/AICRM";
 import { Tools } from "./pages/Tools";
 import { Settings } from "./pages/Settings";
 import { SettingsOrganization } from "./pages/SettingsOrganization";
-import { SettingsBilling } from "./pages/SettingsBilling";
 import { SettingsBillingPlans } from "./pages/SettingsBillingPlans";
 import { SettingsBillingPayments } from "./pages/SettingsBillingPayments";
 import { SettingsBillingCreditUsage } from "./pages/SettingsBillingCreditUsage";
@@ -154,8 +153,7 @@ export const router = createBrowserRouter([
       { path: "ai-transcriber-demo", element: <AITranscriberDemo /> },
       { path: "view-transcription/:transcriptionId", element: <ViewTranscription /> },
       { path: "view-transcription/:transcriptionId/note/:noteId", element: <ViewTranscriptionNote /> },
-      { path: "view-transcript/:transcriptionId", element: <ViewTranscription /> },
-      { path: "view-transcript/:transcriptionId/note/:noteId", element: <ViewTranscriptionNote /> },
+
       { path: "prescriptions", element: <Prescriptions /> },
       { path: "prescription/:id", element: <PrescriptionDetail /> },
       { path: "add-prescription", element: <CreatePrescription /> },
@@ -176,7 +174,7 @@ export const router = createBrowserRouter([
               throw new Response("", {
                 status: 302,
                 headers: {
-                  Location: "/settings/availability"
+                  Location: "/settings/organization"
                 }
               });
             }
@@ -192,13 +190,6 @@ export const router = createBrowserRouter([
           { path: "integrations", element: <SettingsIntegrations /> },
 { path: "audit-logs", element: <SettingsAuditLogs /> },
           { path: "security", element: <SettingsSecurity /> },
-          // Legacy routes for backwards compatibility
-          { path: "availability", element: <Availability /> },
-          { path: "practice-details", element: <PracticeDetails /> },
-          { path: "admin-dashboard", element: <AdminDashboard /> },
-          { path: "care-team", element: <CareTeamManager /> },
-          { path: "notifications", element: <Notifications /> },
-          { path: "billing", element: <SettingsBilling /> },
         ]
       },
       { path: "mantra-provider", element: <MantraProviderPage /> },

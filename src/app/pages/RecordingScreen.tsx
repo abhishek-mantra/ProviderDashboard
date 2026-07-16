@@ -343,7 +343,7 @@ export function RecordingScreen() {
   const handleModalSave = () => {
     setShowModal(false);
     const newId = `trans-${Date.now()}`;
-    navigate(`/view-transcript/${newId}`);
+    navigate(`/view-transcription/${newId}`);
   };
 
   const isPaused = recordingState === "paused";

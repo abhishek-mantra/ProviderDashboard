@@ -16,9 +16,9 @@ export function Settings() {
   };
 
   const navItems = [
-    { path: "/availability", label: "Availability", icon: Calendar },
-    { path: "/practice-details", label: "Practice Details", icon: Building2 },
-    { path: "/notifications", label: "Notifications", icon: Bell },
+    { path: "/settings/availability", label: "Availability", icon: Calendar },
+    { path: "/settings/practice-details", label: "Practice Details", icon: Building2 },
+    { path: "/settings/notifications", label: "Notifications", icon: Bell },
     { path: "/settings/billing/plans", label: "Subscription", icon: CreditCard },
   ];
 

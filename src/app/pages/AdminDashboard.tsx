@@ -633,7 +633,7 @@ export function AdminDashboard() {
             </div>
             {listingHealthScore < 100 && (
               <button
-                onClick={() => navigate("/practice-details")}
+                onClick={() => navigate("/settings/practice-details")}
                 className="mt-4 w-full text-center text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium"
               >
                 Complete your listing →

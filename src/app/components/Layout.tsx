@@ -928,7 +928,7 @@ export function Layout() {
             // Show More residents per mode (items that live in Show More, not main nav)
             const providerShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']);
             const ehrShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']);
-            const transcriberShowMoreResidents = new Set(['prescriptions', 'resources', 'ai-crm', 'refer-earn']);
+            const transcriberShowMoreResidents = new Set(['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn']);
 
             const normalItems = isTranscriberOnly
               ? order.filter(k => !hiddenItems.includes(k) || transciberForcedVisible.has(k))
@@ -956,7 +956,7 @@ export function Layout() {
               const hiddenConfigKeys: string[] = [];
 
               if (isProviderPlan) {
-                (['ai-transcriber', 'session-notes', 'prescriptions'] as const).forEach(k => {
+                providerShowMoreResidents.forEach(k => {
                   if (k === 'prescriptions' && aiScribePrescriptionPref === 'no') return;
                   if (showMorePromoted.includes(k)) return;
                   if (mainConfigKeys.includes(k)) return;
@@ -1239,7 +1239,9 @@ export function Layout() {
                             ))}
                             {/* Unified hideable residents + user-moved items */}
                             {(() => {
+                              const transcriberDefaultResidents = ['ai-transcriber', 'session-notes', 'prescriptions', 'resources', 'ai-crm', 'refer-earn'];
                               const transcriberShowMoreKeys = [...new Set([
+                                ...transcriberDefaultResidents.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !userShowMoreTranscriber.includes(k) && !mainNavKeys.has(k)),
                                 ...userShowMoreTranscriber.filter(k => !hiddenItems.includes(k) && !showMorePromoted.includes(k) && !mainNavKeys.has(k)),
                               ])];
                               return transcriberShowMoreKeys.map(k => (

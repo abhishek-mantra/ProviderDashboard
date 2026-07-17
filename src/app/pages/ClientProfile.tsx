@@ -421,7 +421,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
         </div>
 
         {/* Full EHR Plan - Original 11 Actions */}
-        {planMode === "full-ehr" && (
+        {(planMode === "full-ehr" || planMode === "provider") && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
             {visibleActionButtons
               .filter((_, index) => {

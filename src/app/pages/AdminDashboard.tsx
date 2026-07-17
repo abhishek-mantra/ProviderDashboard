@@ -26,6 +26,7 @@ import {
   UserCircle2,
   Briefcase,
   Send,
+  Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -88,9 +89,12 @@ export function AdminDashboard() {
     getCurrentEstablishment,
     clients,
     clientTreatingProviders,
+    offboardMember,
   } = usePartnerDashboard();
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [confirmOffboardId, setConfirmOffboardId] = useState<string | null>(null);
+  const [showTeamManageModal, setShowTeamManageModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [sendInvite, setSendInvite] = useState(true);
   const [formData, setFormData] = useState({
@@ -728,7 +732,7 @@ export function AdminDashboard() {
                 </span>
               </div>
               <button
-                onClick={() => setShowAddMemberModal(true)}
+                onClick={() => document.getElementById("team-members-section")?.scrollIntoView({ behavior: "smooth" })}
                 className="text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium flex items-center gap-1"
               >
                 View All <ChevronRight className="size-4" />
@@ -768,23 +772,24 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              All Team Members
-            </h3>
-            <button
-              onClick={() => setShowAddMemberModal(true)}
-              className="text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium flex items-center gap-1"
-            >
-              Manage <ChevronRight className="size-4" />
-            </button>
-          </div>
+         <motion.div
+           id="team-members-section"
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.45 }}
+           className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm"
+         >
+           <div className="flex items-center justify-between mb-4">
+             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+               All Team Members
+             </h3>
+             <button
+               onClick={() => setShowTeamManageModal(true)}
+               className="text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium flex items-center gap-1"
+             >
+               Manage <ChevronRight className="size-4" />
+             </button>
+           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b border-gray-200 dark:border-gray-700">
@@ -897,13 +902,11 @@ export function AdminDashboard() {
                       <td className="px-3 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() =>
-                              setShowAddMemberModal(true)
-                            }
-                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors group"
-                            title="Manage Team"
+                            onClick={() => setConfirmOffboardId(member.providerId)}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors group"
+                            title="Remove from team"
                           >
-                            <Users className="size-4 text-gray-400 group-hover:text-[#00c0ff]" />
+                            <Users className="size-4 text-gray-400 group-hover:text-red-500" />
                           </button>
                         </div>
                       </td>
@@ -1145,6 +1148,160 @@ export function AdminDashboard() {
                       className="flex-1 bg-[#4169E1] hover:bg-[#3557c7] text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
                     >
                       Upgrade Plan
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {confirmOffboardId && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setConfirmOffboardId(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 text-center">
+                  <div className="size-14 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="size-7 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Remove team member?
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                    This will offboard this provider from your establishment. Their clients will need to be reassigned.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setConfirmOffboardId(null)}
+                      className="flex-1 px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        offboardMember(confirmOffboardId);
+                        setConfirmOffboardId(null);
+                      }}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showTeamManageModal && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowTeamManageModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 z-10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 bg-[#043570]/10 rounded-xl flex items-center justify-center">
+                        <Users className="size-5 text-[#043570]" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Manage Team
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {establishmentMembers.length} team member{establishmentMembers.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowTeamManageModal(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      <X className="size-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+                  <div className="space-y-3">
+                    {establishmentMembers.map((member) => {
+                      const provider = providers.find((p) => p.id === member.providerId);
+                      if (!provider) return null;
+                      return (
+                        <div
+                          key={member.providerId}
+                          className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="size-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm shrink-0">
+                              {provider.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                  {provider.name}
+                                </p>
+                                {member.roles.isAdmin && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shrink-0">
+                                    Admin
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {provider.profession} · {member.roles.clinical || "No role"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`px-2 py-1 rounded-lg text-[11px] font-medium ${
+                              member.memberStatus === "active"
+                                ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                                : member.memberStatus === "verification-pending"
+                                ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                            }`}>
+                              {member.memberStatus.replace("-", " ")}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setConfirmOffboardId(member.providerId);
+                              }}
+                              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-gray-400 hover:text-red-500"
+                              title="Remove from team"
+                            >
+                              <UserX className="size-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => {
+                        setShowTeamManageModal(false);
+                        setShowAddMemberModal(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl transition-colors font-medium text-sm"
+                    >
+                      <Plus className="size-4" />
+                      Add Team Member
                     </button>
                   </div>
                 </div>

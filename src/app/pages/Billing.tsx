@@ -16,12 +16,14 @@ import { BankInfo } from "./BankInfo";
 import { TaxInfo } from "./TaxInfo";
 import { InsurancePage } from "./InsurancePage";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { usePlanMode } from "../contexts/PlanModeContext";
 import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST, PLAN_TIER_LIMITS } from "../types/partnerDashboard";
 
 export function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
   const { getCurrentEstablishment, isCurrentUserAdmin, providers, members, clients, currentProviderId, clientTreatingProviders } = usePartnerDashboard();
+  const { planMode } = usePlanMode();
   const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "insurance" | "banktax">(
     (location.state as any)?.tab || "earnings"
   );
@@ -46,8 +48,10 @@ export function Billing() {
     due: 620,
   };
 
-  // Mantra clients assigned to the current provider
-  const myMantraClients = clients.filter((c) => clientTreatingProviders[c.id] === currentProviderId);
+  // Mantra clients assigned to the current provider (only if their planMode is "provider")
+  const myMantraClients = currentProvider?.planMode === "provider"
+    ? clients.filter((c) => clientTreatingProviders[c.id] === currentProviderId)
+    : [];
   const mantraClientCount = myMantraClients.length;
   const mantraRevenue = {
     totalBilled: mantraClientCount * 320,
@@ -55,6 +59,25 @@ export function Billing() {
     paid: Math.floor(mantraClientCount * 320 * 0.7 * 0.85),
     pending: Math.floor(mantraClientCount * 320 * 0.7 * 0.15),
   };
+
+  // Aggregate mantra revenue across all providers in the establishment (for admin view)
+  const aggregateMantraRevenue = useMemo(() => {
+    const active = establishmentMembers.filter((m) => m.memberStatus === "active");
+    let totalBilled = 0, totalShare = 0, totalPaid = 0, totalPending = 0;
+    let providerCount = 0;
+    for (const member of active) {
+      const p = providers.find((pr) => pr.id === member.providerId);
+      if (p?.planMode !== "provider") continue;
+      const cnt = clients.filter((c) => clientTreatingProviders[c.id] === p.id).length;
+      if (cnt === 0) continue;
+      totalBilled += cnt * 320;
+      totalShare += Math.floor(cnt * 320 * 0.7);
+      totalPaid += Math.floor(cnt * 320 * 0.7 * 0.85);
+      totalPending += Math.floor(cnt * 320 * 0.7 * 0.15);
+      providerCount++;
+    }
+    return { totalBilled, yourShare: totalShare, paid: totalPaid, pending: totalPending, providerCount };
+  }, [establishmentMembers, providers, clients, clientTreatingProviders]);
 
   // MantraCare Platform Billing - establishment level, from PLAN_TIER_PRICING
   const planTier = establishment?.planTier as keyof typeof PLAN_TIER_PRICING || "GROWTH";
@@ -396,31 +419,33 @@ export function Billing() {
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white mb-6 md:mb-8">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="size-5 text-[#00c0ff]" />
-                        <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
+                    {aggregateMantraRevenue.yourShare > 0 && (
+                      <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white mb-6 md:mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Building2 className="size-5 text-[#00c0ff]" />
+                          <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
+                        </div>
+                        <p className="text-3xl md:text-4xl font-bold">${aggregateMantraRevenue.yourShare.toLocaleString()}</p>
+                        <p className="text-white/80 text-xs md:text-sm mt-1">Total share across {aggregateMantraRevenue.providerCount} Mantra provider{aggregateMantraRevenue.providerCount !== 1 ? "s" : ""} this month</p>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Total Billed</p>
+                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.totalBilled.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Paid</p>
+                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.paid.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Pending</p>
+                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.pending.toLocaleString()}</p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-3xl md:text-4xl font-bold">${mantraRevenue.yourShare.toLocaleString()}</p>
-                      <p className="text-white/80 text-xs md:text-sm mt-1">Your share from {mantraClientCount} Mantra client{mantraClientCount !== 1 ? "s" : ""} this month</p>
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Total Billed</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.totalBilled.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Paid</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.paid.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Pending</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.pending.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+                  <div className={`grid grid-cols-1 ${planMode === "provider" ? "md:grid-cols-2" : ""} gap-4 md:gap-6 mb-6 md:mb-8`}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
                       <div className="flex items-center gap-2 mb-3">
                         <User className="size-5 text-green-500" />
@@ -439,28 +464,30 @@ export function Billing() {
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="size-5 text-[#00c0ff]" />
-                        <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
+                    {planMode === "provider" && (
+                      <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Building2 className="size-5 text-[#00c0ff]" />
+                          <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
+                        </div>
+                        <p className="text-3xl md:text-4xl font-bold">${mantraRevenue.yourShare.toLocaleString()}</p>
+                        <p className="text-white/80 text-xs md:text-sm mt-1">Your share from {mantraClientCount} Mantra client{mantraClientCount !== 1 ? "s" : ""} this month</p>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Total Billed</p>
+                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.totalBilled.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Paid</p>
+                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.paid.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white/10 rounded-xl p-2.5">
+                            <p className="text-xs text-white/70">Pending</p>
+                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.pending.toLocaleString()}</p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-3xl md:text-4xl font-bold">${mantraRevenue.yourShare.toLocaleString()}</p>
-                      <p className="text-white/80 text-xs md:text-sm mt-1">Your share from {mantraClientCount} Mantra client{mantraClientCount !== 1 ? "s" : ""} this month</p>
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Total Billed</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.totalBilled.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Paid</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.paid.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Pending</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.pending.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 

@@ -58,7 +58,7 @@ function computeAggregateBilling(
       ? clients.filter((c) => clientTreatingProviders[c.id] === provider.id)
       : [];
     const mantraCount = mantraClients.length;
-    const mantraEarned = Math.floor(mantraCount * 320 * 0.7);
+    const mantraEarned = provider?.planMode === "provider" ? Math.floor(mantraCount * 320 * 0.7) : 0;
     return {
       providerId: member.providerId,
       earned: baseEarned,
@@ -72,6 +72,84 @@ function computeAggregateBilling(
   const totalDue = perMember.reduce((sum, m) => sum + m.due, 0);
   const totalMantra = perMember.reduce((sum, m) => sum + m.mantraEarned, 0);
   return { totalEarned, totalReceived, totalDue, totalMantra, perMember };
+}
+
+function ManageSuperviseesForm({
+  supervisorMember,
+  activeClinicians,
+  providers,
+  onSave,
+  onCancel,
+}: {
+  supervisorMember: EstablishmentMember | undefined;
+  activeClinicians: EstablishmentMember[];
+  providers: typeof mockProviders;
+  onSave: (selectedIds: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(() => supervisorMember?.supervises || []);
+
+  const toggle = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+      {activeClinicians.length === 0 ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+          No active Clinicians in this establishment.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {activeClinicians.map((cm) => {
+            const p = providers.find((pr) => pr.id === cm.providerId);
+            if (!p) return null;
+            const isChecked = selected.includes(cm.providerId);
+            return (
+              <label
+                key={cm.providerId}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                  isChecked
+                    ? "border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/10"
+                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggle(cm.providerId)}
+                  className="size-4 accent-purple-600 rounded"
+                />
+                <div className="size-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-xs shrink-0">
+                  {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{p.profession}</p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm text-gray-700 dark:text-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(selected)}
+          className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm"
+        >
+          Save ({selected.length} selected)
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function AdminDashboard() {
@@ -90,11 +168,13 @@ export function AdminDashboard() {
     clients,
     clientTreatingProviders,
     offboardMember,
+    updateMember,
   } = usePartnerDashboard();
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [confirmOffboardId, setConfirmOffboardId] = useState<string | null>(null);
   const [showTeamManageModal, setShowTeamManageModal] = useState(false);
+  const [manageSuperviseesFor, setManageSuperviseesFor] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [sendInvite, setSendInvite] = useState(true);
   const [formData, setFormData] = useState({
@@ -566,7 +646,7 @@ export function AdminDashboard() {
                 Aggregate Billing
               </h3>
             </div>
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-3 gap-3 mb-4" style={aggregateBilling.totalMantra > 0 ? { gridTemplateColumns: "1fr 1fr 1fr 1fr" } : {}}>
               <div className="text-center p-3 bg-green-50 dark:bg-green-900/10 rounded-xl">
                 <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Earned</p>
                 <p className="text-lg font-bold text-green-800 dark:text-green-300">${aggregateBilling.totalEarned.toLocaleString()}</p>
@@ -579,36 +659,45 @@ export function AdminDashboard() {
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">Due</p>
                 <p className="text-lg font-bold text-amber-800 dark:text-amber-300">${aggregateBilling.totalDue.toLocaleString()}</p>
               </div>
-              <div className="text-center p-3 bg-[#043570]/10 dark:bg-[#043570]/20 rounded-xl">
-                <p className="text-xs text-[#043570] dark:text-[#00c0ff] font-medium mb-1">Mantra</p>
-                <p className="text-lg font-bold text-[#043570] dark:text-[#00c0ff]">${aggregateBilling.totalMantra.toLocaleString()}</p>
-              </div>
+              {aggregateBilling.totalMantra > 0 && (
+                <div className="text-center p-3 bg-[#043570]/10 dark:bg-[#043570]/20 rounded-xl">
+                  <p className="text-xs text-[#043570] dark:text-[#00c0ff] font-medium mb-1">Mantra</p>
+                  <p className="text-lg font-bold text-[#043570] dark:text-[#00c0ff]">${aggregateBilling.totalMantra.toLocaleString()}</p>
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Provider</th>
-                    <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Earned</th>
-                    <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Received</th>
-                    <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Due</th>
-                    <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Mantra</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-750">
-                  {aggregateBilling.perMember.map((row) => {
-                    const p = providers.find((pp) => pp.id === row.providerId);
-                    return (
-                      <tr key={row.providerId}>
-                        <td className="py-2 text-gray-900 dark:text-white font-medium">{p?.name || row.providerId}</td>
-                        <td className="py-2 text-right text-green-600 dark:text-green-400">${row.earned.toLocaleString()}</td>
-                        <td className="py-2 text-right text-blue-600 dark:text-blue-400 hidden sm:table-cell">${row.received.toLocaleString()}</td>
-                        <td className="py-2 text-right text-amber-600 dark:text-amber-400">${row.due.toLocaleString()}</td>
-                        <td className="py-2 text-right text-[#043570] dark:text-[#00c0ff]">${row.mantraEarned.toLocaleString()}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+                {(() => {
+                  const hasMantra = aggregateBilling.perMember.some(r => r.mantraEarned > 0);
+                  return (
+                    <>
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Provider</th>
+                          <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Earned</th>
+                          <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Received</th>
+                          <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Due</th>
+                          {hasMantra && <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Mantra</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-750">
+                        {aggregateBilling.perMember.map((row) => {
+                          const p = providers.find((pp) => pp.id === row.providerId);
+                          return (
+                            <tr key={row.providerId}>
+                              <td className="py-2 text-gray-900 dark:text-white font-medium">{p?.name || row.providerId}</td>
+                              <td className="py-2 text-right text-green-600 dark:text-green-400">${row.earned.toLocaleString()}</td>
+                              <td className="py-2 text-right text-blue-600 dark:text-blue-400 hidden sm:table-cell">${row.received.toLocaleString()}</td>
+                              <td className="py-2 text-right text-amber-600 dark:text-amber-400">${row.due.toLocaleString()}</td>
+                              {hasMantra && <td className="py-2 text-right text-[#043570] dark:text-[#00c0ff]">${row.mantraEarned.toLocaleString()}</td>}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </>
+                  );
+                })()}
               </table>
             </div>
           </motion.div>
@@ -1269,6 +1358,15 @@ export function AdminDashboard() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
+                            {member.roles.clinical === "Supervisor" && member.memberStatus === "active" && (
+                              <button
+                                onClick={() => setManageSuperviseesFor(member.providerId)}
+                                className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors whitespace-nowrap"
+                                title="Manage supervisees"
+                              >
+                                {member.supervises.length} supervisee{member.supervises.length !== 1 ? "s" : ""}
+                              </button>
+                            )}
                             <span className={`px-2 py-1 rounded-lg text-[11px] font-medium ${
                               member.memberStatus === "active"
                                 ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
@@ -1308,6 +1406,66 @@ export function AdminDashboard() {
               </motion.div>
             </div>
           )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {manageSuperviseesFor && (() => {
+            const supervisorMember = members.find(
+              (m) => m.providerId === manageSuperviseesFor && m.establishmentId === currentEstablishmentId
+            );
+            const supervisorProvider = providers.find((p) => p.id === manageSuperviseesFor);
+            const activeClinicians = establishmentMembers.filter(
+              (m) => m.roles.clinical === "Clinician" && m.memberStatus === "active"
+            );
+            return (
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+                onClick={() => setManageSuperviseesFor(null)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 z-10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center">
+                          <Shield className="size-5 text-purple-700 dark:text-purple-300" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            Assign Supervisees
+                          </h2>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {supervisorProvider?.name || manageSuperviseesFor}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setManageSuperviseesFor(null)}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <ManageSuperviseesForm
+                    supervisorMember={supervisorMember}
+                    activeClinicians={activeClinicians}
+                    providers={providers}
+                    onSave={(selectedIds) => {
+                      updateMember(manageSuperviseesFor, { supervises: selectedIds });
+                      setManageSuperviseesFor(null);
+                    }}
+                    onCancel={() => setManageSuperviseesFor(null)}
+                  />
+                </motion.div>
+              </div>
+            );
+          })()}
         </AnimatePresence>
     </PageContainer>
   );

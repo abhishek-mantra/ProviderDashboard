@@ -696,6 +696,41 @@ function OverviewContent({ autoOpenPlans = false }: { autoOpenPlans?: boolean })
         </div>
       </div>
 
+      {/* Credit Pricing Reference */}
+      <div className="bg-white dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="size-4 text-[#14B8A6]" />
+          <h3 className="text-[14px] font-semibold text-[#111827] dark:text-white">Credit Pricing</h3>
+        </div>
+        <div className="space-y-3">
+          {[
+            { icon: Zap, color: "#14B8A6", bg: "#CCFBF1", name: "AI Transcriber", cost: "5 credits", desc: "Transcribe session audio into text automatically." },
+            { icon: FileText, color: "#1E40AF", bg: "#DBEAFE", name: "AI-Assisted Session Notes", cost: "3 credits", desc: "Auto-generate structured session notes from transcripts." },
+            { icon: Pill, color: "#15803D", bg: "#DCFCE7", name: "AI Prescription", cost: "2 credits", desc: "Generate AI-powered prescription drafts from session context." },
+            { icon: Bell, color: "#7C3AED", bg: "#EDE9FE", name: "AI CRM", cost: "2 credits", desc: "Generate client communication drafts with AI." },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.name}>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="size-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: item.bg }}
+                  >
+                    <Icon className="size-4" style={{ color: item.color }} />
+                  </div>
+                  <span className="text-[13px] font-medium text-[#111827] dark:text-white flex-1">{item.name}</span>
+                  <span className="text-[11px] font-semibold text-[#14B8A6] bg-[#F0FDFA] dark:bg-[#14B8A6]/10 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    {item.cost}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#6B7280] dark:text-gray-400 mt-0.5 ml-11">{item.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Available Plans */}
       <div id="available-plans" className="bg-white dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 rounded-xl p-5">
         <button

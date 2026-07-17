@@ -10,7 +10,7 @@ export const mockProviders: Provider[] = [
     credentialExpiresAt: "2026-08-05T00:00:00Z",
     rating: 4.8,
     verificationStatus: "verified",
-    planMode: "full-ehr",
+    planMode: "provider",
   },
   {
     id: "prov-2",
@@ -30,7 +30,7 @@ export const mockProviders: Provider[] = [
     credentialExpiresAt: "2026-06-15T00:00:00Z",
     rating: 4.7,
     verificationStatus: "verified",
-    planMode: "full-ehr",
+    planMode: "provider",
   },
   {
     id: "prov-4",

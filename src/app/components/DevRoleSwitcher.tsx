@@ -100,9 +100,20 @@ export function DevRoleSwitcher() {
                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                           {provider.name}
                         </p>
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                          {provider.profession}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {provider.profession}
+                          </p>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
+                            provider.planMode === "provider"
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                              : provider.planMode === "ai-scribe"
+                              ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+                              : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                          }`}>
+                            {provider.planMode === "provider" ? "Mantra" : provider.planMode === "ai-scribe" ? "AI" : "EHR"}
+                          </span>
+                        </div>
                       </div>
                       {currentProviderId === provider.id && (
                         <RefreshCw className="size-3.5 text-[#00c0ff] animate-spin" />
@@ -157,18 +168,18 @@ export function DevRoleSwitcher() {
                     }`}
                   >
                     <Crown className="size-3.5" />
-                    Full EHR
+                    Only EHR
                   </button>
                   <button
                     onClick={() => setPlanMode("provider")}
                     className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
                       planMode === "provider"
-                        ? "bg-[#7C3AED] text-white shadow-sm"
+                        ? "bg-[#7C3AED] text-white shadow-sm ring-1 ring-[#7C3AED]/40"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
-                    <Sparkles className="size-3.5" />
-                    Provider
+                    <Crown className="size-3.5" />
+                    Mantra Provider
                   </button>
                   <button
                     onClick={() => setPlanMode("transcriber-only")}
@@ -179,7 +190,7 @@ export function DevRoleSwitcher() {
                     }`}
                   >
                     <Brain className="size-3.5" />
-                    AI Scribe
+                    AI Transcriber
                   </button>
                 </div>
               </div>

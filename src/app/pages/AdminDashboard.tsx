@@ -39,26 +39,38 @@ import {
   PLAN_TIER_PRICING,
   getCredentialExpiryStatus,
 } from "../types/partnerDashboard";
-import type { EstablishmentMember } from "../types/partnerDashboard";
+import type { EstablishmentMember, MockClient } from "../types/partnerDashboard";
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-function computeAggregateBilling(establishmentMembers: EstablishmentMember[], providers: typeof mockProviders) {
+function computeAggregateBilling(
+  establishmentMembers: EstablishmentMember[],
+  providers: typeof mockProviders,
+  clients: MockClient[],
+  clientTreatingProviders: Record<string, string>,
+) {
   const activeMembers = establishmentMembers.filter((m) => m.memberStatus === "active");
   const perMember = activeMembers.map((member) => {
     const provider = providers.find((p) => p.id === member.providerId);
     const baseEarned = provider ? Math.floor(Math.random() * 10000) + 8000 : 0;
+    const mantraClients = provider
+      ? clients.filter((c) => clientTreatingProviders[c.id] === provider.id)
+      : [];
+    const mantraCount = mantraClients.length;
+    const mantraEarned = Math.floor(mantraCount * 320 * 0.7);
     return {
       providerId: member.providerId,
       earned: baseEarned,
       received: Math.floor(baseEarned * (0.7 + Math.random() * 0.2)),
       due: Math.floor(baseEarned * (0.1 + Math.random() * 0.2)),
+      mantraEarned,
     };
   });
   const totalEarned = perMember.reduce((sum, m) => sum + m.earned, 0);
   const totalReceived = perMember.reduce((sum, m) => sum + m.received, 0);
   const totalDue = perMember.reduce((sum, m) => sum + m.due, 0);
-  return { totalEarned, totalReceived, totalDue, perMember };
+  const totalMantra = perMember.reduce((sum, m) => sum + m.mantraEarned, 0);
+  return { totalEarned, totalReceived, totalDue, totalMantra, perMember };
 }
 
 export function AdminDashboard() {
@@ -74,6 +86,8 @@ export function AdminDashboard() {
     currentEstablishmentId,
     isCurrentUserAdmin,
     getCurrentEstablishment,
+    clients,
+    clientTreatingProviders,
   } = usePartnerDashboard();
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -182,7 +196,7 @@ export function AdminDashboard() {
   }));
 
   // Computed aggregate billing from live member/provider data
-  const aggregateBilling = computeAggregateBilling(establishmentMembers, providers);
+  const aggregateBilling = computeAggregateBilling(establishmentMembers, providers, clients, clientTreatingProviders);
 
   const handleAddMember = () => {
     if (!currentEstablishmentId) return;
@@ -548,7 +562,7 @@ export function AdminDashboard() {
                 Aggregate Billing
               </h3>
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               <div className="text-center p-3 bg-green-50 dark:bg-green-900/10 rounded-xl">
                 <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Earned</p>
                 <p className="text-lg font-bold text-green-800 dark:text-green-300">${aggregateBilling.totalEarned.toLocaleString()}</p>
@@ -561,6 +575,10 @@ export function AdminDashboard() {
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">Due</p>
                 <p className="text-lg font-bold text-amber-800 dark:text-amber-300">${aggregateBilling.totalDue.toLocaleString()}</p>
               </div>
+              <div className="text-center p-3 bg-[#043570]/10 dark:bg-[#043570]/20 rounded-xl">
+                <p className="text-xs text-[#043570] dark:text-[#00c0ff] font-medium mb-1">Mantra</p>
+                <p className="text-lg font-bold text-[#043570] dark:text-[#00c0ff]">${aggregateBilling.totalMantra.toLocaleString()}</p>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -570,6 +588,7 @@ export function AdminDashboard() {
                     <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Earned</th>
                     <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 hidden sm:table-cell">Received</th>
                     <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Due</th>
+                    <th className="text-right py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Mantra</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-750">
@@ -581,6 +600,7 @@ export function AdminDashboard() {
                         <td className="py-2 text-right text-green-600 dark:text-green-400">${row.earned.toLocaleString()}</td>
                         <td className="py-2 text-right text-blue-600 dark:text-blue-400 hidden sm:table-cell">${row.received.toLocaleString()}</td>
                         <td className="py-2 text-right text-amber-600 dark:text-amber-400">${row.due.toLocaleString()}</td>
+                        <td className="py-2 text-right text-[#043570] dark:text-[#00c0ff]">${row.mantraEarned.toLocaleString()}</td>
                       </tr>
                     );
                   })}

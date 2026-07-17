@@ -21,7 +21,7 @@ import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST, PLAN_TIER_LIMITS } from "../ty
 export function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getCurrentEstablishment, isCurrentUserAdmin, providers, members, clients, currentProviderId, clientTreatingProviders } = usePartnerDashboard();
+  const { getCurrentEstablishment, isCurrentUserAdmin, providers, members, clients, currentProviderId } = usePartnerDashboard();
   const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "insurance" | "banktax">(
     (location.state as any)?.tab || "earnings"
   );
@@ -44,16 +44,6 @@ export function Billing() {
     earned: 4820,
     received: 4200,
     due: 620,
-  };
-
-  // Mantra clients assigned to the current provider
-  const myMantraClients = clients.filter((c) => clientTreatingProviders[c.id] === currentProviderId);
-  const mantraClientCount = myMantraClients.length;
-  const mantraRevenue = {
-    totalBilled: mantraClientCount * 320,
-    yourShare: Math.floor(mantraClientCount * 320 * 0.7),
-    paid: Math.floor(mantraClientCount * 320 * 0.7 * 0.85),
-    pending: Math.floor(mantraClientCount * 320 * 0.7 * 0.15),
   };
 
   // MantraCare Platform Billing - establishment level, from PLAN_TIER_PRICING
@@ -345,7 +335,7 @@ export function Billing() {
           <>
             {earningsSubTab === "earnings" && (
               <>
-                {/* Billing Overview — Admin gets Platform + Personal; Provider gets Personal + Mantra Revenue */}
+                {/* Billing Overview — Admin gets Platform + Personal; Provider gets Personal only */}
                 {isCurrentUserAdmin && establishment ? (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
                     <div className="lg:col-span-2 bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
@@ -396,45 +386,21 @@ export function Billing() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
-                      <div className="flex items-center gap-2 mb-3">
-                        <User className="size-5 text-green-500" />
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Personal Earnings</h3>
-                      </div>
-                      <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">${personalEarnings.earned.toLocaleString()}</p>
-                      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">From your private clients</p>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3">
-                          <p className="text-xs text-green-600 dark:text-green-400">Received</p>
-                          <p className="text-base md:text-lg font-semibold text-green-800 dark:text-green-300">${personalEarnings.received.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3">
-                          <p className="text-xs text-amber-600 dark:text-amber-400">Due</p>
-                          <p className="text-base md:text-lg font-semibold text-amber-800 dark:text-amber-300">${personalEarnings.due.toLocaleString()}</p>
-                        </div>
-                      </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm mb-6 md:mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="size-5 text-green-500" />
+                      <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Personal Earnings</h3>
                     </div>
-                    <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="size-5 text-[#00c0ff]" />
-                        <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
+                    <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">${personalEarnings.earned.toLocaleString()}</p>
+                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">From your private clients</p>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3">
+                        <p className="text-xs text-green-600 dark:text-green-400">Received</p>
+                        <p className="text-base md:text-lg font-semibold text-green-800 dark:text-green-300">${personalEarnings.received.toLocaleString()}</p>
                       </div>
-                      <p className="text-3xl md:text-4xl font-bold">${mantraRevenue.yourShare.toLocaleString()}</p>
-                      <p className="text-white/80 text-xs md:text-sm mt-1">Your share from {mantraClientCount} Mantra client{mantraClientCount !== 1 ? "s" : ""} this month</p>
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Total Billed</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.totalBilled.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Paid</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.paid.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                          <p className="text-xs text-white/70">Pending</p>
-                          <p className="text-sm md:text-base font-semibold">${mantraRevenue.pending.toLocaleString()}</p>
-                        </div>
+                      <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3">
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Due</p>
+                        <p className="text-base md:text-lg font-semibold text-amber-800 dark:text-amber-300">${personalEarnings.due.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>

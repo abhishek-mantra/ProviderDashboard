@@ -173,9 +173,6 @@ export function AddSessionNote() {
   const navigate = useNavigate();
   const { id, sessionId } = useParams();
   const { canViewClientClinicalContent } = usePartnerDashboard();
-  if (id && !canViewClientClinicalContent(id)) {
-    return <div className="p-8 text-center text-gray-600 dark:text-gray-300">You do not have access to this client’s clinical notes.</div>;
-  }
   const [searchParams] = useSearchParams();
   const { isFromTranscriber: isFromTranscriberHook } = useTranscriberPrefill();
 
@@ -194,6 +191,10 @@ export function AddSessionNote() {
   useEffect(() => {
     setFieldValues({});
   }, [selectedTemplate]);
+
+  if (id && !canViewClientClinicalContent(id)) {
+    return <div className="p-8 text-center text-gray-600 dark:text-gray-300">You do not have access to this client’s clinical notes.</div>;
+  }
 
   const handleFillWithAI = () => {
     if (!selectedTemplate) return;

@@ -87,11 +87,7 @@ export function SessionNotes() {
 
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
 
-  if (!canViewNotes) {
-    return <div className="p-8 text-center text-gray-600 dark:text-gray-300">You do not have access to this client’s clinical notes.</div>;
-  }
-
-  // Recording timer effect
+  // Recording timer effect — must be before early return
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isRecording) {
@@ -107,6 +103,10 @@ export function SessionNotes() {
       if (interval) clearInterval(interval);
     };
   }, [isRecording, recordingTime, recordingSaved]);
+
+  if (!canViewNotes) {
+    return <div className="p-8 text-center text-gray-600 dark:text-gray-300">You do not have access to this client’s clinical notes.</div>;
+  }
 
   // Format recording time as MM:SS
   const formatRecordingTime = (seconds: number) => {

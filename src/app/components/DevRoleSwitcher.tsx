@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Code, ChevronDown, X, RefreshCw } from "lucide-react";
+import { Code, ChevronDown, X, RefreshCw, Crown, Brain, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { usePlanMode } from "../contexts/PlanModeContext";
 import { mockEstablishments } from "../data/mockPartnerData";
 
 export function DevRoleSwitcher() {
@@ -13,6 +14,7 @@ export function DevRoleSwitcher() {
     members,
     setCurrentEstablishmentId,
   } = usePartnerDashboard();
+  const { planMode, setPlanMode } = usePlanMode();
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -138,6 +140,47 @@ export function DevRoleSwitcher() {
                       </div>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">
+                  Plan Mode
+                </label>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setPlanMode("full-ehr")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      planMode === "full-ehr"
+                        ? "bg-[#043570] text-white shadow-sm"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Crown className="size-3.5" />
+                    Full EHR
+                  </button>
+                  <button
+                    onClick={() => setPlanMode("provider")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      planMode === "provider"
+                        ? "bg-[#7C3AED] text-white shadow-sm"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Sparkles className="size-3.5" />
+                    Provider
+                  </button>
+                  <button
+                    onClick={() => setPlanMode("transcriber-only")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      planMode === "transcriber-only"
+                        ? "bg-[#00c0ff] text-white shadow-sm"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Brain className="size-3.5" />
+                    AI Scribe
+                  </button>
                 </div>
               </div>
 

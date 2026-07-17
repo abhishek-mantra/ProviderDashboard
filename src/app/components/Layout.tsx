@@ -231,22 +231,11 @@ function UnlockEHRPopup({ onClose, onGetListed, onUpgradeEHR }: {
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { planMode, setPlanMode } = usePlanMode();
-  const { isCurrentUserAdmin, isCurrentUserSupervisor, providers, currentProviderId, currentEstablishmentId } = usePartnerDashboard();
+  const { planMode } = usePlanMode();
+  const { isCurrentUserAdmin, isCurrentUserSupervisor, providers, currentProviderId } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const providerName = currentProvider?.name || "John Wilson";
   const providerInitials = providerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-
-  // Sync planMode from the current provider's planMode on provider or establishment switch
-  useEffect(() => {
-    if (currentProvider?.planMode) {
-      const mapped = currentProvider.planMode === "ai-scribe" ? "transcriber-only" : currentProvider.planMode;
-      if (mapped !== planMode) {
-        setPlanMode(mapped as "full-ehr" | "transcriber-only" | "provider");
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProvider?.planMode, currentEstablishmentId]);
 
   const [isDark, setIsDark] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);

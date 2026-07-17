@@ -44,7 +44,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const id = clientId ?? routeId;
   const [clientType, setClientType] = useState<"Mantra" | "Personal" | "InactiveOnboarded">("Mantra");
   const [isMobileAppModalOpen, setIsMobileAppModalOpen] = useState(false);
-  const { planMode, setPlanMode } = usePlanMode();
+  const { planMode } = usePlanMode();
   const { canViewClientClinicalContent, providers } = usePartnerDashboard();
 
   // Mock client data - in real app this would come from API based on id
@@ -208,45 +208,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
             </div>
           </div>
 
-          {/* Plan Mode Toggle — hidden unless mantra_dev_mode flag is set */}
-          {localStorage.getItem("mantra_dev_mode") !== null && (
-            <div className="flex items-center gap-2 md:gap-3">
-              <span className="text-[10px] md:text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide hidden md:inline">Plan:</span>
-              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide md:hidden">Plan:</span>
-              <div className="flex items-center gap-1 md:gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 md:p-1 overflow-x-auto">
-                <button
-                  onClick={() => setPlanMode("full-ehr")}
-                  className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all whitespace-nowrap ${
-                    planMode === "full-ehr"
-                      ? "bg-[#043570] text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  Full EHR
-                </button>
-                <button
-                  onClick={() => setPlanMode("provider")}
-                  className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all whitespace-nowrap ${
-                    planMode === "provider"
-                      ? "bg-[#7C3AED] text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  Provider
-                </button>
-                <button
-                  onClick={() => setPlanMode("transcriber-only")}
-                  className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all whitespace-nowrap ${
-                    planMode === "transcriber-only"
-                      ? "bg-[#00c0ff] text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  AI Transcriber
-                </button>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
 

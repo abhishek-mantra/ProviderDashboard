@@ -1,32 +1,5 @@
-import { ChevronLeft, Pencil, MapPin, Clock } from "lucide-react";
-import type { EstablishmentMember, PlanTier, EstablishmentType } from "../types/partnerDashboard";
-
-export interface Establishment {
-  id: string;
-  type: EstablishmentType;
-  name: string;
-  specialties: string[];
-  specialtyServices: { [key: string]: string[] };
-  yearsInOperation: string;
-  about: string;
-  bedCapacity: string;
-  accreditation: string;
-  streetAddress: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  visitingHours: {
-    [key: string]: { isOpen: boolean; from: string; to: string };
-  };
-  coverPhoto: string;
-  photos: string[];
-  videoUrl: string;
-  insurance: string[];
-  status: "draft" | "under-review" | "live";
-  lastConfirmedAt: string;
-  planTier: PlanTier;
-  members: EstablishmentMember[];
-}
+import { ChevronLeft, Pencil, MapPin, Clock, DollarSign, Users, Globe, Tags, Video, Headphones } from "lucide-react";
+import type { Establishment } from "../types/partnerDashboard";
 
 interface EstablishmentViewModeProps {
   establishment: Establishment;
@@ -195,6 +168,135 @@ export function EstablishmentViewMode({
                 )
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Session Fees */}
+        {establishment.fees && establishment.fees.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#00c0ff]" />
+              Session Fees
+            </h3>
+            <div className="space-y-2">
+              {establishment.fees.map((fee, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700 dark:text-gray-300">{fee.sessionType}</span>
+                  <span className="text-gray-900 dark:text-white font-medium">₹{fee.price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Sliding Scale & Free Consultation */}
+        {(establishment.slidingScaleAvailable || establishment.freeConsultation?.offered) && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Pricing & Accessibility
+            </h3>
+            <div className="space-y-2 text-sm">
+              {establishment.slidingScaleAvailable && (
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 dark:text-green-400 font-medium">✓ Sliding scale available</span>
+                </div>
+              )}
+              {establishment.freeConsultation?.offered && (
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 dark:text-green-400 font-medium">
+                    ✓ Free consultation{establishment.freeConsultation.durationMinutes ? ` (${establishment.freeConsultation.durationMinutes} min)` : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Payment Methods */}
+        {establishment.paymentMethodsAccepted && establishment.paymentMethodsAccepted.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#00c0ff]" />
+              Payment Methods
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {establishment.paymentMethodsAccepted.map((method) => (
+                <span key={method} className="px-3 py-1.5 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-sm font-medium">
+                  {method}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Client Focus */}
+        {establishment.clientFocus && (establishment.clientFocus.ageGroups.length > 0 || establishment.clientFocus.participants.length > 0) && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#00c0ff]" />
+              Client Focus
+            </h3>
+            <div className="space-y-2 text-sm">
+              {establishment.clientFocus.ageGroups.length > 0 && (
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Age Groups:</span>
+                  <p className="text-gray-900 dark:text-white font-medium">{establishment.clientFocus.ageGroups.join(", ")}</p>
+                </div>
+              )}
+              {establishment.clientFocus.participants.length > 0 && (
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Participants:</span>
+                  <p className="text-gray-900 dark:text-white font-medium">{establishment.clientFocus.participants.join(", ")}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Communities Served */}
+        {establishment.communitiesServed && establishment.communitiesServed.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-[#00c0ff]" />
+              Communities Served
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {establishment.communitiesServed.map((c) => (
+                <span key={c} className="px-3 py-1.5 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-sm font-medium">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Therapy Modalities */}
+        {establishment.therapyModalities && establishment.therapyModalities.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Tags className="w-5 h-5 text-[#00c0ff]" />
+              Therapy Modalities
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {establishment.therapyModalities.map((m) => (
+                <span key={m} className="px-3 py-1.5 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-sm font-medium">
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Session Format */}
+        {establishment.sessionFormat && (
+          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Video className="w-5 h-5 text-[#00c0ff]" />
+              Session Format
+            </h3>
+            <p className="text-base text-gray-900 dark:text-white font-medium capitalize">
+              {establishment.sessionFormat === "both" ? "In-Person & Online" : establishment.sessionFormat}
+            </p>
           </div>
         )}
 

@@ -1,5 +1,4 @@
-import type { Provider, EstablishmentMember, CareTeamMembership, MockClient } from "../types/partnerDashboard";
-import type { Establishment } from "../components/EstablishmentViewMode";
+import type { Provider, EstablishmentMember, CareTeamMembership, MockClient, Establishment } from "../types/partnerDashboard";
 
 export const mockProviders: Provider[] = [
   {
@@ -107,6 +106,20 @@ export const mockEstablishments: Establishment[] = [
     photos: [],
     videoUrl: "",
     insurance: ["Star Health", "HDFC ERGO", "Max Bupa", "CGHS"],
+    fees: [
+      { sessionType: "Initial Consultation", price: 1500 },
+      { sessionType: "Follow-up", price: 800 },
+    ],
+    slidingScaleAvailable: true,
+    paymentMethodsAccepted: ["Cash", "UPI", "Credit/Debit Card"],
+    clientFocus: {
+      ageGroups: ["Adults", "Teens"],
+      participants: ["Individuals", "Couples"],
+    },
+    communitiesServed: ["LGBTQ+ Friendly", "Neurodivergent", "Trauma Survivors"],
+    therapyModalities: ["CBT", "DBT", "Mindfulness-Based"],
+    sessionFormat: "both",
+    freeConsultation: { offered: true, durationMinutes: 15 },
     status: "live",
     lastConfirmedAt: "2026-03-01T00:00:00Z",
     planTier: "GROWTH",

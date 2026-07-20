@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import type { Provider, EstablishmentMember, CareTeamMembership, MockClient } from "../types/partnerDashboard";
-import type { Establishment } from "../components/EstablishmentViewMode";
+import type { Provider, EstablishmentMember, CareTeamMembership, MockClient, Establishment } from "../types/partnerDashboard";
 import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients } from "../data/mockPartnerData";
 
 interface PartnerDashboardContextType {

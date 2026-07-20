@@ -18,12 +18,30 @@ import {
   MapPin,
   Info,
   Navigation,
-  X
+  X,
+  XCircle,
+  CheckCircle2,
+  DollarSign,
+  Users,
+  Globe,
+  Tags,
+  Video,
+  Headphones,
+  HeartHandshake,
+  CreditCard,
+  SlidersHorizontal
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { EstablishmentViewMode } from "../components/EstablishmentViewMode";
-import type { Establishment } from "../components/EstablishmentViewMode";
-import type { EstablishmentType } from "../types/partnerDashboard";
+import type { Establishment, EstablishmentType } from "../types/partnerDashboard";
+import {
+  AGE_GROUPS,
+  PARTICIPANTS,
+  PAYMENT_METHODS,
+  COMMUNITIES_SERVED,
+  THERAPY_MODALITIES,
+  SESSION_FORMATS,
+} from "../types/partnerDashboard";
 import { MultiSelect } from "../components/MultiSelect";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
@@ -687,14 +705,23 @@ export function PracticeDetails() {
     coverPhoto: "",
     photos: [] as string[],
     videoUrl: "",
-    insurance: [] as string[]
+    insurance: [] as string[],
+    fees: [] as { sessionType: string; price: number }[],
+    slidingScaleAvailable: false,
+    paymentMethodsAccepted: [] as string[],
+    clientFocus: { ageGroups: [] as string[], participants: [] as string[] },
+    communitiesServed: [] as string[],
+    therapyModalities: [] as string[],
+    sessionFormat: "in-person" as "in-person" | "online" | "both",
+    freeConsultation: { offered: false, durationMinutes: undefined }
   }));
 
   const steps = [
     { number: 1, label: "Basic Info" },
-    { number: 2, label: "Location" },
-    { number: 3, label: "Photos" },
-    { number: 4, label: "Review" }
+    { number: 2, label: "Services & Offerings" },
+    { number: 3, label: "Location" },
+    { number: 4, label: "Photos" },
+    { number: 5, label: "Review" }
   ];
 
   const handleOpenForm = () => {
@@ -727,7 +754,15 @@ export function PracticeDetails() {
       coverPhoto: "",
       photos: [],
       videoUrl: "",
-      insurance: []
+      insurance: [],
+      fees: [],
+      slidingScaleAvailable: false,
+      paymentMethodsAccepted: [],
+      clientFocus: { ageGroups: [], participants: [] },
+      communitiesServed: [],
+      therapyModalities: [],
+      sessionFormat: "in-person",
+      freeConsultation: { offered: false, durationMinutes: undefined }
     });
   };
 
@@ -753,7 +788,15 @@ export function PracticeDetails() {
       coverPhoto: establishment.coverPhoto,
       photos: establishment.photos,
       videoUrl: establishment.videoUrl,
-      insurance: establishment.insurance
+      insurance: establishment.insurance,
+      fees: establishment.fees || [],
+      slidingScaleAvailable: establishment.slidingScaleAvailable ?? false,
+      paymentMethodsAccepted: establishment.paymentMethodsAccepted || [],
+      clientFocus: establishment.clientFocus || { ageGroups: [], participants: [] },
+      communitiesServed: establishment.communitiesServed || [],
+      therapyModalities: establishment.therapyModalities || [],
+      sessionFormat: establishment.sessionFormat || "in-person",
+      freeConsultation: establishment.freeConsultation || { offered: false, durationMinutes: undefined }
     });
   };
 
@@ -782,7 +825,7 @@ export function PracticeDetails() {
   };
 
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -812,15 +855,23 @@ export function PracticeDetails() {
               state: formData.state,
               pinCode: formData.pinCode,
               visitingHours: formData.visitingHours,
-              coverPhoto: formData.coverPhoto,
-              photos: formData.photos,
-              videoUrl: formData.videoUrl,
-              insurance: formData.insurance,
-              status: "under-review",
-              lastConfirmedAt: new Date().toISOString(),
-              planTier: est.planTier,
-              members: est.members
-            }
+      coverPhoto: formData.coverPhoto,
+      photos: formData.photos,
+      videoUrl: formData.videoUrl,
+      insurance: formData.insurance,
+      fees: formData.fees,
+      slidingScaleAvailable: formData.slidingScaleAvailable,
+      paymentMethodsAccepted: formData.paymentMethodsAccepted,
+      clientFocus: formData.clientFocus,
+      communitiesServed: formData.communitiesServed,
+      therapyModalities: formData.therapyModalities,
+      sessionFormat: formData.sessionFormat,
+      freeConsultation: formData.freeConsultation,
+      status: "under-review",
+      lastConfirmedAt: new Date().toISOString(),
+      planTier: est.planTier,
+      members: est.members
+    }
           : est
       ));
     } else {
@@ -844,6 +895,14 @@ export function PracticeDetails() {
         photos: formData.photos,
         videoUrl: formData.videoUrl,
         insurance: formData.insurance,
+        fees: formData.fees,
+        slidingScaleAvailable: formData.slidingScaleAvailable,
+        paymentMethodsAccepted: formData.paymentMethodsAccepted,
+        clientFocus: formData.clientFocus,
+        communitiesServed: formData.communitiesServed,
+        therapyModalities: formData.therapyModalities,
+        sessionFormat: formData.sessionFormat,
+        freeConsultation: formData.freeConsultation,
         status: "under-review",
         lastConfirmedAt: new Date().toISOString(),
         planTier: "BASIC",
@@ -888,6 +947,76 @@ export function PracticeDetails() {
     setFormData(prev => ({
       ...prev,
       insurance: newInsurance
+    }));
+  };
+
+  const handleFeesChange = (fees: { sessionType: string; price: number }[]) => {
+    setFormData(prev => ({ ...prev, fees }));
+  };
+
+  const addFeeRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      fees: [...prev.fees, { sessionType: "", price: 0 }]
+    }));
+  };
+
+  const updateFeeRow = (index: number, field: "sessionType" | "price", value: string | number) => {
+    setFormData(prev => {
+      const fees = [...prev.fees];
+      fees[index] = { ...fees[index], [field]: value };
+      return { ...prev, fees };
+    });
+  };
+
+  const removeFeeRow = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      fees: prev.fees.filter((_, i) => i !== index)
+    }));
+  };
+
+  const toggleSlidingScale = () => {
+    setFormData(prev => ({ ...prev, slidingScaleAvailable: !prev.slidingScaleAvailable }));
+  };
+
+  const handlePaymentMethodsChange = (methods: string[]) => {
+    setFormData(prev => ({ ...prev, paymentMethodsAccepted: methods }));
+  };
+
+  const handleAgeGroupsChange = (groups: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      clientFocus: { ...prev.clientFocus, ageGroups: groups }
+    }));
+  };
+
+  const handleParticipantsChange = (participants: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      clientFocus: { ...prev.clientFocus, participants }
+    }));
+  };
+
+  const handleCommunitiesChange = (communities: string[]) => {
+    setFormData(prev => ({ ...prev, communitiesServed: communities }));
+  };
+
+  const handleTherapyModalitiesChange = (modalities: string[]) => {
+    setFormData(prev => ({ ...prev, therapyModalities: modalities }));
+  };
+
+  const handleSessionFormatChange = (format: "in-person" | "online" | "both") => {
+    setFormData(prev => ({ ...prev, sessionFormat: format }));
+  };
+
+  const toggleFreeConsultation = () => {
+    setFormData(prev => ({
+      ...prev,
+      freeConsultation: {
+        offered: !prev.freeConsultation.offered,
+        durationMinutes: !prev.freeConsultation.offered ? 15 : undefined
+      }
     }));
   };
 
@@ -953,9 +1082,10 @@ export function PracticeDetails() {
   const getStepTitle = () => {
     switch (currentStep) {
       case 1: return "Basic information";
-      case 2: return "Location & hours";
-      case 3: return "Photos & media";
-      case 4: return "Review & publish";
+      case 2: return "Services & offerings";
+      case 3: return "Location & hours";
+      case 4: return "Photos & media";
+      case 5: return "Review & publish";
       default: return "";
     }
   };
@@ -1167,8 +1297,240 @@ export function PracticeDetails() {
                 </div>
               )}
 
-              {/* Step 2: Location & Hours */}
+              {/* Step 2: Services & Offerings */}
               {currentStep === 2 && (
+                <div className="space-y-6">
+                  {/* Fees */}
+                  <div className="pt-2">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Session Fees
+                      </h4>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      Add the session types and prices your establishment offers.
+                    </p>
+                    <div className="space-y-3">
+                      {formData.fees.map((fee, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={fee.sessionType}
+                            onChange={(e) => updateFeeRow(index, "sessionType", e.target.value)}
+                            className="flex-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                            placeholder="e.g. Initial Consultation, Follow-up"
+                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
+                            <input
+                              type="number"
+                              value={fee.price || ""}
+                              onChange={(e) => updateFeeRow(index, "price", parseInt(e.target.value) || 0)}
+                              className="w-28 px-4 pl-7 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                              placeholder="0"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFeeRow(index)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addFeeRow}
+                        className="flex items-center gap-2 text-sm font-medium text-[#00c0ff] hover:text-[#00a8e6] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add session type
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sliding Scale */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                          Sliding Scale Available
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleSlidingScale}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          formData.slidingScaleAvailable ? "bg-[#00c0ff]" : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            formData.slidingScaleAvailable ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Offer income-based pricing to make services more accessible.
+                    </p>
+                  </div>
+
+                  {/* Payment Methods */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <MultiSelect
+                      label="Payment Methods Accepted"
+                      options={[...PAYMENT_METHODS]}
+                      selected={formData.paymentMethodsAccepted}
+                      onChange={handlePaymentMethodsChange}
+                      placeholder="Select payment methods..."
+                    />
+                  </div>
+
+                  {/* Client Focus */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Client Focus
+                      </h4>
+                    </div>
+                    <div className="space-y-4">
+                      <MultiSelect
+                        label="Age Groups"
+                        options={[...AGE_GROUPS]}
+                        selected={formData.clientFocus.ageGroups}
+                        onChange={handleAgeGroupsChange}
+                        placeholder="Select age groups..."
+                      />
+                      <MultiSelect
+                        label="Participants"
+                        options={[...PARTICIPANTS]}
+                        selected={formData.clientFocus.participants}
+                        onChange={handleParticipantsChange}
+                        placeholder="Select participant types..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Communities Served */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Globe className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Communities Served
+                      </h4>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      Select the communities your establishment specializes in serving.
+                    </p>
+                    <MultiSelect
+                      options={[...COMMUNITIES_SERVED]}
+                      selected={formData.communitiesServed}
+                      onChange={handleCommunitiesChange}
+                      placeholder="Select communities..."
+                    />
+                  </div>
+
+                  {/* Therapy Modalities */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tags className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Therapy Modalities
+                      </h4>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      Select the therapeutic approaches offered (distinct from medical specializations).
+                    </p>
+                    <MultiSelect
+                      options={[...THERAPY_MODALITIES]}
+                      selected={formData.therapyModalities}
+                      onChange={handleTherapyModalitiesChange}
+                      placeholder="Select modalities..."
+                    />
+                  </div>
+
+                  {/* Session Format */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Video className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Session Format
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {SESSION_FORMATS.map((format) => (
+                        <button
+                          key={format}
+                          type="button"
+                          onClick={() => handleSessionFormatChange(format)}
+                          className={`px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                            formData.sessionFormat === format
+                              ? "border-[#00c0ff] bg-[#00c0ff]/10 text-[#00c0ff]"
+                              : "border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500"
+                          }`}
+                        >
+                          {format === "in-person" ? "In-Person" : format === "online" ? "Online" : "Both"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Free Consultation */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Headphones className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                          Free Consultation
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleFreeConsultation}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          formData.freeConsultation.offered ? "bg-[#00c0ff]" : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            formData.freeConsultation.offered ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {formData.freeConsultation.offered && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Duration (minutes)
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.freeConsultation.durationMinutes || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              freeConsultation: {
+                                ...formData.freeConsultation,
+                                durationMinutes: parseInt(e.target.value) || undefined
+                              }
+                            })
+                          }
+                          className="w-full max-w-[200px] px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="e.g. 15"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Location & Hours */}
+              {currentStep === 3 && (
                 <div className="space-y-6">
                   {/* Practice Address with Visible toggle */}
                   <div>
@@ -1288,8 +1650,8 @@ export function PracticeDetails() {
                 </div>
               )}
 
-              {/* Step 3: Photos & Media */}
-              {currentStep === 3 && (
+              {/* Step 4: Photos & Media */}
+              {currentStep === 4 && (
                 <div className="space-y-6">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Upload photos of your facility — facade, reception, wards, equipment. Listings with photos get 3× more views.
@@ -1405,8 +1767,8 @@ export function PracticeDetails() {
                 </div>
               )}
 
-              {/* Step 4: Review & Publish */}
-              {currentStep === 4 && (
+              {/* Step 5: Review & Publish */}
+              {currentStep === 5 && (
                 <div className="space-y-6">
                   {/* Establishment */}
                   <div>
@@ -1514,6 +1876,132 @@ export function PracticeDetails() {
                     </div>
                   )}
 
+                  {/* Fees */}
+                  {formData.fees.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                        Session Fees
+                      </h4>
+                      <div className="space-y-1.5 text-sm">
+                        {formData.fees.map((fee, i) => (
+                          <div key={i} className="flex justify-between py-1.5">
+                            <span className="text-gray-700 dark:text-gray-300">{fee.sessionType}</span>
+                            <span className="text-gray-900 dark:text-white font-medium">₹{fee.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sliding Scale */}
+                  {formData.slidingScaleAvailable && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                        Sliding Scale
+                      </h4>
+                      <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                        Available
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Payment Methods */}
+                  {formData.paymentMethodsAccepted.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                        Payment Methods Accepted
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.paymentMethodsAccepted.map((method) => (
+                          <span key={method} className="px-3 py-1 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-xs font-medium">
+                            {method}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Focus */}
+                  {(formData.clientFocus.ageGroups.length > 0 || formData.clientFocus.participants.length > 0) && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                        Client Focus
+                      </h4>
+                      <div className="space-y-1.5 text-sm">
+                        {formData.clientFocus.ageGroups.length > 0 && (
+                          <div className="flex justify-between py-1">
+                            <span className="text-gray-600 dark:text-gray-400">Age Groups:</span>
+                            <span className="text-gray-900 dark:text-white font-medium text-right">{formData.clientFocus.ageGroups.join(", ")}</span>
+                          </div>
+                        )}
+                        {formData.clientFocus.participants.length > 0 && (
+                          <div className="flex justify-between py-1">
+                            <span className="text-gray-600 dark:text-gray-400">Participants:</span>
+                            <span className="text-gray-900 dark:text-white font-medium text-right">{formData.clientFocus.participants.join(", ")}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Communities Served */}
+                  {formData.communitiesServed.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                        Communities Served
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.communitiesServed.map((c) => (
+                          <span key={c} className="px-3 py-1 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-xs font-medium">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Therapy Modalities */}
+                  {formData.therapyModalities.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                        Therapy Modalities
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.therapyModalities.map((m) => (
+                          <span key={m} className="px-3 py-1 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-xs font-medium">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Session Format */}
+                  {formData.sessionFormat && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                        Session Format
+                      </h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-medium capitalize">
+                        {formData.sessionFormat === "both" ? "In-Person & Online" : formData.sessionFormat}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Free Consultation */}
+                  {formData.freeConsultation.offered && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                        Free Consultation
+                      </h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                        {formData.freeConsultation.durationMinutes
+                          ? `${formData.freeConsultation.durationMinutes} minutes`
+                          : "Available"}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Plan & Team */}
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
@@ -1586,6 +2074,9 @@ export function PracticeDetails() {
                         { label: "Specialties", filled: formData.specialties.length > 0 },
                         { label: "Insurance", filled: formData.insurance.length > 0 },
                         { label: "Photos", filled: formData.photos.length > 0 },
+                        { label: "Session Fees", filled: formData.fees.length > 0 },
+                        { label: "Client Focus", filled: formData.clientFocus.ageGroups.length > 0 || formData.clientFocus.participants.length > 0 },
+                        { label: "Session Format", filled: !!formData.sessionFormat },
                         { label: "Visiting Hours", filled: Object.values(formData.visitingHours).some((h) => h.isOpen) },
                         { label: "Address", filled: !!formData.streetAddress && !!formData.city },
                       ];
@@ -1650,7 +2141,7 @@ export function PracticeDetails() {
               Back
             </button>
 
-            {currentStep < 4 ? (
+            {currentStep < 5 ? (
               <button
                 onClick={handleNext}
                 className="px-6 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-lg transition-colors font-medium flex items-center gap-2"

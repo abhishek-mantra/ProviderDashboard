@@ -90,3 +90,116 @@ export const PLAN_TIER_EXTRA_COST: Record<PlanTier, number> = {
   GROWTH: 19,
   SCALER: 0,
 };
+
+// ── Establishment type (canonical) ──────────────────────────────────────────
+
+export interface Establishment {
+  id: string;
+  type: EstablishmentType;
+  name: string;
+  specialties: string[];
+  specialtyServices: { [key: string]: string[] };
+  yearsInOperation: string;
+  about: string;
+  bedCapacity: string;
+  accreditation: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  visitingHours: {
+    [key: string]: { isOpen: boolean; from: string; to: string };
+  };
+  coverPhoto: string;
+  photos: string[];
+  videoUrl: string;
+  insurance: string[];
+  fees: { sessionType: string; price: number }[];
+  slidingScaleAvailable: boolean;
+  paymentMethodsAccepted: string[];
+  clientFocus: {
+    ageGroups: string[];
+    participants: string[];
+  };
+  communitiesServed: string[];
+  therapyModalities: string[];
+  sessionFormat: "in-person" | "online" | "both";
+  freeConsultation: {
+    offered: boolean;
+    durationMinutes?: number;
+  };
+  status: "draft" | "under-review" | "live";
+  lastConfirmedAt: string;
+  planTier: PlanTier;
+  members: EstablishmentMember[];
+}
+
+// ── Controlled-list constants ───────────────────────────────────────────────
+
+export const AGE_GROUPS = [
+  "Children",
+  "Teens",
+  "Adults",
+  "Seniors",
+] as const;
+export type AgeGroup = (typeof AGE_GROUPS)[number];
+
+export const PARTICIPANTS = [
+  "Individuals",
+  "Couples",
+  "Families",
+  "Groups",
+] as const;
+export type Participant = (typeof PARTICIPANTS)[number];
+
+export const PAYMENT_METHODS = [
+  "Cash",
+  "Credit/Debit Card",
+  "UPI",
+  "Net Banking",
+  "Cheque",
+] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const COMMUNITIES_SERVED = [
+  "LGBTQ+ Friendly",
+  "BIPOC",
+  "Veterans",
+  "Disabled",
+  "Neurodivergent",
+  "Religious/Spiritual",
+  "Non-English Speaking",
+  "Rural/Remote",
+  "Low Income",
+  "Seniors/Elderly",
+  "Teens/Adolescents",
+  "Immigrants/Refugees",
+  "Substance Use Recovery",
+  "Trauma Survivors",
+] as const;
+export type CommunityServed = (typeof COMMUNITIES_SERVED)[number];
+
+export const THERAPY_MODALITIES = [
+  "CBT",
+  "DBT",
+  "EMDR",
+  "Psychodynamic",
+  "Humanistic",
+  "Mindfulness-Based",
+  "Art Therapy",
+  "Play Therapy",
+  "Couples Therapy",
+  "Family Systems",
+  "Somatic Therapy",
+  "ACT",
+  "IPT",
+  "Sensorimotor Psychotherapy",
+  "Narrative Therapy",
+  "Solution-Focused Brief Therapy",
+  "Motivational Interviewing",
+  "Trauma-Focused CBT",
+] as const;
+export type TherapyModality = (typeof THERAPY_MODALITIES)[number];
+
+export const SESSION_FORMATS = ["in-person", "online", "both"] as const;
+export type SessionFormat = (typeof SESSION_FORMATS)[number];

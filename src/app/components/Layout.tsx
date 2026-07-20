@@ -253,9 +253,9 @@ export function Layout() {
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   // Nav item ordering — one per mode, persisted
-  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'for-mantra-provider', 'settings'];
+  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'ai-transcriber', 'session-notes', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -549,6 +549,7 @@ export function Layout() {
     'resources':          { icon: <Globe className="size-5 flex-shrink-0" />,          label: 'Resources' },
     'ai-crm':             { icon: <Brain className="size-5 flex-shrink-0" />,          label: 'AI CRM' },
     'admin-dashboard':    { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Admin Dashboard' },
+    'team-management':    { icon: <Users className="size-5 flex-shrink-0" />,        label: 'Manage Team' },
     'supervisor-dashboard': { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Supervisor Dashboard' },
   };
 
@@ -618,6 +619,23 @@ export function Layout() {
             <div className="flex items-center flex-1">
               <Shield className="size-5 flex-shrink-0" />
               <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Admin Dashboard</span>
+            </div>
+          </Link>
+        );
+      case 'team-management':
+        if (!isCurrentUserAdmin) return null;
+        return (
+          <Link
+            to="/team-management"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`flex items-center ${shouldShowCollapsed() ? 'md:justify-center' : 'justify-between'} py-[10px] px-3 rounded-xl transition-all relative overflow-hidden ${
+              isActive("/team-management") ? "bg-[#00c0ff] text-white shadow-md" : "text-[#64748b] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title={shouldShowCollapsed() ? "Manage Team" : undefined}
+          >
+            <div className="flex items-center flex-1">
+              <Users className="size-5 flex-shrink-0" />
+              <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Manage Team</span>
             </div>
           </Link>
         );
@@ -730,6 +748,9 @@ export function Layout() {
       case 'admin-dashboard':
         if (!isCurrentUserAdmin) return null;
         return renderNavItem("/admin-dashboard", <Shield className="size-5 flex-shrink-0" />, "Admin Dashboard");
+      case 'team-management':
+        if (!isCurrentUserAdmin) return null;
+        return renderNavItem("/team-management", <Users className="size-5 flex-shrink-0" />, "Manage Team");
       case 'supervisor-dashboard':
         if (!isCurrentUserSupervisor) return null;
         return renderNavItem("/supervisor-dashboard", <Shield className="size-5 flex-shrink-0" />, "Supervisor Dashboard");

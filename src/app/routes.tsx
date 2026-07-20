@@ -54,6 +54,7 @@ import { SettingsAuditLogs } from "./pages/SettingsAuditLogs";
 import { SettingsSecurity } from "./pages/SettingsSecurity";
 import { PracticeDetails } from "./pages/PracticeDetails";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { TeamManagement } from "./pages/TeamManagement";
 import { ErrorPage } from "./pages/ErrorPage";
 import { NotFound } from "./pages/NotFound";
 import { MonetizationShowcase } from "./pages/MonetizationShowcase";
@@ -158,6 +159,7 @@ export const router = createBrowserRouter([
       { path: "add-prescription", element: <CreatePrescription /> },
       { path: "tools", element: <Tools /> },
       { path: "admin-dashboard", element: <AdminDashboard />, errorElement: <ErrorPage /> },
+      { path: "team-management", element: <TeamManagement />, errorElement: <ErrorPage /> },
       { path: "supervisor-dashboard", element: <SupervisorDashboard />, errorElement: <ErrorPage /> },
       { path: "care-team", element: <CareTeamManager />, errorElement: <ErrorPage /> },
       {

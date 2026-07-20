@@ -62,6 +62,22 @@ export function Notifications() {
           email: true,
           push: true,
         },
+        {
+          id: "clinical-intake-caseload",
+          label: "Clinical Intake Submissions (Caseload Only)",
+          description: "Receive alerts for clinical screens (PHQ-9, etc.) completed by clients in your active caseload",
+          inApp: true,
+          email: true,
+          push: false,
+        },
+        {
+          id: "admin-intake-general",
+          label: "Administrative Intake Submissions (General)",
+          description: "Receive alerts for clinic-wide signed consents or insurance uploads",
+          inApp: false,
+          email: true,
+          push: false,
+        },
       ],
     },
     {

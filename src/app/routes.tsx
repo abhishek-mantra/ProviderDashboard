@@ -75,12 +75,18 @@ import { RecordingScreen } from "./pages/RecordingScreen";
 import { AITranscriberDemo } from "./pages/AITranscriberDemo";
 import { ViewTranscription } from "./pages/ViewTranscription";
 import { ViewTranscriptionNote } from "./pages/ViewTranscriptionNote";
+import { IntakeForms } from "./pages/IntakeForms";
+import { IntakeFlows } from "./pages/IntakeFlows";
+import { IntakePreview } from "./pages/IntakePreview";
+import { MyForms } from "./pages/MyForms";
 
 export const router = createBrowserRouter([
   { path: "/get-started", element: <GetStarted /> },
   { path: "/verify", element: <OTPVerify /> },
   { path: "/onboarding", element: <Onboarding /> },
   { path: "/onboarding-ehr-ai-scribe", element: <OnboardingEHRAIScribe /> },
+  { path: "/my-forms/:clientId", element: <MyForms /> },
+  { path: "/intake-preview/:formEntryId", element: <IntakePreview /> },
   {
     path: "/",
     element: <Layout />,
@@ -194,6 +200,8 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <Notifications /> },
         ]
       },
+      { path: "intake-forms", element: <IntakeForms /> },
+      { path: "intake-flows", element: <IntakeFlows /> },
       { path: "mantra-provider", element: <MantraProviderPage /> },
       { path: "*", element: <NotFound /> },
     ],

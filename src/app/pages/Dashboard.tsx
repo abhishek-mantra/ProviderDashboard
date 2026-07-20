@@ -209,7 +209,7 @@ export function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { planMode } = usePlanMode();
-  const { isCurrentUserAdmin, providers, currentProviderId } = usePartnerDashboard();
+  const { isCurrentUserAdmin, providers, currentProviderId, members, clients, formEntries, currentEstablishmentId } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const isTranscriberOnly = planMode === "transcriber-only";
   const pendingRequests = isCurrentUserAdmin ? 30 : 6;
@@ -217,6 +217,7 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isSessionNoteModalOpen, setIsSessionNoteModalOpen] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [clinicStatsCollapsed, setClinicStatsCollapsed] = useState(false);
 
   const adminStats = {
     activeClients: "118",
@@ -437,6 +438,58 @@ export function Dashboard() {
               </p>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* Clinic Operations Overview (Admin-Practitioner exclusive widget) */}
+      {!isTranscriberOnly && isCurrentUserAdmin && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden"
+        >
+          <div 
+            onClick={() => setClinicStatsCollapsed(!clinicStatsCollapsed)}
+            className="flex items-center justify-between px-4 md:px-6 py-4 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-750/30 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/10">
+                <Crown className="size-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-[14px] md:text-[15px] font-bold text-gray-900 dark:text-white">Clinic Operations Overview</h2>
+                <p className="text-[11px] text-[#64748B] dark:text-gray-400">Admin metrics for MantraCare Wellness Clinic</p>
+              </div>
+            </div>
+            {clinicStatsCollapsed ? <ChevronRight className="size-4 text-gray-400" /> : <ChevronDown className="size-4 text-gray-400" />}
+          </div>
+          
+          {!clinicStatsCollapsed && (
+            <div className="px-4 md:px-6 pb-5 pt-3 border-t border-gray-100 dark:border-gray-700/60 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold">Active Providers</p>
+                <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
+                  {members.filter(m => m.establishmentId === currentEstablishmentId && m.memberStatus === 'active').length}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-100/50 dark:border-blue-900/30">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold">Total Caseload</p>
+                <p className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">{clients.length} Clients</p>
+              </div>
+              <div className="p-3 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-100/50 dark:border-amber-900/30">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold">Pending Intakes</p>
+                <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
+                  {formEntries.filter(fe => fe.status === 'requested').length} Requested
+                </p>
+              </div>
+              <div className="p-3 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold">Consent Signed</p>
+                <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {formEntries.filter(fe => fe.formId === 'form-template-2' && fe.status === 'submitted').length} Signed
+                </p>
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
 

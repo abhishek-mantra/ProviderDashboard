@@ -852,8 +852,8 @@ export function Clients() {
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3">
                         <div className="flex items-center gap-2.5">
-                          <button
-                            onClick={() => setSelectedClientId(client.id)}
+                          <Link
+                            to={`/clients/${client.id}`}
                             className="p-2 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 inline-block"
                             title="View"
                           >
@@ -863,7 +863,7 @@ export function Clients() {
                             >
                               <Eye className="size-4 text-[#4169E1]" />
                             </motion.div>
-                          </button>
+                          </Link>
                           <Link
                             to="/chat/1"
                             className="p-2 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 inline-block"
@@ -1116,13 +1116,13 @@ export function Clients() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <button
-                      onClick={() => setSelectedClientId(client.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm"
-                  >
-                    <Eye className="size-4" />
-                    View
-                  </button>
+                    <Link
+                      to={`/clients/${client.id}`}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm text-center"
+                    >
+                      <Eye className="size-4" />
+                      View
+                    </Link>
                   <Link
                     to="/chat/1"
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Code, ChevronDown, X, RefreshCw, Crown, Brain, Sparkles } from "lucide-react";
+import { Code, ChevronDown, X, RefreshCw, Crown, Brain, Sparkles, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { usePlanMode } from "../contexts/PlanModeContext";
@@ -64,6 +64,19 @@ export function DevRoleSwitcher() {
             </div>
 
             <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(70vh-80px)]">
+              <div className="pb-3 border-b border-gray-150 dark:border-gray-700">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">
+                  Client Intake Form Portal
+                </label>
+                <a
+                  href="/my-forms/1"
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 text-[#2563EB] dark:text-blue-400 border border-blue-200 dark:border-blue-900/40 text-xs font-bold transition-all text-center"
+                >
+                  <ExternalLink className="size-3.5" />
+                  View Patient Portal (Client 1)
+                </a>
+              </div>
+
               {(() => {
                 const supervisor = members.find((member) => member.roles.clinical === "Supervisor" && member.memberStatus === "active");
                 const supervisorProvider = providers.find((provider) => provider.id === supervisor?.providerId);

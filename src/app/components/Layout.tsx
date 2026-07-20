@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, EyeOff, GripVertical } from "lucide-react";
+import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, EyeOff, GripVertical, Layers } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Toaster, toast } from "./ui/sonner";
 import { usePlanMode } from "../contexts/PlanModeContext";
@@ -254,8 +254,8 @@ export function Layout() {
 
   // Nav item ordering — one per mode, persisted
   const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'ai-transcriber', 'session-notes', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'for-mantra-provider', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'intake-flows', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'team-management', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'intake-flows', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -551,6 +551,8 @@ export function Layout() {
     'admin-dashboard':    { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Admin Dashboard' },
     'team-management':    { icon: <Users className="size-5 flex-shrink-0" />,        label: 'Manage Team' },
     'supervisor-dashboard': { icon: <Shield className="size-5 flex-shrink-0" />,        label: 'Supervisor Dashboard' },
+    'intake-forms':       { icon: <FileText className="size-5 flex-shrink-0" />,        label: 'Intake Forms' },
+    'intake-flows':       { icon: <Layers className="size-5 flex-shrink-0" />,        label: 'Intake Flows' },
   };
 
   const isActive = (path: string) => {
@@ -735,6 +737,38 @@ export function Layout() {
             </div>
           </Link>
         );
+      case 'intake-forms':
+        return (
+          <Link
+            to="/intake-forms"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`flex items-center ${shouldShowCollapsed() ? 'md:justify-center' : 'justify-between'} py-[10px] px-3 rounded-xl transition-all relative overflow-hidden ${
+              isActive("/intake-forms") ? "bg-[#00c0ff] text-white shadow-md" : "text-[#64748b] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title={shouldShowCollapsed() ? "Intake Forms" : undefined}
+          >
+            <div className="flex items-center flex-1">
+              <FileText className="size-5 flex-shrink-0" />
+              <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Intake Forms</span>
+            </div>
+          </Link>
+        );
+      case 'intake-flows':
+        return (
+          <Link
+            to="/intake-flows"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`flex items-center ${shouldShowCollapsed() ? 'md:justify-center' : 'justify-between'} py-[10px] px-3 rounded-xl transition-all relative overflow-hidden ${
+              isActive("/intake-flows") ? "bg-[#00c0ff] text-white shadow-md" : "text-[#64748b] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title={shouldShowCollapsed() ? "Intake Flows" : undefined}
+          >
+            <div className="flex items-center flex-1">
+              <Layers className="size-5 flex-shrink-0" />
+              <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Intake Flows</span>
+            </div>
+          </Link>
+        );
       case 'settings':
         return renderSettingsItem(true);
       default:
@@ -776,6 +810,10 @@ export function Layout() {
         return renderNavItem("/refer-earn", <Gift className="size-5 flex-shrink-0" />, "Refer & Earn");
       case 'resources':
         return renderNavItem("/other-tools", <Globe className="size-5 flex-shrink-0" />, "Resources");
+      case 'intake-forms':
+        return renderNavItem("/intake-forms", <FileText className="size-5 flex-shrink-0" />, "Intake Forms");
+      case 'intake-flows':
+        return renderNavItem("/intake-flows", <Layers className="size-5 flex-shrink-0" />, "Intake Flows");
       case 'ai-crm':
         return renderNavItem("/ai-crm", <Brain className="size-5 flex-shrink-0" />, "AI CRM");
       case 'settings':

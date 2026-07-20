@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import type { Provider, EstablishmentMember, CareTeamMembership, MockClient, Establishment } from "../types/partnerDashboard";
-import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients } from "../data/mockPartnerData";
+import type { Provider, EstablishmentMember, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse } from "../types/partnerDashboard";
+import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses } from "../data/mockPartnerData";
 
 interface PartnerDashboardContextType {
   establishments: Establishment[];
@@ -28,7 +28,16 @@ interface PartnerDashboardContextType {
   clientTreatingProviders: Record<string, string>;
   reassignClient: (clientId: string, providerId: string) => void;
   canViewClientClinicalContent: (clientId: string) => boolean;
+  canViewIntakeResponse: (form: IntakeForm, clientId: string, viewerId?: string) => boolean;
   clients: MockClient[];
+  intakeForms: IntakeForm[];
+  intakeFlows: IntakeFlow[];
+  formEntries: FormEntry[];
+  formResponses: FormResponse[];
+  setIntakeForms: React.Dispatch<React.SetStateAction<IntakeForm[]>>;
+  setIntakeFlows: React.Dispatch<React.SetStateAction<IntakeFlow[]>>;
+  setFormEntries: React.Dispatch<React.SetStateAction<FormEntry[]>>;
+  setFormResponses: React.Dispatch<React.SetStateAction<FormResponse[]>>;
 }
 
 const PartnerDashboardContext = createContext<PartnerDashboardContextType | undefined>(undefined);
@@ -47,6 +56,11 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   );
   const [currentProviderId, setCurrentProviderId] = useState<string>("prov-admin");
   const [currentEstablishmentId, setCurrentEstablishmentId] = useState<string | null>("est-1");
+
+  const [intakeForms, setIntakeForms] = useState<IntakeForm[]>(mockIntakeForms);
+  const [intakeFlows, setIntakeFlows] = useState<IntakeFlow[]>(mockIntakeFlows);
+  const [formEntries, setFormEntries] = useState<FormEntry[]>(mockFormEntries);
+  const [formResponses, setFormResponses] = useState<FormResponse[]>(mockFormResponses);
 
   const currentUserMemberships = members.filter(
     (m) =>
@@ -133,22 +147,64 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
 
   const canViewClientClinicalContent = useCallback((clientId: string) => {
     const activeMemberships = currentUserMemberships.filter((m) => m.memberStatus === "active");
-    const current = activeMemberships.find((m) => m.roles.isAdmin) || activeMemberships[0];
+    if (activeMemberships.length === 0) return false;
     const client = mockClients.find((c) => c.id === clientId);
-    if (!current || !client) return false;
-    if (current.roles.isAdmin || activeMemberships.some((m) => m.roles.isAdmin)) {
-      return activeMemberships.some((m) => m.roles.clinical === "Clinician") &&
-        clientTreatingProviders[clientId] === currentProviderId;
-    }
-    if (current.roles.clinical === "Clinician") {
-      return clientTreatingProviders[clientId] === currentProviderId ||
-        careTeamMemberships.some((m) => m.clientId === clientId && m.providerId === currentProviderId);
-    }
-    if (current.roles.clinical === "Supervisor") {
-      return clientTreatingProviders[clientId] === currentProviderId || current.supervises.includes(clientTreatingProviders[clientId]);
-    }
+    if (!client) return false;
+
+    // Check if the user is treating provider
+    if (clientTreatingProviders[clientId] === currentProviderId) return true;
+
+    // Check if the user is on the Care Team
+    const isCareTeam = careTeamMemberships.some(
+      (m) => m.clientId === clientId && m.providerId === currentProviderId
+    );
+    if (isCareTeam) return true;
+
+    // Check if the user supervises the treating provider
+    const supervisorMembership = activeMemberships.find((m) => m.roles.clinical === "Supervisor" || (m.supervises && m.supervises.length > 0));
+    const treatingProviderId = clientTreatingProviders[clientId];
+    if (supervisorMembership && supervisorMembership.supervises && supervisorMembership.supervises.includes(treatingProviderId)) return true;
+
+    // Admin membership alone never grants clinical access
     return false;
   }, [currentProviderId, currentUserMemberships, careTeamMemberships, clientTreatingProviders]);
+
+  const canViewIntakeResponse = useCallback((form: IntakeForm, clientId: string, viewerId?: string) => {
+    const pid = viewerId ?? currentProviderId;
+    const activeMemberships = members.filter(
+      (m) => m.providerId === pid && m.establishmentId === currentEstablishmentId && m.memberStatus === "active"
+    );
+    const client = mockClients.find((c) => c.id === clientId);
+    if (!client) return false;
+
+    const isAdmin = activeMemberships.some((m) => m.roles.isAdmin);
+    const isClinician = activeMemberships.some((m) => m.roles.clinical === "Clinician");
+    const isSupervisor = activeMemberships.some((m) => m.roles.clinical === "Supervisor");
+
+    if (form.category === "administrative") {
+      return isAdmin || clientTreatingProviders[clientId] === pid;
+    }
+
+    if (form.category === "clinical") {
+      if (clientTreatingProviders[clientId] === pid) return true;
+      if (isAdmin && isClinician && clientTreatingProviders[clientId] === pid) return true;
+      
+      // Also allow if they are on the Care Team
+      const isCareTeam = careTeamMemberships.some(
+        (m) => m.clientId === clientId && m.providerId === pid
+      );
+      if (isCareTeam) return true;
+
+      // Check supervises lists for both supervisor and supervisors lists
+      const supervisorMembership = activeMemberships.find((m) => m.roles.clinical === "Supervisor" || (m.supervises && m.supervises.length > 0));
+      const treatingProviderId = clientTreatingProviders[clientId];
+      if (supervisorMembership && supervisorMembership.supervises && supervisorMembership.supervises.includes(treatingProviderId)) return true;
+      
+      return false;
+    }
+
+    return false;
+  }, [currentProviderId, currentEstablishmentId, members, clientTreatingProviders, careTeamMemberships]);
 
   const reassignClient = useCallback((clientId: string, providerId: string) => {
     setClientTreatingProviders((prev) => ({ ...prev, [clientId]: providerId }));
@@ -180,9 +236,18 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         addCareTeamMembership,
         removeCareTeamMembership,
         canViewClientClinicalContent,
+        canViewIntakeResponse,
         clientTreatingProviders,
         reassignClient,
         clients: mockClients,
+        intakeForms,
+        intakeFlows,
+        formEntries,
+        formResponses,
+        setIntakeForms,
+        setIntakeFlows,
+        setFormEntries,
+        setFormResponses,
       }}
     >
       {children}

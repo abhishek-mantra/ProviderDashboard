@@ -26,6 +26,26 @@ export function getCredentialExpiryStatus(expiresAt: string, now = new Date()) {
   return diffDays < 0 ? "expired" : diffDays <= 30 ? "expiring" : "valid";
 }
 
+export function getScreeningScoreLabel(instrumentType: "PHQ-9" | "GAD-7" | undefined, score: number): string {
+  if (instrumentType === "PHQ-9") {
+    if (score <= 4) return "Minimal";
+    if (score <= 9) return "Mild";
+    if (score <= 14) return "Moderate";
+    if (score <= 19) return "Moderately Severe";
+    return "Severe";
+  }
+  if (score <= 4) return "Minimal";
+  if (score <= 9) return "Mild";
+  if (score <= 14) return "Moderate";
+  return "Severe";
+}
+
+export function getScreeningScoreColor(score: number): string {
+  if (score >= 15) return "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800";
+  if (score >= 10) return "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800";
+  return "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800";
+}
+
 export interface Address {
   line1: string;
   city: string;
@@ -203,3 +223,88 @@ export type TherapyModality = (typeof THERAPY_MODALITIES)[number];
 
 export const SESSION_FORMATS = ["in-person", "online", "both"] as const;
 export type SessionFormat = (typeof SESSION_FORMATS)[number];
+
+// ── Intake Forms & Flows ─────────────────────────────────────────────────────
+
+export type FieldType =
+  | "short_answer"
+  | "long_answer"
+  | "multiple_choice"
+  | "dropdown"
+  | "checkbox_multiselect"
+  | "yes_no"
+  | "date"
+  | "agreement_text"
+  | "e_signature"
+  | "file_upload"
+  | "screening_instrument";
+
+export interface FormField {
+  id: string;
+  type: FieldType;
+  label: string;
+  required: boolean;
+  options?: string[];
+  instrumentType?: "PHQ-9" | "GAD-7";
+  order: number;
+  sensitive?: boolean;
+}
+
+export interface IntakeForm {
+  id: string;
+  establishmentId: string;
+  name: string;
+  description?: string;
+  category: "administrative" | "clinical";
+  isTemplate: boolean;
+  templateSourceId?: string;
+  applicableServices: string[];
+  fields: FormField[];
+  isArchived?: boolean;
+  createdBy?: string;
+}
+
+export interface IntakeFlow {
+  id: string;
+  establishmentId: string;
+  name: string;
+  isDefault: boolean;
+  formIds: string[];
+}
+
+export type FormFillStatus = "requested" | "draft" | "submitted";
+
+export interface FormEntry {
+  id: string;
+  clientId: string;
+  formId: string;
+  providerId: string;
+  status: FormFillStatus;
+  requestedAt: string;
+  submittedAt?: string;
+  sentViaFlowId?: string;
+}
+
+export interface ScreeningAnswer {
+  itemIndex: number;
+  itemText: string;
+  value: number;
+}
+
+export interface FormResponseAnswer {
+  fieldId: string;
+  value: string | string[];
+  computedScore?: number;
+  screeningAnswers?: ScreeningAnswer[];
+}
+
+export interface FormResponse {
+  id: string;
+  formEntryId: string;
+  clientId: string;
+  formId: string;
+  answers: FormResponseAnswer[];
+  submittedAt: string;
+  coSignedBy?: string;
+  coSignedAt?: string;
+}

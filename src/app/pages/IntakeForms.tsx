@@ -3,6 +3,7 @@ import { Search, FileText, Plus, Copy, Eye, Pencil, X, Archive, RotateCcw, Share
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import type { IntakeForm, FormField, FieldType } from "../types/partnerDashboard";
 import { mockClients } from "../data/mockPartnerData";
+import { toast } from "sonner";
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   short_answer: "Short Answer",
@@ -733,6 +734,9 @@ function CreateFormModal({
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<"administrative" | "clinical">("clinical");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [serviceOptions, setServiceOptions] = useState<string[]>(APPLICABLE_SERVICES_OPTIONS);
+  const [customServiceInput, setCustomServiceInput] = useState("");
+  const [showAddCustomService, setShowAddCustomService] = useState(false);
   const [sourceFormId, setSourceFormId] = useState("");
 
   const establishmentForms = intakeForms.filter((f) => f.establishmentId === currentEstablishmentId && !f.isArchived);
@@ -764,10 +768,30 @@ function CreateFormModal({
     onClose();
   }
 
+  function handleAddCustomService() {
+    const val = customServiceInput.trim();
+    if (!val) return;
+    if (serviceOptions.some((s) => s.toLowerCase() === val.toLowerCase())) {
+      toast.error("Service option already exists");
+      return;
+    }
+    setServiceOptions((prev) => [...prev, val]);
+    setCustomServiceInput("");
+    setShowAddCustomService(false);
+  }
+
   function toggleService(svc: string) {
-    setSelectedServices((prev) =>
-      prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
-    );
+    setSelectedServices((prev) => {
+      if (prev.includes(svc)) {
+        return prev.filter((s) => s !== svc);
+      } else {
+        if (prev.length >= 4) {
+          toast.error("Only 4 services can be selected");
+          return prev;
+        }
+        return [...prev, svc];
+      }
+    });
   }
 
   if (mode === "select") {
@@ -876,16 +900,18 @@ function CreateFormModal({
           {/* Admin-only: Assign as template to services */}
           {isCurrentUserAdmin && (
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Assign as template to services
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center justify-between">
+                <span>Assign as template to services (Max 4 selected)</span>
+                <span className="text-[10px] text-gray-400 font-mono">{selectedServices.length}/4 selected</span>
               </label>
               <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-2">
                 Select which service lines this template applies to. Leaving all unchecked creates a custom form.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {APPLICABLE_SERVICES_OPTIONS.map((svc) => (
+              <div className="flex flex-wrap gap-2 items-center">
+                {serviceOptions.map((svc) => (
                   <button
                     key={svc}
+                    type="button"
                     onClick={() => toggleService(svc)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                       selectedServices.includes(svc)
@@ -896,6 +922,41 @@ function CreateFormModal({
                     {svc}
                   </button>
                 ))}
+
+                {showAddCustomService ? (
+                  <div className="flex items-center gap-1 border border-gray-250 dark:border-gray-600 rounded-lg p-1 bg-gray-50 dark:bg-gray-800">
+                    <input
+                      type="text"
+                      value={customServiceInput}
+                      onChange={(e) => setCustomServiceInput(e.target.value)}
+                      placeholder="Service name..."
+                      className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-gray-650 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomService}
+                      className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddCustomService(false); setCustomServiceInput(""); }}
+                      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 text-xs"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomService(true)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 dark:border-gray-650 text-gray-555 dark:text-gray-450 hover:border-blue-500 hover:text-blue-500 flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="size-3" />
+                    Add Service
+                  </button>
+                )}
               </div>
             </div>
           )}

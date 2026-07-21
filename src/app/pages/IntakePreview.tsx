@@ -449,7 +449,7 @@ function SignatureField({
   onFocus?: () => void;
   inputClass: (extra?: string) => string;
 }) {
-  const [sigMode, setSigMode] = useState<"type" | "draw">("type");
+  const [sigMode, setSigMode] = useState<"draw" | "upload">("draw");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -509,22 +509,23 @@ function SignatureField({
     onChange("");
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    onFocus?.();
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        onChange(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <FieldWrapper label={field.label} required={field.required} invalid={invalid}>
       <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm max-w-lg w-full mx-auto">
         <div className="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 p-1">
-          <button
-            type="button"
-            onClick={() => setSigMode("type")}
-            disabled={disabled}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
-              sigMode === "type"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
-            }`}
-          >
-            Type Signature
-          </button>
           <button
             type="button"
             onClick={() => setSigMode("draw")}
@@ -537,21 +538,50 @@ function SignatureField({
           >
             Draw Signature
           </button>
+          <button
+            type="button"
+            onClick={() => setSigMode("upload")}
+            disabled={disabled}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+              sigMode === "upload"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+            }`}
+          >
+            Upload Signature Image
+          </button>
         </div>
 
         <div className="p-4 flex flex-col items-center justify-center min-h-[140px]">
-          {sigMode === "type" ? (
-            <div className="relative w-full max-w-sm py-4">
-              <div className="absolute inset-x-0 border-b-2 border-dotted border-gray-300 dark:border-gray-500 pointer-events-none" style={{ top: "65%" }} />
-              <input
-                type="text"
-                value={isDrawnSig ? "" : value}
-                onChange={(e) => onChange(e.target.value)}
-                onFocus={onFocus}
-                disabled={disabled}
-                placeholder="Type your full name to sign"
-                className={inputClass("bg-transparent border-0 focus:ring-0 px-1 pb-1 pt-3 font-['Bradley_Hand','Brush_Script_MT',cursive] text-lg md:text-xl text-center w-full focus:outline-none")}
-              />
+          {sigMode === "upload" ? (
+            <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+              {isDrawnSig ? (
+                <div className="relative border border-gray-200 dark:border-gray-600 rounded-xl p-2 bg-slate-50 dark:bg-slate-900 flex flex-col items-center">
+                  <img src={value} alt="Uploaded Signature" className="max-h-24 object-contain" />
+                  {!disabled && (
+                    <button
+                      type="button"
+                      onClick={() => onChange("")}
+                      className="mt-2 text-xs font-semibold text-red-500 hover:text-red-600"
+                    >
+                      Remove & Re-upload
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full">
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Click to upload signature image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={disabled}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 w-full">

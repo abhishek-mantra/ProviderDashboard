@@ -34,6 +34,7 @@ import {
   ClipboardCheck,
   Layers,
   Edit3,
+  Download,
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import MantraCareLogo from "../../imports/MantraCare_(1)-1.svg";
@@ -867,12 +868,35 @@ function FormResponseViewer({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div id="printable-form-response" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-form-response, #printable-form-response * {
+            visibility: visible !important;
+          }
+          #printable-form-response {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            color: black !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       <div className="p-4 md:p-5 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 w-full">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors no-print"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -883,8 +907,16 @@ function FormResponseViewer({
             </p>
           </div>
 
+          <button
+            onClick={() => window.print()}
+            className="ml-auto flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold shadow-sm transition-colors no-print"
+          >
+            <Download className="size-3.5" />
+            Export PDF
+          </button>
+
           {response.coSignedBy && (
-            <div className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/45">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/45">
               <ClipboardCheck className="size-3.5" />
               <span>Co-signed by {response.coSignedBy}</span>
             </div>
@@ -892,7 +924,7 @@ function FormResponseViewer({
           {canCoSign && (
             <button
               onClick={handleCoSign}
-              className="ml-auto flex items-center gap-1.5 px-3.5 py-1.5 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl text-xs font-bold shadow-sm transition-colors no-print"
             >
               <ClipboardCheck className="size-3.5" />
               Co-sign & Lock

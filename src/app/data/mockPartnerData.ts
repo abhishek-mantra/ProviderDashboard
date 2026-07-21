@@ -227,6 +227,7 @@ const insuranceBillingFields: FormField[] = [
   { id: "ib-3", type: "short_answer", label: "Group number", required: false, order: 3 },
   { id: "ib-4", type: "dropdown", label: "Payment method on file", required: true, options: ["Credit Card", "Debit Card", "Insurance Only", "Self-Pay"], order: 4 },
   { id: "ib-5", type: "yes_no", label: "Sliding scale acknowledgment", required: false, order: 5 },
+  { id: "ib-6", type: "file_upload", label: "Upload insurance card / document", required: false, order: 6 },
 ];
 
 const presentingConcernFields: FormField[] = [

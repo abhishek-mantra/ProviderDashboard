@@ -1994,22 +1994,6 @@ export function PracticeDetails() {
                     </div>
                   )}
 
-                  {/* Communities Served */}
-                  {formData.communitiesServed.length > 0 && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-                        Communities Served
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.communitiesServed.map((c) => (
-                          <span key={c} className="px-3 py-1 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-xs font-medium">
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Therapy Modalities */}
                   {formData.therapyModalities.length > 0 && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700">

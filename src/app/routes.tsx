@@ -80,14 +80,15 @@ import { IntakeFlows } from "./pages/IntakeFlows";
 import { IntakePreview } from "./pages/IntakePreview";
 import { MyForms } from "./pages/MyForms";
 import { FormBuilder } from "./pages/FormBuilder";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export const router = createBrowserRouter([
-  { path: "/get-started", element: <GetStarted /> },
-  { path: "/verify", element: <OTPVerify /> },
-  { path: "/onboarding", element: <Onboarding /> },
-  { path: "/onboarding-ehr-ai-scribe", element: <OnboardingEHRAIScribe /> },
-  { path: "/my-forms/:clientId", element: <MyForms /> },
-  { path: "/intake-preview/:formEntryId", element: <IntakePreview /> },
+  { path: "/get-started", element: <ErrorBoundary><GetStarted /></ErrorBoundary> },
+  { path: "/verify", element: <ErrorBoundary><OTPVerify /></ErrorBoundary> },
+  { path: "/onboarding", element: <ErrorBoundary><Onboarding /></ErrorBoundary> },
+  { path: "/onboarding-ehr-ai-scribe", element: <ErrorBoundary><OnboardingEHRAIScribe /></ErrorBoundary> },
+  { path: "/my-forms/:clientId", element: <ErrorBoundary><MyForms /></ErrorBoundary> },
+  { path: "/intake-preview/:formEntryId", element: <ErrorBoundary><IntakePreview /></ErrorBoundary> },
   {
     path: "/",
     element: <Layout />,

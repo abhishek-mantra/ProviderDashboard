@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import {
   ArrowLeft,
   Plus,
@@ -80,6 +81,18 @@ export function FormBuilder() {
   );
   const [sidebarTab, setSidebarTab] = useState<"add" | "settings">("add");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [formModified, setFormModified] = useState(false);
+
+  useUnsavedChanges(formModified);
+
+  const builderInitialRender = useRef(true);
+  useEffect(() => {
+    if (builderInitialRender.current) {
+      builderInitialRender.current = false;
+      return;
+    }
+    setFormModified(true);
+  }, [title, description, category, fields]);
 
   const selectedField = fields.find((f) => f.id === selectedFieldId);
 
@@ -167,6 +180,7 @@ export function FormBuilder() {
       return [...prev, savedForm];
     });
 
+    setFormModified(false);
     toast.success(existingForm ? "Form updated successfully!" : "Form created successfully!");
     navigate("/intake-forms");
   };

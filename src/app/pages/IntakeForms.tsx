@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { Search, FileText, Plus, Copy, Eye, Pencil, X, Archive, RotateCcw, Share2, ExternalLink, Calendar, User, Filter, ChevronDown, Link } from "lucide-react";
+import { SkeletonList } from "../components/ui/skeleton-list";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import type { IntakeForm, FormField, FieldType, FormResponse } from "../types/partnerDashboard";
 import { FIELD_TYPE_LABELS } from "../types/partnerDashboard";
@@ -25,6 +26,13 @@ export function IntakeForms() {
     isCurrentUserAdmin,
     providers,
   } = usePartnerDashboard();
+
+  const [pageLoading, setPageLoading] = useState(true);
+  const loadingTimeout = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    loadingTimeout.current = setTimeout(() => setPageLoading(false), 400);
+    return () => clearTimeout(loadingTimeout.current);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tabParam = searchParams.get("tab");
@@ -136,6 +144,7 @@ export function IntakeForms() {
   }
 
   function handleArchive(formId: string) {
+    if (!window.confirm("Are you sure you want to archive this form? It can be restored later from the archived section.")) return;
     setIntakeForms((prev) =>
       prev.map((f) => (f.id === formId ? { ...f, isArchived: true } : f))
     );
@@ -148,6 +157,7 @@ export function IntakeForms() {
   }
 
   function handleDelete(formId: string) {
+    if (!window.confirm("Are you sure you want to permanently delete this form? This action cannot be undone.")) return;
     setIntakeForms((prev) => prev.filter((f) => f.id !== formId));
   }
 
@@ -227,6 +237,11 @@ export function IntakeForms() {
         ))}
       </div>
 
+      {/* ── Loading State ── */}
+      {pageLoading ? (
+        <SkeletonList count={8} variant="table" height="h-14" />
+      ) : (
+      <>
       {/* ── Forms Tab ── */}
       {activeTab === "forms" && (
         <div className="space-y-4">
@@ -555,6 +570,8 @@ export function IntakeForms() {
         <div className="pt-2">
           <IntakeFlows />
         </div>
+      )}
+      </>
       )}
 
       {/* Preview Modal */}

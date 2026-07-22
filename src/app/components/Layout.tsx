@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Plus, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, EyeOff, GripVertical } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Toaster, toast } from "./ui/sonner";
@@ -1428,7 +1429,9 @@ export function Layout() {
                     ? 'w-full px-2'
                     : 'max-w-[1000px] mx-auto w-full px-6'
           }`}>
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>

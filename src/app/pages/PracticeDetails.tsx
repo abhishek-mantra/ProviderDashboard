@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import {
   Building2,
   Hospital,
@@ -676,7 +677,10 @@ export function PracticeDetails() {
   const [viewingEstablishment, setViewingEstablishment] = useState<Establishment | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formModified, setFormModified] = useState(false);
   
+  useUnsavedChanges(formModified && showForm);
+
   // Form data for new/edit establishment
   const [formData, setFormData] = useState(({
     type: "hospital",
@@ -719,6 +723,15 @@ export function PracticeDetails() {
     freeConsultation: { offered: false, durationMinutes: undefined }
   }));
 
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
+    setFormModified(true);
+  }, [formData]);
+
   const steps = [
     { number: 1, label: "Basic Info" },
     { number: 2, label: "Services & Offerings" },
@@ -731,6 +744,8 @@ export function PracticeDetails() {
     setShowForm(true);
     setCurrentStep(1);
     setEditingId(null);
+    setFormModified(false);
+    initialRender.current = true;
     // Reset form data
     setFormData({
       type: "hospital",
@@ -764,7 +779,6 @@ export function PracticeDetails() {
       photos: [],
       videoUrl: "",
       insurance: [],
-      insuranceDescription: "",
       fees: [],
       slidingScaleAvailable: false,
       paymentMethodsAccepted: [],
@@ -831,6 +845,7 @@ export function PracticeDetails() {
     setShowForm(false);
     setCurrentStep(1);
     setEditingId(null);
+    setFormModified(false);
   };
 
   const handleNext = () => {

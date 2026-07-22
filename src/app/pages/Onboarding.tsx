@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import { ArrowLeft, Check, Eye, MapPin, Calendar, Phone, Briefcase, Users2, FileText, Video, Clock, User, Upload, Plus, Trash2, X, Globe, ChevronRight, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router";
 import { usePlanMode } from "../contexts/PlanModeContext";

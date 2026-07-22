@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { motion } from "motion/react";
 import { useState, useEffect, useRef } from "react";
 import { usePlanMode } from "../contexts/PlanModeContext";
+import { SkeletonList } from "../components/ui/skeleton-list";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { AddClientModal } from "../components/AddClientModal";
 import { AddSessionNoteModal } from "../components/AddSessionNoteModal";
@@ -387,6 +388,30 @@ export function Dashboard() {
       avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJydW5ldHRlJTIwaGVhZHNob3R8ZW58MXx8fHwxNzQyNzg1NDcyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     },
   ];
+
+  const [pageLoading, setPageLoading] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setPageLoading(false), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (pageLoading) {
+    return (
+      <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen px-1 py-2 md:p-6">
+        <div className="space-y-6">
+          <SkeletonList count={1} height="h-8" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-28 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <SkeletonList count={3} height="h-4" className="space-y-2" />
+              </div>
+            ))}
+          </div>
+          <SkeletonList count={3} height="h-24" variant="card" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen px-1 py-2 md:p-6">

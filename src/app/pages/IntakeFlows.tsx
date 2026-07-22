@@ -43,6 +43,7 @@ export function IntakeFlows() {
   }
 
   function handleDeleteFlow(flowId: string) {
+    if (!window.confirm("Are you sure you want to permanently delete this intake flow? This action cannot be undone.")) return;
     setIntakeFlows((prev) => prev.filter((f) => f.id !== flowId));
     if (expandedFlow === flowId) setExpandedFlow(null);
   }

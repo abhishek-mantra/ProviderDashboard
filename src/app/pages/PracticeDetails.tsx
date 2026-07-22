@@ -23,7 +23,6 @@ import {
   CheckCircle2,
   DollarSign,
   Users,
-  Globe,
   Tags,
   Video,
   Headphones,
@@ -38,7 +37,6 @@ import {
   AGE_GROUPS,
   PARTICIPANTS,
   PAYMENT_METHODS,
-  COMMUNITIES_SERVED,
   THERAPY_MODALITIES,
   SESSION_FORMATS,
 } from "../types/partnerDashboard";
@@ -683,12 +681,18 @@ export function PracticeDetails() {
   const [formData, setFormData] = useState(({
     type: "hospital",
     name: "",
+    nameDescription: "",
     specialties: [] as string[],
     specialtyServices: {} as { [key: string]: string[] },
+    specialtiesDescription: "",
+    therapyModalities: [] as string[],
+    therapyModalitiesDescription: "",
     yearsInOperation: "",
+    yearsInOperationDescription: "",
     about: "",
     bedCapacity: "",
     accreditation: accreditationOptions[0],
+    insuranceDescription: "",
     streetAddress: "",
     city: "",
     state: "",
@@ -710,8 +714,7 @@ export function PracticeDetails() {
     slidingScaleAvailable: false,
     paymentMethodsAccepted: [] as string[],
     clientFocus: { ageGroups: [] as string[], participants: [] as string[] },
-    communitiesServed: [] as string[],
-    therapyModalities: [] as string[],
+    clientFocusDescription: "",
     sessionFormat: "in-person" as "in-person" | "online" | "both",
     freeConsultation: { offered: false, durationMinutes: undefined }
   }));
@@ -732,12 +735,18 @@ export function PracticeDetails() {
     setFormData({
       type: "hospital",
       name: "",
+      nameDescription: "",
       specialties: [],
       specialtyServices: {},
+      specialtiesDescription: "",
+      therapyModalities: [],
+      therapyModalitiesDescription: "",
       yearsInOperation: "",
+      yearsInOperationDescription: "",
       about: "",
       bedCapacity: "",
       accreditation: accreditationOptions[0],
+      insuranceDescription: "",
       streetAddress: "",
       city: "",
       state: "",
@@ -755,12 +764,12 @@ export function PracticeDetails() {
       photos: [],
       videoUrl: "",
       insurance: [],
+      insuranceDescription: "",
       fees: [],
       slidingScaleAvailable: false,
       paymentMethodsAccepted: [],
       clientFocus: { ageGroups: [], participants: [] },
-      communitiesServed: [],
-      therapyModalities: [],
+      clientFocusDescription: "",
       sessionFormat: "in-person",
       freeConsultation: { offered: false, durationMinutes: undefined }
     });
@@ -998,10 +1007,6 @@ export function PracticeDetails() {
     }));
   };
 
-  const handleCommunitiesChange = (communities: string[]) => {
-    setFormData(prev => ({ ...prev, communitiesServed: communities }));
-  };
-
   const handleTherapyModalitiesChange = (modalities: string[]) => {
     setFormData(prev => ({ ...prev, therapyModalities: modalities }));
   };
@@ -1214,6 +1219,13 @@ export function PracticeDetails() {
                       className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
                       placeholder="Enter establishment name"
                     />
+                    <textarea
+                      value={formData.nameDescription}
+                      onChange={(e) => setFormData({ ...formData, nameDescription: e.target.value })}
+                      rows={2}
+                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                      placeholder="Description for listing (will appear on your public profile)"
+                    />
                   </div>
 
                   <div>
@@ -1241,6 +1253,19 @@ export function PracticeDetails() {
                       selected={formData.specialties}
                       onChange={handleSpecialtyChange}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                      allowAdd
+                      onAdd={(val) => {
+                        if (!specialtyOptions.includes(val)) {
+                          specialtyOptions.push(val);
+                        }
+                      }}
+                    />
+                    <textarea
+                      value={formData.specialtiesDescription}
+                      onChange={(e) => setFormData({ ...formData, specialtiesDescription: e.target.value })}
+                      rows={2}
+                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                      placeholder="Description for listing (will appear on your public profile)"
                     />
                   </div>
 
@@ -1264,12 +1289,46 @@ export function PracticeDetails() {
                               selected={formData.specialtyServices[specialty] || []}
                               onChange={(services) => handleSpecialtyServiceChange(specialty, services)}
                               placeholder="Select services..."
+                              allowAdd
+                              onAdd={(val) => {
+                                if (specialtyServicesMap[specialty]) {
+                                  specialtyServicesMap[specialty].push(val);
+                                }
+                              }}
                             />
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
+
+                  {/* Therapy Modalities — shown only when Therapy is selected */}
+                  {formData.specialties.includes("Therapy") && (
+                    <div className="pt-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Tags className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                          Therapy Modalities
+                        </h4>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                        Select the therapeutic approaches offered.
+                      </p>
+                      <MultiSelect
+                        options={[...THERAPY_MODALITIES]}
+                        selected={formData.therapyModalities}
+                        onChange={handleTherapyModalitiesChange}
+                        placeholder="Select modalities..."
+                      />
+                      <textarea
+                        value={formData.therapyModalitiesDescription}
+                        onChange={(e) => setFormData({ ...formData, therapyModalitiesDescription: e.target.value })}
+                        rows={2}
+                        className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                        placeholder="Description for listing (will appear on your public profile)"
+                      />
+                    </div>
+                  )}
 
                   {/* Insurance panels */}
                   <div className="pt-2">
@@ -1279,6 +1338,13 @@ export function PracticeDetails() {
                       selected={formData.insurance}
                       onChange={handleInsuranceChange}
                       placeholder="Select insurance providers..."
+                    />
+                    <textarea
+                      value={formData.insuranceDescription}
+                      onChange={(e) => setFormData({ ...formData, insuranceDescription: e.target.value })}
+                      rows={2}
+                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                      placeholder="Description for listing (will appear on your public profile)"
                     />
                   </div>
 
@@ -1292,6 +1358,13 @@ export function PracticeDetails() {
                       onChange={(e) => setFormData({ ...formData, yearsInOperation: e.target.value })}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
                       placeholder="e.g. 10"
+                    />
+                    <textarea
+                      value={formData.yearsInOperationDescription}
+                      onChange={(e) => setFormData({ ...formData, yearsInOperationDescription: e.target.value })}
+                      rows={2}
+                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                      placeholder="Description for listing (will appear on your public profile)"
                     />
                   </div>
                 </div>
@@ -1414,44 +1487,6 @@ export function PracticeDetails() {
                         placeholder="Select participant types..."
                       />
                     </div>
-                  </div>
-
-                  {/* Communities Served */}
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Globe className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
-                        Communities Served
-                      </h4>
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                      Select the communities your establishment specializes in serving.
-                    </p>
-                    <MultiSelect
-                      options={[...COMMUNITIES_SERVED]}
-                      selected={formData.communitiesServed}
-                      onChange={handleCommunitiesChange}
-                      placeholder="Select communities..."
-                    />
-                  </div>
-
-                  {/* Therapy Modalities */}
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Tags className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">
-                        Therapy Modalities
-                      </h4>
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                      Select the therapeutic approaches offered (distinct from medical specializations).
-                    </p>
-                    <MultiSelect
-                      options={[...THERAPY_MODALITIES]}
-                      selected={formData.therapyModalities}
-                      onChange={handleTherapyModalitiesChange}
-                      placeholder="Select modalities..."
-                    />
                   </div>
 
                   {/* Session Format */}

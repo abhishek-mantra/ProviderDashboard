@@ -79,6 +79,7 @@ import { IntakeForms } from "./pages/IntakeForms";
 import { IntakeFlows } from "./pages/IntakeFlows";
 import { IntakePreview } from "./pages/IntakePreview";
 import { MyForms } from "./pages/MyForms";
+import { FormBuilder } from "./pages/FormBuilder";
 
 export const router = createBrowserRouter([
   { path: "/get-started", element: <GetStarted /> },
@@ -165,7 +166,6 @@ export const router = createBrowserRouter([
       { path: "add-prescription", element: <CreatePrescription /> },
       { path: "tools", element: <Tools /> },
       { path: "admin-dashboard", element: <AdminDashboard />, errorElement: <ErrorPage /> },
-      { path: "team-management", element: <TeamManagement />, errorElement: <ErrorPage /> },
       { path: "supervisor-dashboard", element: <SupervisorDashboard />, errorElement: <ErrorPage /> },
       { path: "care-team", element: <CareTeamManager />, errorElement: <ErrorPage /> },
       {
@@ -193,15 +193,17 @@ export const router = createBrowserRouter([
           { path: "numbers", element: <SettingsNumbers /> },
           { path: "custom-fields", element: <SettingsCustomFields /> },
           { path: "integrations", element: <SettingsIntegrations /> },
-{ path: "audit-logs", element: <SettingsAuditLogs /> },
+          { path: "audit-logs", element: <SettingsAuditLogs /> },
           { path: "security", element: <SettingsSecurity /> },
           { path: "availability", element: <Availability /> },
           { path: "practice-details", element: <PracticeDetails /> },
           { path: "notifications", element: <Notifications /> },
+          { path: "team-management", element: <TeamManagement /> },
         ]
       },
       { path: "intake-forms", element: <IntakeForms /> },
-      { path: "intake-flows", element: <IntakeFlows /> },
+      { path: "intake-forms/builder", element: <FormBuilder /> },
+      { path: "intake-forms/builder/:formId", element: <FormBuilder /> },
       { path: "mantra-provider", element: <MantraProviderPage /> },
       { path: "*", element: <NotFound /> },
     ],

@@ -238,7 +238,7 @@ export function AdminDashboard() {
               </p>
             </div>
             <Link
-              to="/team-management"
+              to="/settings/team-management"
               className="bg-[#4169E1] hover:bg-[#3557c7] text-white px-4 py-2.5 rounded-lg transition-colors font-medium flex items-center gap-2 text-sm"
             >
               <Users className="size-4" />
@@ -672,7 +672,7 @@ export function AdminDashboard() {
                 </span>
               </div>
               <Link
-                to="/team-management"
+                to="/settings/team-management"
                 className="text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium flex items-center gap-1"
               >
                 View All <ChevronRight className="size-4" />

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check, X, Search } from "lucide-react";
+import { ChevronDown, Check, X, Search, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 interface MultiSelectProps {
   options: string[];
@@ -7,11 +8,14 @@ interface MultiSelectProps {
   onChange: (selected: string[]) => void;
   placeholder?: string;
   label?: string;
+  allowAdd?: boolean;
+  onAdd?: (value: string) => void;
 }
 
-export function MultiSelect({ options, selected, onChange, placeholder = "Select...", label }: MultiSelectProps) {
+export function MultiSelect({ options, selected, onChange, placeholder = "Select...", label, allowAdd, onAdd }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [customInput, setCustomInput] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,7 +131,7 @@ export function MultiSelect({ options, selected, onChange, placeholder = "Select
 
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {filteredOptions.length === 0 && !allowAdd ? (
               <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                 No options found
               </div>
@@ -150,6 +154,52 @@ export function MultiSelect({ options, selected, onChange, placeholder = "Select
                   </button>
                 );
               })
+            )}
+
+            {/* Add custom option */}
+            {allowAdd && searchQuery && (
+              <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+                {filteredOptions.length === 0 && !options.some(o => o.toLowerCase() === searchQuery.toLowerCase()) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAdd?.(searchQuery);
+                      onChange([...selected, searchQuery]);
+                      setSearchQuery("");
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#00c0ff] hover:bg-[#00c0ff]/5 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add "{searchQuery}"
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <input
+                      type="text"
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      placeholder="Type custom value..."
+                      className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!customInput.trim()) return;
+                        onAdd?.(customInput.trim());
+                        onChange([...selected, customInput.trim()]);
+                        setCustomInput("");
+                        setIsOpen(false);
+                      }}
+                      disabled={!customInput.trim()}
+                      className="px-3 py-1.5 bg-[#043570] hover:bg-[#032a57] disabled:bg-gray-300 text-white rounded-lg text-xs font-bold transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

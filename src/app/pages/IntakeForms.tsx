@@ -1,46 +1,62 @@
-import { useState, useMemo } from "react";
-import { Search, FileText, Plus, Copy, Eye, Pencil, X, Archive, RotateCcw, Share2, ExternalLink, Calendar, User, Filter, ChevronDown } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router";
+import { Search, FileText, Plus, Copy, Eye, Pencil, X, Archive, RotateCcw, Share2, ExternalLink, Calendar, User, Filter, ChevronDown, Link } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
-import type { IntakeForm, FormField, FieldType } from "../types/partnerDashboard";
+import type { IntakeForm, FormField, FieldType, FormResponse } from "../types/partnerDashboard";
+import { FIELD_TYPE_LABELS } from "../types/partnerDashboard";
 import { mockClients } from "../data/mockPartnerData";
 import { toast } from "sonner";
-
-const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  short_answer: "Short Answer",
-  long_answer: "Long Answer",
-  multiple_choice: "Multiple Choice",
-  dropdown: "Dropdown",
-  checkbox_multiselect: "Checkbox (Multi-Select)",
-  yes_no: "Yes / No",
-  date: "Date",
-  agreement_text: "Agreement Text",
-  e_signature: "E-Signature",
-  file_upload: "File Upload",
-  screening_instrument: "Screening Instrument",
-};
+import { IntakeFlows } from "./IntakeFlows";
+import { FormResponseViewer } from "./ClientProfile";
 
 const APPLICABLE_SERVICES_OPTIONS = ["Therapy", "Diet", "Physio", "Yoga"];
 
-type TabType = "forms" | "entries" | "archived";
+type TabType = "forms" | "flows" | "entries";
 
 export function IntakeForms() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const {
     intakeForms, setIntakeForms,
     formEntries, setFormEntries,
+    formResponses,
     currentEstablishmentId,
     isCurrentUserAdmin,
     providers,
   } = usePartnerDashboard();
 
-  const [activeTab, setActiveTab] = useState<TabType>("forms");
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "entries" || tabParam === "flows") {
+      return tabParam;
+    }
+    return "forms";
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "template" | "custom">("all");
-  const [entriesSearch, setEntriesSearch] = useState("");
+  const [entriesSearch, setEntriesSearch] = useState<string>(() => {
+    return searchParams.get("search") || searchParams.get("clientId") || "";
+  });
   const [entriesFormFilter, setEntriesFormFilter] = useState<string>("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreviewForm, setShowPreviewForm] = useState<IntakeForm | null>(null);
   const [showShareModal, setShowShareModal] = useState<IntakeForm | null>(null);
   const [editingForm, setEditingForm] = useState<IntakeForm | null>(null);
+  const [viewingResponseOverlay, setViewingResponseOverlay] = useState<{
+    form: IntakeForm;
+    response: FormResponse;
+  } | null>(null);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "entries" || tabParam === "flows") {
+      setActiveTab(tabParam);
+    }
+    const q = searchParams.get("search") || searchParams.get("clientId");
+    if (q) setEntriesSearch(q);
+  }, [searchParams]);
 
   const establishmentForms = useMemo(
     () => intakeForms.filter((f) => f.establishmentId === currentEstablishmentId),
@@ -148,29 +164,39 @@ export function IntakeForms() {
   };
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
-    { key: "forms", label: "Form", count: activeForms.length },
+    { key: "forms", label: "Form Templates", count: activeForms.length },
+    { key: "flows", label: "Intake Flows" },
     { key: "entries", label: "Entries", count: establishmentEntries.length },
-    { key: "archived", label: "Archived", count: archivedForms.length },
   ];
+
+  function handleViewEntry(entry: any) {
+    const form = intakeForms.find((f) => f.id === entry.formId);
+    const response = formResponses.find((r) => r.formEntryId === entry.id);
+    if (form && response) {
+      setViewingResponseOverlay({ form, response });
+    } else if (form) {
+      setShowPreviewForm(form);
+    }
+  }
 
   return (
     <div className="max-w-[1200px] space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Intake Forms</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Forms</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Manage intake form templates, entries, and archived forms
+            Manage form templates, intake flows, entries, and archived forms
           </p>
         </div>
-        {activeTab !== "archived" && (
+        {activeTab === "forms" && (
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => navigate("/intake-forms/builder")}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
           >
             <Plus className="size-4" />
-            <span className="hidden md:inline">Create a New Form</span>
-            <span className="md:hidden">New Form</span>
+            <span className="hidden md:inline">Open Form Builder</span>
+            <span className="md:hidden">Builder</span>
           </button>
         )}
       </div>
@@ -314,14 +340,13 @@ export function IntakeForms() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <ActionBtn icon={<Eye className="size-3.5" />} label="View" onClick={() => setShowPreviewForm(form)} />
-                          {!form.isTemplate && (
+                          {!form.isTemplate ? (
                             <>
-                              <ActionBtn icon={<Pencil className="size-3.5" />} label="Edit" onClick={() => setEditingForm(form)} />
+                              <ActionBtn icon={<Pencil className="size-3.5" />} label="Edit" onClick={() => navigate(`/intake-forms/builder/${form.id}`)} />
                               <ActionBtn icon={<Archive className="size-3.5" />} label="Archive" onClick={() => handleArchive(form.id)} />
                               <ActionBtn icon={<X className="size-3.5" />} label="Delete" onClick={() => handleDelete(form.id)} />
                             </>
-                          )}
-                          {form.isTemplate && (
+                          ) : (
                             <ActionBtn icon={<Copy className="size-3.5" />} label="Duplicate" onClick={() => handleDuplicate(form)} />
                           )}
                           <ActionBtn icon={<Share2 className="size-3.5" />} label="Share" onClick={() => setShowShareModal(form)} />
@@ -342,6 +367,91 @@ export function IntakeForms() {
               </table>
             </div>
           </div>
+
+          {/* Archived toggle and section inside Form Templates */}
+          <div className="pt-2">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              <Archive className={`size-4 transition-transform duration-200 ${showArchived ? 'rotate-90' : ''}`} />
+              Archived ({archivedForms.length})
+            </button>
+          </div>
+
+          {showArchived && archivedForms.length > 0 && (
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search archived forms..."
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 focus:border-[#00c0ff]"
+                />
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entries</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                      {filteredArchivedForms.map((form) => (
+                        <tr key={form.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-mono text-gray-400">{form.id}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${form.category === "clinical" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "bg-amber-50 dark:bg-amber-900/20 text-amber-600"}`}>
+                                <FileText className="size-4" />
+                              </div>
+                              <div>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{form.name}</span>
+                                <span className={`text-[10px] font-medium ml-2 px-1.5 py-0.5 rounded ${form.category === "clinical" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-500" : "bg-amber-50 dark:bg-amber-900/20 text-amber-500"}`}>
+                                  {form.category === "clinical" ? "Clinical" : "Admin"}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                              {form.isTemplate ? "Template" : "Created by you"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{getEntryCount(form.id)}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <ActionBtn icon={<RotateCcw className="size-3.5" />} label="Restore" onClick={() => handleRestore(form.id)} />
+                              <ActionBtn icon={<Eye className="size-3.5" />} label="View Preview" onClick={() => setShowPreviewForm(form)} />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredArchivedForms.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                            {searchQuery ? "No archived forms match your search." : "No archived forms."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -420,7 +530,7 @@ export function IntakeForms() {
                         </td>
                       )}
                       <td className="px-4 py-3 text-right">
-                        <ActionBtn icon={<Eye className="size-3.5" />} label="View" onClick={() => {}} />
+                        <ActionBtn icon={<Eye className="size-3.5" />} label="View" onClick={() => handleViewEntry(entry)} />
                       </td>
                     </tr>
                   ))}
@@ -440,86 +550,10 @@ export function IntakeForms() {
         </div>
       )}
 
-      {/* ── Archived Tab ── */}
-      {activeTab === "archived" && (
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search archived forms..."
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 focus:border-[#00c0ff]"
-            />
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entries</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                  {filteredArchivedForms.map((form) => (
-                    <tr key={form.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-mono text-gray-400">{form.id}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                            form.category === "clinical"
-                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600"
-                              : "bg-amber-50 dark:bg-amber-900/20 text-amber-600"
-                          }`}>
-                            <FileText className="size-4" />
-                          </div>
-                          <div>
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{form.name}</span>
-                            <span className={`text-[10px] font-medium ml-2 px-1.5 py-0.5 rounded ${
-                              form.category === "clinical"
-                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-500"
-                                : "bg-amber-50 dark:bg-amber-900/20 text-amber-500"
-                            }`}>
-                              {form.category === "clinical" ? "Clinical" : "Admin"}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                          {form.isTemplate ? "Template" : "Created by you"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{getEntryCount(form.id)}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <ActionBtn icon={<RotateCcw className="size-3.5" />} label="Restore" onClick={() => handleRestore(form.id)} />
-                          <ActionBtn icon={<Eye className="size-3.5" />} label="View Preview" onClick={() => setShowPreviewForm(form)} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredArchivedForms.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
-                        {searchQuery ? "No archived forms match your search." : "No archived forms."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {/* ── Intake Flows Tab ── */}
+      {activeTab === "flows" && (
+        <div className="pt-2">
+          <IntakeFlows />
         </div>
       )}
 
@@ -558,6 +592,19 @@ export function IntakeForms() {
           setIntakeForms={setIntakeForms}
           onClose={() => setEditingForm(null)}
         />
+      )}
+
+      {/* Response Overlay Modal */}
+      {viewingResponseOverlay && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-start justify-center p-4 pt-8 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto border border-gray-100 dark:border-gray-700">
+            <FormResponseViewer
+              form={viewingResponseOverlay.form}
+              response={viewingResponseOverlay.response}
+              onBack={() => setViewingResponseOverlay(null)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -652,6 +699,17 @@ function ShareFormModal({
 }) {
   const { currentProviderId } = usePartnerDashboard();
   const [selectedClientId, setSelectedClientId] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const shareLink = `${window.location.origin}/intake-preview/share/${form.id}`;
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setLinkCopied(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   function handleSend() {
     if (!selectedClientId) return;
@@ -664,6 +722,7 @@ function ShareFormModal({
       requestedAt: new Date().toISOString(),
     };
     setFormEntries((prev) => [...prev, newEntry]);
+    toast.success("Form sent to client successfully!");
     onClose();
   }
 
@@ -673,16 +732,48 @@ function ShareFormModal({
         <div className="flex items-center justify-between p-4 md:p-5 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Share2 className="size-4 text-blue-500" />
-            Send Form to Client
+            Share Form
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 transition-colors">
             <X className="size-4" />
           </button>
         </div>
-        <div className="p-4 md:p-5 space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Send <strong>{form.name}</strong> to a client. They will receive a link to fill it out.
-          </p>
+        <div className="p-4 md:p-5 space-y-5">
+          {/* Global Share Link */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+              <Link className="size-3.5" />
+              Shareable Link
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Anyone with this link can fill out <strong>{form.name}</strong>.
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 truncate select-all">
+                {shareLink}
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs transition-colors ${
+                  linkCopied
+                    ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                    : "bg-[#043570] hover:bg-[#032a57] text-white"
+                }`}
+              >
+                <Copy className="size-3.5" />
+                {linkCopied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">or send to a specific client</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          </div>
+
+          {/* Send to Specific Client */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Select Client</label>
             <select
@@ -696,7 +787,7 @@ function ShareFormModal({
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleSend}
               disabled={!selectedClientId}

@@ -7,9 +7,11 @@ import {
   Building2,
   Settings as SettingsIcon
 } from "lucide-react";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function Settings() {
   const location = useLocation();
+  const { isCurrentUserAdmin } = usePartnerDashboard();
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + "/");
@@ -20,6 +22,7 @@ export function Settings() {
     { path: "/settings/practice-details", label: "Practice Details", icon: Building2 },
     { path: "/settings/notifications", label: "Notifications", icon: Bell },
     { path: "/settings/billing/plans", label: "Subscription", icon: CreditCard },
+    ...(isCurrentUserAdmin ? [{ path: "/settings/team-management", label: "Manage Team", icon: Users }] : []),
   ];
 
   return (

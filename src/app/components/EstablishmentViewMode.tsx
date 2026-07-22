@@ -253,23 +253,6 @@ export function EstablishmentViewMode({
           </div>
         )}
 
-        {/* Communities Served */}
-        {establishment.communitiesServed && establishment.communitiesServed.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-[#00c0ff]" />
-              Communities Served
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {establishment.communitiesServed.map((c) => (
-                <span key={c} className="px-3 py-1.5 bg-[#00c0ff]/10 text-[#00c0ff] rounded-full text-sm font-medium">
-                  {c}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Therapy Modalities */}
         {establishment.therapyModalities && establishment.therapyModalities.length > 0 && (
           <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">

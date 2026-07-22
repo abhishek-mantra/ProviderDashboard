@@ -1,4 +1,4 @@
-import { useNavigate, useParams, Link } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useState, useMemo } from "react";
 import {
   ArrowLeft,
@@ -24,7 +24,6 @@ import {
   Mic,
   ClipboardList,
   CheckCircle2,
-  Clock,
   AlertCircle,
   XCircle,
   Lock,
@@ -32,8 +31,6 @@ import {
   FileSpreadsheet,
   ChevronLeft,
   ClipboardCheck,
-  Layers,
-  Edit3,
   Download,
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -44,7 +41,8 @@ import { usePlanMode } from "../contexts/PlanModeContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { CareTeamManager } from "./CareTeamManager";
 import { mockClients, PHQ9_ITEMS, GAD7_ITEMS } from "../data/mockPartnerData";
-import type { IntakeForm, FormResponse, FormEntry, FormField } from "../types/partnerDashboard";
+import { FIELD_TYPE_LABELS } from "../types/partnerDashboard";
+import type { IntakeForm, FormResponse, FormField } from "../types/partnerDashboard";
 import { getScreeningScoreLabel, getScreeningScoreColor } from "../types/partnerDashboard";
 
 interface ActionButton {
@@ -59,10 +57,9 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const id = clientId ?? routeId;
   const [clientType, setClientType] = useState<"Mantra" | "Personal" | "InactiveOnboarded">("Mantra");
   const [isMobileAppModalOpen, setIsMobileAppModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"summary" | "intake">("summary");
-  const [viewingResponse, setViewingResponse] = useState<{ form: IntakeForm; response: FormResponse } | null>(null);
+  const [activeTab, setActiveTab] = useState<"summary">("summary");
   const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent, canViewIntakeResponse, providers, intakeForms, intakeFlows, formEntries, formResponses } = usePartnerDashboard();
+  const { canViewClientClinicalContent, providers, intakeForms, formResponses } = usePartnerDashboard();
 
   // Mock client data - in real app this would come from API based on id
   const clientRecord = mockClients.find((item) => item.id === id) || mockClients[0];
@@ -149,6 +146,11 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
       icon: DollarSign,
       label: "Earnings",
       onClick: () => navigate("/billing", { state: { tab: "earnings", clientFilter: client.name } })
+    },
+    {
+      icon: ClipboardList,
+      label: "Intake Forms",
+      onClick: () => navigate(`/intake-forms?tab=entries&search=${encodeURIComponent(client?.name || "")}`)
     }
   ];
 
@@ -370,7 +372,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
       {/* Tab Navigation */}
       <div className="flex items-center gap-1 border-b border-gray-200 dark:border-gray-700">
         <button
-          onClick={() => { setActiveTab("summary"); setViewingResponse(null); }}
+          onClick={() => { setActiveTab("summary"); }}
           className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
             activeTab === "summary"
               ? "border-[#043570] text-[#043570] dark:text-[#00c0ff] dark:border-[#00c0ff]"
@@ -382,34 +384,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
             Summary
           </div>
         </button>
-        <button
-          onClick={() => setActiveTab("intake")}
-          className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-            activeTab === "intake"
-              ? "border-[#043570] text-[#043570] dark:text-[#00c0ff] dark:border-[#00c0ff]"
-              : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <ClipboardList className="size-4" />
-            Intake Forms
-          </div>
-        </button>
       </div>
-
-      {/* Intake Tab Content */}
-      {activeTab === "intake" && (
-        <ClientIntakeTab
-          clientId={id || "1"}
-          intakeForms={intakeForms}
-          intakeFlows={intakeFlows}
-          formEntries={formEntries}
-          formResponses={formResponses}
-          canViewIntakeResponse={canViewIntakeResponse}
-          viewingResponse={viewingResponse}
-          setViewingResponse={setViewingResponse}
-        />
-      )}
 
       {/* Summary Tab Content */}
       {activeTab === "summary" && (
@@ -570,152 +545,9 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
 
 // ── Intake Tab Component ──────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { icon: any; label: string; color: string }> = {
-  "requested": { icon: Clock, label: "Requested (Assigned)", color: "text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800" },
-  "draft": { icon: Edit3, label: "Draft", color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800" },
-  "submitted": { icon: CheckCircle2, label: "Completed", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800" },
-};
-
-const FIELD_TYPE_LABELS: Record<string, string> = {
-  short_answer: "Short Answer", long_answer: "Long Answer",
-  multiple_choice: "Multiple Choice", dropdown: "Dropdown",
-  checkbox_multiselect: "Checkbox (Multi)", yes_no: "Yes / No",
-  date: "Date", agreement_text: "Agreement Text",
-  e_signature: "E-Signature", file_upload: "File Upload",
-  screening_instrument: "Screening",
-};
-
-function ClientIntakeTab({
-  clientId,
-  intakeForms,
-  intakeFlows,
-  formEntries,
-  formResponses,
-  canViewIntakeResponse,
-  viewingResponse,
-  setViewingResponse,
-}: {
-  clientId: string;
-  intakeForms: IntakeForm[];
-  intakeFlows: IntakeFlow[];
-  formEntries: FormEntry[];
-  formResponses: FormResponse[];
-  canViewIntakeResponse: (form: IntakeForm, clientId: string) => boolean;
-  viewingResponse: { form: IntakeForm; response: FormResponse } | null;
-  setViewingResponse: (v: { form: IntakeForm; response: FormResponse } | null) => void;
-}) {
-  const clientEntries = formEntries.filter((fe) => fe.clientId === clientId);
-
-  // If viewing a specific response
-  if (viewingResponse) {
-    return (
-      <FormResponseViewer
-        form={viewingResponse.form}
-        response={viewingResponse.response}
-        onBack={() => setViewingResponse(null)}
-      />
-    );
-  }
-
-  if (clientEntries.length === 0) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-        <ClipboardList className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No intake forms assigned to this client.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-      <div className="p-4 md:p-5 border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-indigo-500" />
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Intake Forms ({clientEntries.length})</h3>
-        </div>
-      </div>
-
-      <div className="p-4 md:p-5 space-y-2">
-        {clientEntries.map((entry) => {
-          const form = intakeForms.find((f) => f.id === entry.formId);
-          if (!form) return null;
-
-          const status = entry.status;
-          const statusCfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.requested;
-          const StatusIcon = statusCfg.icon;
-          const canView = canViewIntakeResponse(form, clientId);
-          const response = formResponses.find(
-            (r) => r.formEntryId === entry.id
-          );
-
-          return (
-            <div
-              key={entry.id}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                response && canView
-                  ? "border-gray-200 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer"
-                  : "border-gray-200 dark:border-gray-700"
-              }`}
-              onClick={() => {
-                if (response && canView) {
-                  setViewingResponse({ form, response });
-                }
-              }}
-            >
-              <div className={`size-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                form.category === "clinical"
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-500"
-                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-500"
-              }`}>
-                {canView ? (
-                  <FileText className="size-4" />
-                ) : (
-                  <Lock className="size-4" />
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                    {form.name}
-                  </span>
-                  {!canView && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-600 text-gray-400">
-                      Restricted
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {form.fields.length} fields · {form.category === "clinical" ? "Clinical" : "Administrative"}
-                  {entry.sentViaFlowId && ` · Via flow`}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {(status === "requested" || status === "draft") && canView && (
-                  <Link
-                    to={`/intake-preview/${entry.id}`}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-semibold transition-colors"
-                  >
-                    Fill Out
-                  </Link>
-                )}
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${statusCfg.color}`}>
-                  <StatusIcon className="size-3.5" />
-                  <span>{statusCfg.label}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Form Response Viewer (Read-Only) ─────────────────────────────────────────
 
-function FormResponseViewer({
+export function FormResponseViewer({
   form,
   response,
   onBack,

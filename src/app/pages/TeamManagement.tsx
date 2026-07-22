@@ -190,6 +190,7 @@ export function TeamManagement() {
       profession: "Therapy",
       verificationStatus: "pending",
       planMode: "provider",
+      rating: 5.0,
       credentialExpiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
     });
     const newMember: EstablishmentMember = {
@@ -350,7 +351,7 @@ export function TeamManagement() {
                           <p className="text-xs text-gray-500 dark:text-gray-400 sm:hidden">{provider.email}</p>
                           <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-0.5 sm:hidden">
                             <Star className="size-3" />
-                            {provider.rating.toFixed(1)}
+                            {(provider?.rating ?? 5.0).toFixed(1)}
                           </p>
                         </div>
                       </div>
@@ -361,7 +362,7 @@ export function TeamManagement() {
                     <td className="px-3 py-3 hidden sm:table-cell">
                       <span className="text-sm font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
                         <Star className="size-3.5" />
-                        {provider.rating.toFixed(1)}
+                        {(provider?.rating ?? 5.0).toFixed(1)}
                       </span>
                     </td>
                     <td className="px-3 py-3 hidden sm:table-cell">

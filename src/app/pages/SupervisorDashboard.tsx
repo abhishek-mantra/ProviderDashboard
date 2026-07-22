@@ -276,7 +276,7 @@ export function SupervisorDashboard() {
                           {provider.profession}
                           <span className="text-gray-300 dark:text-gray-600">·</span>
                           <Star className="size-3 text-amber-500 inline" />
-                          {provider.rating.toFixed(1)}
+                          {(provider?.rating ?? 5.0).toFixed(1)}
                         </p>
                       </div>
                     </div>

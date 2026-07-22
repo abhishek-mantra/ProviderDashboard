@@ -117,12 +117,16 @@ export interface Establishment {
   id: string;
   type: EstablishmentType;
   name: string;
+  nameDescription?: string;
   specialties: string[];
   specialtyServices: { [key: string]: string[] };
+  specialtiesDescription?: string;
   yearsInOperation: string;
+  yearsInOperationDescription?: string;
   about: string;
   bedCapacity: string;
   accreditation: string;
+  insuranceDescription?: string;
   streetAddress: string;
   city: string;
   state: string;
@@ -141,8 +145,10 @@ export interface Establishment {
     ageGroups: string[];
     participants: string[];
   };
+  clientFocusDescription?: string;
   communitiesServed: string[];
   therapyModalities: string[];
+  therapyModalitiesDescription?: string;
   sessionFormat: "in-person" | "online" | "both";
   freeConsultation: {
     offered: boolean;
@@ -308,3 +314,17 @@ export interface FormResponse {
   coSignedBy?: string;
   coSignedAt?: string;
 }
+
+export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
+  short_answer: "Short Answer",
+  long_answer: "Long Answer",
+  multiple_choice: "Multiple Choice",
+  dropdown: "Dropdown",
+  checkbox_multiselect: "Checkbox (Multi-Select)",
+  yes_no: "Yes / No",
+  date: "Date",
+  agreement_text: "Agreement Text",
+  e_signature: "E-Signature",
+  file_upload: "File Upload",
+  screening_instrument: "Screening Instrument",
+};

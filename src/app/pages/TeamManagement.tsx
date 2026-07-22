@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
-import { PageContainer } from "../components/PageContainer";
+
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { mockProviders } from "../data/mockPartnerData";
 import { PLAN_TIER_LIMITS, getCredentialExpiryStatus } from "../types/partnerDashboard";
@@ -221,7 +221,7 @@ export function TeamManagement() {
   };
 
   return (
-    <PageContainer>
+    <div>
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -232,7 +232,7 @@ export function TeamManagement() {
             <Users className="size-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
               Manage Team
             </h1>
             <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
@@ -699,6 +699,6 @@ export function TeamManagement() {
           );
         })()}
       </AnimatePresence>
-    </PageContainer>
+    </div>
   );
 }

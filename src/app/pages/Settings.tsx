@@ -95,7 +95,7 @@ export function Settings() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-[#E5E7EB] dark:border-gray-700 shadow-sm p-6">
+        <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-xl border border-[#E5E7EB] dark:border-gray-700 shadow-sm p-6 overflow-x-auto">
           <Outlet />
         </div>
       </div>

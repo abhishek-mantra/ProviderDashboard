@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video } from "lucide-react";
+import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video, Check, Sparkles, MapPin } from "lucide-react";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import { RecordPastSessionModal } from "../components/RecordPastSessionModal";
 import { MissedSessionModal } from "../components/MissedSessionModal";
@@ -22,6 +22,8 @@ interface Session {
   platform?: string;
   approvalStatus?: "pending" | "approved";
   hasTranscript?: boolean;
+  aiNotetakerEnabled?: boolean;
+  requestedDateFull?: string;
 }
 
 interface TranscriptEntry {
@@ -55,7 +57,38 @@ export function Sessions() {
   const [isPendingSessionModalOpen, setIsPendingSessionModalOpen] = useState(false);
   const [selectedPendingSession, setSelectedPendingSession] = useState<Session | null>(null);
   const [recordWithAITranscriber, setRecordWithAITranscriber] = useState(true);
+  
+  // Accept Session Modal & AI Notetaker states
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
+  const [selectedSessionForAccept, setSelectedSessionForAccept] = useState<Session | null>(null);
+  const [aiNotetakerForAccept, setAiNotetakerForAccept] = useState(true);
+
   const [sessions, setSessions] = useState<Session[]>([
+    {
+      id: "req-abhishek-1",
+      clientName: "Abhishek Madaan",
+      service: "Therapy",
+      date: "Jul 23 at 10:00 AM",
+      time: "10:00 AM",
+      duration: "60 min",
+      status: "upcoming",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      needsAccept: false,
+      serviceType: "Personal",
+    },
+    {
+      id: "req-abhishek-2",
+      clientName: "Abhishek Madaan",
+      service: "Therapy",
+      date: "Jul 23 at 1:00 PM",
+      time: "1:00 PM",
+      duration: "60 min",
+      status: "upcoming",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      needsAccept: true,
+      serviceType: "Personal",
+      requestedDateFull: "Thursday, July 23, 2026",
+    },
     {
       id: "1",
       clientName: "Sarah Jenkins",
@@ -67,6 +100,7 @@ export function Sessions() {
       avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
       needsAccept: true,
       serviceType: "Mantra",
+      requestedDateFull: "Wednesday, March 12, 2026",
     },
     {
       id: "2",
@@ -631,18 +665,25 @@ export function Sessions() {
                       <img 
                         src={session.avatar} 
                         alt={session.clientName}
-                        className="size-10 md:size-12 rounded-full object-cover"
+                        className="size-11 md:size-12 rounded-full object-cover"
                       />
-                      <div className="absolute -bottom-0.5 -right-0.5 size-3 md:size-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-750"></div>
+                      <div className="absolute -bottom-0.5 -right-0.5 size-4 bg-[#2563EB] rounded-full border-2 border-white dark:border-gray-750 flex items-center justify-center text-white">
+                        <MapPin className="size-2.5" />
+                      </div>
                     </div>
 
                     {/* Client Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                      <div className="flex items-center gap-1.5 md:gap-2 mb-0.5">
                         <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
                           {session.clientName}
                         </h3>
-                        {session.serviceType && (
+                        {session.aiNotetakerEnabled && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                            <Sparkles className="size-2.5 text-purple-600 dark:text-purple-400" /> AI Notetaker
+                          </span>
+                        )}
+                        {session.serviceType && !session.aiNotetakerEnabled && (
                           <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
                             session.serviceType === "Mantra"
                               ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
@@ -653,16 +694,16 @@ export function Sessions() {
                         )}
                       </div>
                       
-                      <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
+                      <p className="text-xs text-[#2563EB] dark:text-blue-400 mb-1.5 font-semibold">{session.service}</p>
                       
                       {/* Metadata Row */}
                       <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-1">
-                          <Calendar className="size-3 md:size-3.5" />
+                          <Calendar className="size-3 md:size-3.5 text-gray-400" />
                           <span>{session.date}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Clock className="size-3 md:size-3.5" />
+                          <Clock className="size-3 md:size-3.5 text-gray-400" />
                           <span>{session.time}</span>
                         </div>
                         <span className="text-gray-400 hidden md:inline">•</span>
@@ -682,14 +723,23 @@ export function Sessions() {
                   <div className="flex items-center gap-2">
                     {session.needsAccept ? (
                       <>
-                        <button className="flex-1 bg-[#15A65E] hover:bg-[#138a50] text-white py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs">
+                        <button 
+                          onClick={() => {
+                            setSelectedSessionForAccept(session);
+                            setAiNotetakerForAccept(true);
+                            setIsAcceptModalOpen(true);
+                          }}
+                          className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-2 rounded-xl transition-all font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
+                        >
+                          <Check className="size-3.5 stroke-[3]" />
                           Accept
                         </button>
                         <button 
                           onClick={() => handleCancelSession(session.id)}
-                          className="flex-1 bg-[#EF4444] hover:bg-[#dc2626] text-white py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs"
+                          className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-xl transition-colors font-semibold text-xs flex items-center justify-center gap-1.5"
                         >
-                          Decline
+                          <X className="size-3.5 text-gray-400" />
+                          Cancel
                         </button>
                       </>
                     ) : session.platform === "In-Person" ? (
@@ -741,6 +791,11 @@ export function Sessions() {
                       </>
                     )}
                   </div>
+                  {session.needsAccept && (
+                    <p className="text-[11px] text-[#2563EB] dark:text-blue-400 mt-2.5 font-medium italic border-t border-gray-100 dark:border-gray-700/60 pt-2">
+                      * Client requested appointment — accept to confirm
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -1742,6 +1797,187 @@ export function Sessions() {
                 </div>
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Accept Session Request Modal matching Screenshot 2 with AI Notetaker toggle */}
+      <AnimatePresence>
+        {isAcceptModalOpen && selectedSessionForAccept && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:pl-[100px]">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+              onClick={() => {
+                setIsAcceptModalOpen(false);
+                setSelectedSessionForAccept(null);
+              }}
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden z-10 border border-gray-100 dark:border-gray-700"
+            >
+              {/* Header Gradient Banner */}
+              <div className="h-32 bg-gradient-to-r from-[#2563EB] via-[#3b82f6] to-[#4F46E5] relative flex justify-end p-4">
+                <button
+                  onClick={() => {
+                    setIsAcceptModalOpen(false);
+                    setSelectedSessionForAccept(null);
+                  }}
+                  className="size-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-xs cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Avatar section overlapping banner */}
+              <div className="relative text-center px-6 -mt-14 pb-4">
+                <div className="inline-block relative">
+                  <img
+                    src={selectedSessionForAccept.avatar}
+                    alt={selectedSessionForAccept.clientName}
+                    className="size-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md bg-white"
+                  />
+                  <div className="absolute bottom-0 right-0 size-7 bg-[#2563EB] rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800 text-white shadow-sm">
+                    <MapPin className="size-3.5" />
+                  </div>
+                </div>
+
+                <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mt-2">
+                  {selectedSessionForAccept.clientName}
+                </h2>
+                <p className="text-sm font-semibold text-[#2563EB] dark:text-blue-400 mt-0.5">
+                  {selectedSessionForAccept.service}
+                </p>
+              </div>
+
+              {/* Body Content */}
+              <div className="px-6 pb-6 space-y-4">
+                {/* Date & Time Container */}
+                <div className="bg-slate-50 dark:bg-gray-900/60 rounded-2xl p-4 space-y-3 border border-slate-100 dark:border-gray-700/60">
+                  {/* Date row */}
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-xl bg-blue-100/80 dark:bg-blue-900/40 flex items-center justify-center text-[#2563EB] dark:text-blue-400 flex-shrink-0">
+                      <Calendar className="size-4 text-[#2563EB]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Date</p>
+                      <p className="text-xs md:text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {selectedSessionForAccept.requestedDateFull || `Thursday, ${selectedSessionForAccept.date}, 2026`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Time row */}
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-xl bg-blue-100/80 dark:bg-blue-900/40 flex items-center justify-center text-[#2563EB] dark:text-blue-400 flex-shrink-0">
+                      <Clock className="size-4 text-[#2563EB]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Time</p>
+                      <p className="text-xs md:text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {selectedSessionForAccept.time} ({selectedSessionForAccept.duration || "60 mins"})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Add to Google Calendar Button */}
+                <button
+                  onClick={() => {
+                    toast.success("Added session event to Google Calendar!");
+                  }}
+                  className="w-full py-2.5 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl text-xs md:text-sm font-bold text-[#2563EB] dark:text-blue-400 flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <Calendar className="size-4 text-[#2563EB] dark:text-blue-400" />
+                  Add to Google Calendar
+                </button>
+
+                {/* AI Notetaker Selector / Toggle Button */}
+                <div
+                  onClick={() => setAiNotetakerForAccept(!aiNotetakerForAccept)}
+                  className={`cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between ${
+                    aiNotetakerForAccept
+                      ? "bg-gradient-to-r from-purple-50 via-indigo-50/60 to-blue-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 border-purple-300 dark:border-purple-700 shadow-xs"
+                      : "bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700 opacity-80 hover:opacity-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-xl flex items-center justify-center transition-colors ${
+                      aiNotetakerForAccept
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                    }`}>
+                      <Sparkles className="size-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">
+                          AI Notetaker
+                        </span>
+                        <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          {selectedSessionForAccept.serviceType === "Personal" ? "Non-Mantra & Mantra" : "Mantra Client"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        {aiNotetakerForAccept
+                          ? "Auto-record, transcribe & create SOAP note"
+                          : "Click to enable AI scribe for this session"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Switch toggle visual */}
+                  <div className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out flex items-center ${
+                    aiNotetakerForAccept ? "bg-purple-600 justify-end" : "bg-gray-300 dark:bg-gray-600 justify-start"
+                  }`}>
+                    <motion.div
+                      layout
+                      className="size-5 rounded-full bg-white shadow-md"
+                    />
+                  </div>
+                </div>
+
+                {/* Actions: Accept & Cancel */}
+                <div className="space-y-2 pt-1">
+                  <button
+                    onClick={() => {
+                      setSessions(sessions.map(s => 
+                        s.id === selectedSessionForAccept.id 
+                          ? { ...s, needsAccept: false, status: "upcoming", aiNotetakerEnabled: aiNotetakerForAccept }
+                          : s
+                      ));
+                      setIsAcceptModalOpen(false);
+                      const notetakerText = aiNotetakerForAccept ? " (AI Notetaker enabled)" : "";
+                      toast.success(`Appointment accepted for ${selectedSessionForAccept.clientName}${notetakerText}`);
+                      setSelectedSessionForAccept(null);
+                    }}
+                    className="w-full py-3 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    Accept Appointment
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleCancelSession(selectedSessionForAccept.id);
+                      setIsAcceptModalOpen(false);
+                      setSelectedSessionForAccept(null);
+                      toast.info("Appointment request declined");
+                    }}
+                    className="w-full py-3 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl text-sm font-bold transition-all cursor-pointer"
+                  >
+                    Cancel Appointment
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

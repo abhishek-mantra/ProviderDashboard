@@ -65,19 +65,7 @@ export function Sessions() {
 
   const [sessions, setSessions] = useState<Session[]>([
     {
-      id: "req-abhishek-1",
-      clientName: "Abhishek Madaan",
-      service: "Therapy",
-      date: "Jul 23 at 10:00 AM",
-      time: "10:00 AM",
-      duration: "60 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      needsAccept: false,
-      serviceType: "Personal",
-    },
-    {
-      id: "req-abhishek-2",
+      id: "req-abhishek",
       clientName: "Abhishek Madaan",
       service: "Therapy",
       date: "Jul 23 at 1:00 PM",
@@ -90,188 +78,17 @@ export function Sessions() {
       requestedDateFull: "Thursday, July 23, 2026",
     },
     {
-      id: "1",
+      id: "req-sarah",
       clientName: "Sarah Jenkins",
       service: "Therapy",
-      date: "Mar 12",
+      date: "Jul 23 at 10:00 AM",
       time: "10:00 AM",
       duration: "30 min",
       status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
+      avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080",
       needsAccept: true,
       serviceType: "Mantra",
-      requestedDateFull: "Wednesday, March 12, 2026",
-    },
-    {
-      id: "2",
-      clientName: "Michael Chen",
-      service: "Emotional Wellbeing",
-      date: "Mar 14",
-      time: "03:00 PM",
-      duration: "45 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1701463387028-3947648f1337?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBhc2lhbiUyMG1hbiUyMGJ1c2luZXNzJTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0MjM3OTM5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      serviceType: "Personal",
-    },
-    {
-      id: "3",
-      clientName: "Emily White",
-      service: "Personal Coach",
-      date: "Mar 18",
-      time: "11:30 AM",
-      duration: "60 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1773335954335-47d1486f2e71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJyb3duJTIwaGFpciUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      serviceType: "Mantra",
-    },
-    {
-      id: "12",
-      clientName: "Rachit",
-      service: "Therapy",
-      date: "Mar 20",
-      time: "09:00 AM",
-      duration: "45 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3Mzk5OTczN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      serviceType: "Mantra",
-    },
-    {
-      id: "13",
-      clientName: "Rachit",
-      service: "Emotional Wellbeing",
-      date: "Mar 25",
-      time: "02:30 PM",
-      duration: "60 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3Mzk5OTczN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      serviceType: "Mantra",
-    },
-    {
-      id: "11",
-      clientName: "David Miller",
-      service: "Therapy Session",
-      date: "Mar 19",
-      time: "02:00 PM",
-      duration: "50 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1723537742563-15c3d351dbf2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBidXNpbmVzcyUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDE2NTI4M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      serviceType: "Personal",
-      platform: "In-Person",
-    },
-    {
-      id: "4",
-      clientName: "Rachel Green",
-      service: "Meditation",
-      serviceType: "Mantra",
-      date: "Feb 10",
-      time: "07:00 PM",
-      duration: "45 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1740746963134-0fddb2027589?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRoZXJhcGlzdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIxNzQzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      rating: 5,
-      hasTranscript: true,
-    },
-    {
-      id: "5",
-      clientName: "Rachel Green",
-      service: "Yoga",
-      serviceType: "Mantra",
-      date: "Feb 09",
-      time: "07:00 AM",
-      duration: "60 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1740746963134-0fddb2027589?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRoZXJhcGlzdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIxNzQzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      rating: 4,
-      hasTranscript: true,
-    },
-    {
-      id: "6",
-      clientName: "Rachel Green",
-      service: "Therapy",
-      serviceType: "Personal",
-      date: "Feb 08",
-      time: "04:00 PM",
-      duration: "45 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1740746963134-0fddb2027589?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRoZXJhcGlzdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIxNzQzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      rating: 5,
-      platform: "Online",
-      hasTranscript: true,
-    },
-    {
-      id: "14",
-      clientName: "Rachit",
-      service: "Therapy",
-      serviceType: "Mantra",
-      date: "Mar 14",
-      time: "08:21 PM",
-      duration: "45 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3Mzk5OTczN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      rating: 5,
-      hasTranscript: true,
-    },
-    {
-      id: "15",
-      clientName: "Rachit",
-      service: "Therapy",
-      serviceType: "Mantra",
-      date: "Feb 10",
-      time: "10:00 AM",
-      duration: "30 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3Mzk5OTczN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      rating: 5,
-      hasTranscript: true,
-    },
-    {
-      id: "7",
-      clientName: "Sarah Jenkins",
-      service: "Therapy",
-      serviceType: "Personal",
-      date: "Aug 07",
-      time: "07:30 PM",
-      duration: "30 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      rating: 4,
-    },
-    {
-      id: "8",
-      clientName: "Alex Turner",
-      service: "Personal Coach",
-      serviceType: "Mantra",
-      date: "Jul 20",
-      time: "06:00 AM",
-      duration: "45 min",
-      status: "done",
-      avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIyMzg5NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      rating: 5,
-      hasTranscript: true,
-    },
-    {
-      id: "9",
-      clientName: "Emily White",
-      service: "Video Session",
-      serviceType: "Mantra",
-      date: "Mar 13",
-      time: "02:00 PM",
-      duration: "45 min",
-      status: "pending",
-      avatar: "https://images.unsplash.com/photo-1773335954335-47d1486f2e71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJyb3duJTIwaGFpciUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      approvalStatus: "pending",
-    },
-    {
-      id: "10",
-      clientName: "Rachel Green",
-      service: "Chat Session",
-      serviceType: "Mantra",
-      date: "Mar 12",
-      time: "10:30 AM",
-      duration: "30 min",
-      status: "pending",
-      avatar: "https://images.unsplash.com/photo-1740746963134-0fddb2027589?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRoZXJhcGlzdCUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIxNzQzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      approvalStatus: "pending",
+      requestedDateFull: "Thursday, July 23, 2026",
     },
   ]);
 
@@ -680,7 +497,7 @@ export function Sessions() {
                         </h3>
                         {session.aiNotetakerEnabled && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            <Sparkles className="size-2.5 text-purple-600 dark:text-purple-400" /> AI Notetaker
+                            <Sparkles className="size-2.5 text-purple-600 dark:text-purple-400" /> AI Notes
                           </span>
                         )}
                         {session.serviceType && !session.aiNotetakerEnabled && (
@@ -762,30 +579,17 @@ export function Sessions() {
                           Cancel
                         </button>
                       </>
-                    ) : session.serviceType === "Personal" ? (
-                      <>
-                        <button 
-                          onClick={() => handleConfirmSession(session.id)}
-                          className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs"
-                        >
-                          Confirm
-                        </button>
-                        <button 
-                          onClick={() => handleCancelSession(session.id)}
-                          className="flex-1 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs"
-                        >
-                          Cancel
-                        </button>
-                      </>
                     ) : (
                       <>
-                        <button className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs">
+                        <button className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-xl transition-colors font-semibold text-xs flex items-center justify-center gap-1.5">
+                          <Calendar className="size-3.5 text-gray-500" />
                           Reschedule
                         </button>
                         <button 
                           onClick={() => handleCancelSession(session.id)}
-                          className="flex-1 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 py-2 rounded-lg transition-colors font-semibold text-[10px] md:text-xs"
+                          className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-xl transition-colors font-semibold text-xs flex items-center justify-center gap-1.5"
                         >
+                          <X className="size-3.5 text-gray-400" />
                           Cancel
                         </button>
                       </>
@@ -1923,9 +1727,11 @@ export function Sessions() {
                         <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">
                           AI Notetaker
                         </span>
-                        <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                          {selectedSessionForAccept.serviceType === "Personal" ? "Non-Mantra & Mantra" : "Mantra Client"}
-                        </span>
+                        {aiNotetakerForAccept && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-300/50">
+                            ✨ AI Notes
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                         {aiNotetakerForAccept

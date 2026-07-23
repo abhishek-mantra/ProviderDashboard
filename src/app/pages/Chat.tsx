@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Search, MoreVertical, Paperclip, Send, ChevronRight, Calendar as CalendarIcon, BarChart3, Video, MessageSquare, AlertCircle, CreditCard, Info, X, Sparkles, Clock, CheckCircle, ShoppingCart, DollarSign, FileText, Menu, Users, Calendar, CheckSquare, User } from "lucide-react";
 import { useNavigate } from "react-router";
+import { motion, AnimatePresence } from "motion/react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import imgDrBrown from "figma:asset/7579eed6f4dcdb107827ab7fb4cdfcb323906d2d.png";
@@ -22,6 +23,7 @@ interface Conversation {
   isActive?: boolean;
   showAction?: boolean;
   actionText?: string;
+  credits?: number;
 }
 
 interface Message {
@@ -43,6 +45,7 @@ export function Chat() {
   const [isSessionTypeModalOpen, setIsSessionTypeModalOpen] = useState(false);
   const [isVideoSessionModalOpen, setIsVideoSessionModalOpen] = useState(false);
   const [isPaymentLinkModalOpen, setIsPaymentLinkModalOpen] = useState(false);
+  const [isNoCreditsModalOpen, setIsNoCreditsModalOpen] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [addAINotetaker, setAddAINotetaker] = useState(true);
   const [takeNotesDuringMeeting, setTakeNotesDuringMeeting] = useState(false);
@@ -152,6 +155,26 @@ export function Chat() {
         timestamp: "9:30 AM",
       },
     ],
+    "4": [
+      {
+        id: "1",
+        sender: "client",
+        text: "Hi Alex! I've created a customized wellness plan for you. Check it out!",
+        timestamp: "Yesterday",
+      },
+      {
+        id: "2",
+        sender: "expert",
+        text: "Thanks Alex! Can we also enable the AI Notetaker for our upcoming consultation?",
+        timestamp: "Yesterday",
+      },
+      {
+        id: "3",
+        sender: "client",
+        text: "Yes, absolutely! AI Notetaker is active for all our sessions. It will automatically record, transcribe, and generate clinical notes.",
+        timestamp: "Yesterday",
+      },
+    ],
   });
 
   const conversations: Conversation[] = [
@@ -166,6 +189,7 @@ export function Chat() {
       unread: false,
       online: true,
       isActive: true,
+      credits: 3,
     },
     {
       id: "2",
@@ -177,6 +201,7 @@ export function Chat() {
       avatar: imgDrBrown,
       unread: true,
       online: true,
+      credits: 0,
     },
     {
       id: "3",
@@ -188,17 +213,19 @@ export function Chat() {
       avatar: imgDrWhite,
       unread: false,
       online: false,
+      credits: 2,
     },
     {
       id: "4",
       clientId: "4",
       name: "Coach Alex Turner",
       role: "Wellness Coach",
-      lastMessage: "I've created a customized meal plan for you. Check it out!",
+      lastMessage: "You are out of credits for this client.",
       timestamp: "Yesterday",
       avatar: imgCoachAlex,
       unread: false,
       online: true,
+      credits: 0,
     },
     {
       id: "5",
@@ -469,14 +496,20 @@ export function Chat() {
                   <CreditCard className="size-4 md:size-5 text-[#64748b] dark:text-gray-400" />
                 </button>
                 <button
-                  onClick={() => setIsSessionTypeModalOpen(true)}
-                  className="hidden sm:flex size-8 md:size-10 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg md:rounded-xl items-center justify-center transition-colors"
+                  onClick={() => {
+                    if (selectedConv?.credits === 0) {
+                      setIsNoCreditsModalOpen(true);
+                    } else {
+                      setIsSessionTypeModalOpen(true);
+                    }
+                  }}
+                  className="hidden sm:flex size-8 md:size-10 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg md:rounded-xl items-center justify-center transition-colors cursor-pointer"
                 >
                   <Video className="size-4 md:size-5 text-[#64748b] dark:text-gray-400" />
                 </button>
                 <button
                   onClick={() => setIsScheduleModalOpen(true)}
-                  className="size-8 md:size-10 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg md:rounded-xl flex items-center justify-center transition-colors"
+                  className="size-8 md:size-10 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg md:rounded-xl flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <svg className="size-4 md:size-5" fill="none" viewBox="0 0 20 20">
                     <path
@@ -710,6 +743,7 @@ export function Chat() {
                 name: selectedConv.name,
                 avatar: typeof selectedConv.avatar === "string" && selectedConv.avatar.length === 2 ? selectedConv.avatar : "U",
                 service: selectedConv.role,
+                credits: selectedConv.credits,
               }
             : null
         }
@@ -1110,6 +1144,7 @@ export function Chat() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

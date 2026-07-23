@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, ChevronLeft, Plus, Video, MessageSquare, MapPin, Monitor, Search, ChevronDown, Clock, ThumbsUp, Calendar } from "lucide-react";
+import { X, ChevronLeft, Plus, Video, MessageSquare, MapPin, Monitor, Search, ChevronDown, Clock, ThumbsUp, Calendar, AlertCircle, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router";
 
@@ -10,6 +10,7 @@ interface Client {
   service: string;
   lastSession?: string;
   clientType: "Mantra" | "Self";
+  credits?: number;
 }
 
 interface AddAppointmentModalProps {
@@ -29,6 +30,7 @@ interface AddAppointmentModalProps {
     name: string;
     avatar: string;
     service: string;
+    credits?: number;
   } | null;
 }
 
@@ -51,7 +53,7 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
   const [timezone, setTimezone] = useState("Asia/Calcutta");
   const [getReminderCall, setGetReminderCall] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
-  const [addAITranscriber, setAddAITranscriber] = useState(false);
+  const [addAITranscriber, setAddAITranscriber] = useState(true);
 
   // New client form
   const [newClientFirstName, setNewClientFirstName] = useState("");
@@ -137,18 +139,30 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
   useEffect(() => {
     if (preselectedClient && isOpen) {
       setStep("schedule");
+      const clientCredits = preselectedClient.credits;
       setSelectedClient({
         id: preselectedClient.id,
         name: preselectedClient.name,
         avatar: preselectedClient.avatar,
         service: preselectedClient.service,
         clientType: "Self",
+        credits: clientCredits,
       });
+      if (clientCredits === 0) {
+        setAddAITranscriber(false);
+      } else {
+        setAddAITranscriber(true);
+      }
     }
   }, [preselectedClient, isOpen]);
 
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);
+    if (client.credits === 0) {
+      setAddAITranscriber(false);
+    } else {
+      setAddAITranscriber(true);
+    }
   };
 
   const handleContinueFromClient = () => {
@@ -684,27 +698,54 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                     className="mb-6"
                   >
                     <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
-                      <label className="flex items-start gap-3 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={addAITranscriber}
-                          onChange={(e) => setAddAITranscriber(e.target.checked)}
-                          className="mt-0.5 size-5 rounded border-gray-300 dark:border-gray-600 text-[#14B8A6] focus:ring-[#14B8A6] cursor-pointer flex-shrink-0"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                              Add AI Transcriber to this session
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 bg-[#14B8A6] text-white text-[10px] font-bold rounded">
-                              AI
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            Automatically transcribe and generate session notes after the session ends
-                          </p>
+                      <div className="p-4 bg-gradient-to-r from-purple-50/80 via-indigo-50/50 to-teal-50/60 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-teal-950/30 rounded-2xl border border-purple-200 dark:border-purple-800/60">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={addAITranscriber}
+                              onChange={(e) => setAddAITranscriber(e.target.checked)}
+                              className="size-5 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-600 cursor-pointer flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                  Add AI Transcriber to session
+                                </span>
+                                {selectedClient?.credits === 0 && !addAITranscriber ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 text-[10px] font-bold rounded-full border border-amber-300/50 flex-shrink-0">
+                                    0 Credits
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex-shrink-0">
+                                    AI
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
+                                Automatically transcribe & generate SOAP note
+                              </p>
+                            </div>
+                          </label>
                         </div>
-                      </label>
+
+                        {selectedClient?.credits === 0 && !addAITranscriber && (
+                          <div className="mt-3 pt-2.5 border-t border-purple-200/60 dark:border-purple-800/60 flex items-center justify-between text-xs">
+                            <span className="text-gray-500 dark:text-gray-400 text-[11px]">Need credits to enable AI Transcriber?</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate('/settings/billing/credit-usage');
+                              }}
+                              className="font-bold text-purple-700 dark:text-purple-300 hover:text-purple-800 flex items-center gap-1 cursor-pointer hover:underline text-xs"
+                            >
+                              <span>Buy Credits</span>
+                              <ChevronRight className="size-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
 

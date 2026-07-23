@@ -24,6 +24,7 @@ interface Session {
   hasTranscript?: boolean;
   aiNotetakerEnabled?: boolean;
   requestedDateFull?: string;
+  credits?: number;
 }
 
 interface TranscriptEntry {
@@ -65,19 +66,6 @@ export function Sessions() {
 
   const [sessions, setSessions] = useState<Session[]>([
     {
-      id: "req-abhishek",
-      clientName: "Abhishek Madaan",
-      service: "Therapy",
-      date: "Jul 23 at 1:00 PM",
-      time: "1:00 PM",
-      duration: "60 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      needsAccept: true,
-      serviceType: "Personal",
-      requestedDateFull: "Thursday, July 23, 2026",
-    },
-    {
       id: "req-sarah",
       clientName: "Sarah Jenkins",
       service: "Therapy",
@@ -89,6 +77,21 @@ export function Sessions() {
       needsAccept: true,
       serviceType: "Mantra",
       requestedDateFull: "Thursday, July 23, 2026",
+      credits: 3,
+    },
+    {
+      id: "req-abhishek",
+      clientName: "Abhishek Madaan",
+      service: "Therapy",
+      date: "Jul 23 at 1:00 PM",
+      time: "1:00 PM",
+      duration: "60 min",
+      status: "upcoming",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      needsAccept: true,
+      serviceType: "Personal",
+      requestedDateFull: "Thursday, July 23, 2026",
+      credits: 0,
     },
   ]);
 
@@ -537,26 +540,26 @@ export function Sessions() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 mt-3">
                     {session.needsAccept ? (
                       <>
                         <button 
                           onClick={() => {
                             setSelectedSessionForAccept(session);
-                            setAiNotetakerForAccept(true);
+                            setAiNotetakerForAccept(session.credits === 0 ? false : true);
                             setIsAcceptModalOpen(true);
                           }}
-                          className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-2 rounded-xl transition-all font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
+                          className="flex-1 py-2.5 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl text-xs md:text-sm font-bold transition-all shadow-xs active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <Check className="size-3.5 stroke-[3]" />
-                          Accept
+                          <Check className="size-4" />
+                          <span>Accept</span>
                         </button>
                         <button 
                           onClick={() => handleCancelSession(session.id)}
-                          className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-xl transition-colors font-semibold text-xs flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-950/20 text-gray-700 dark:text-gray-300 hover:text-red-600 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                         >
-                          <X className="size-3.5 text-gray-400" />
-                          Cancel
+                          <X className="size-4" />
+                          <span>Cancel</span>
                         </button>
                       </>
                     ) : session.platform === "In-Person" ? (
@@ -1708,48 +1711,72 @@ export function Sessions() {
                 {/* AI Notetaker Selector / Toggle Button */}
                 <div
                   onClick={() => setAiNotetakerForAccept(!aiNotetakerForAccept)}
-                  className={`cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between ${
+                  className={`cursor-pointer rounded-2xl p-4 border transition-all ${
                     aiNotetakerForAccept
-                      ? "bg-gradient-to-r from-purple-50 via-indigo-50/60 to-blue-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 border-purple-300 dark:border-purple-700 shadow-xs"
-                      : "bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700 opacity-80 hover:opacity-100"
+                      ? "bg-purple-50/80 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 shadow-xs"
+                      : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`size-10 rounded-xl flex items-center justify-center transition-colors ${
-                      aiNotetakerForAccept
-                        ? "bg-purple-600 text-white shadow-xs"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-500"
-                    }`}>
-                      <Sparkles className="size-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">
-                          AI Notetaker
-                        </span>
-                        {aiNotetakerForAccept && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-300/50">
-                            ✨ AI Notes
-                          </span>
-                        )}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`size-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${
+                        aiNotetakerForAccept
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                      }`}>
+                        <Sparkles className="size-5" />
                       </div>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                        {aiNotetakerForAccept
-                          ? "Auto-record, transcribe & create SOAP note"
-                          : "Click to enable AI scribe for this session"}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                            AI Notetaker
+                          </span>
+                          {aiNotetakerForAccept ? (
+                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-300/50 flex-shrink-0">
+                              ✨ Active
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 rounded-full border border-amber-200/80 flex-shrink-0">
+                              0 Credits Available
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                          {aiNotetakerForAccept
+                            ? "Auto-record, transcribe & create SOAP note"
+                            : "Click to enable AI scribe for this session"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Switch toggle visual */}
+                    <div className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out flex items-center flex-shrink-0 ${
+                      aiNotetakerForAccept ? "bg-purple-600 justify-end" : "bg-gray-300 dark:bg-gray-600 justify-start"
+                    }`}>
+                      <motion.div
+                        layout
+                        className="size-5 rounded-full bg-white shadow-md"
+                      />
                     </div>
                   </div>
 
-                  {/* Switch toggle visual */}
-                  <div className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out flex items-center ${
-                    aiNotetakerForAccept ? "bg-purple-600 justify-end" : "bg-gray-300 dark:bg-gray-600 justify-start"
-                  }`}>
-                    <motion.div
-                      layout
-                      className="size-5 rounded-full bg-white shadow-md"
-                    />
-                  </div>
+                  {/* Buy credits footer line if 0 credits */}
+                  {selectedSessionForAccept.credits === 0 && !aiNotetakerForAccept && (
+                    <div className="mt-3 pt-2.5 border-t border-gray-200/70 dark:border-gray-700/70 flex items-center justify-between text-xs">
+                      <span className="text-gray-500 dark:text-gray-400 text-[11px]">Need credits to enable AI Notetaker?</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/settings/billing/credit-usage');
+                        }}
+                        className="font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 flex items-center gap-1 cursor-pointer hover:underline text-xs"
+                      >
+                        <span>Buy Credits</span>
+                        <ChevronRight className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions: Accept & Cancel */}

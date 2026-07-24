@@ -108,7 +108,7 @@ export function Sessions() {
     service: string;
     date: string;
     time: string;
-    sessionType: "video" | "chat";
+    sessionType: "video" | "chat" | "in-person";
     location: "online" | "offline";
   }) => {
     // Get avatar from client name

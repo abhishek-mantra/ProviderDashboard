@@ -100,28 +100,38 @@ interface EHRPlan {
   isRecommended?: boolean;
 }
 
-interface AIScribePlan {
-  name: string;
-  audienceTag: string;
-  badge: string;
-  badgeType: BadgeType;
-  monthlyPrice: number;
-  originalMonthlyPrice: number;
-  annualPrice: number | null;
-  annualSavings: number | null;
-  annualOriginal: number | null;
-  creditsPerMonth: number;
-  approxSessions: number;
-  costPerSession: number;
-  valueLine: string | null;
-  cta: string;
-  ctaStyle: CtaStyle;
-  isPopular?: boolean;
-  creditBarPct: number;
-  teamLabel: string;
-}
-
 const ehrPlans: EHRPlan[] = [
+  {
+    name: "FREE",
+    audienceTag: "For solo practitioners getting started",
+    badge: "FREE",
+    badgeType: "free",
+    monthlyPrice: PLAN_TIER_PRICING.FREE,
+    originalMonthlyPrice: null,
+    annualPrice: null,
+    annualSavings: null,
+    annualOriginal: null,
+    creditsPerMonth: 200,
+    annualCreditsPerMonth: 200,
+    creditsLabel: "One-time grant",
+    creditBarPct: 5,
+    teamLabel: "Get started free with 1 provider",
+    featureGroups: [
+      {
+        label: "INCLUDED",
+        features: [
+          "AI Transcriber",
+          "AI Session Notes",
+          "Up to 10 client profiles",
+        ],
+        collapsible: false,
+        defaultExpanded: true,
+      },
+    ],
+    notIncluded: [],
+    cta: "Get Started",
+    ctaStyle: "solid",
+  },
   {
     name: "BASIC",
     audienceTag: "For independent solo practitioners",
@@ -136,7 +146,7 @@ const ehrPlans: EHRPlan[] = [
     annualCreditsPerMonth: 1000,
     creditsLabel: "Resets monthly",
     creditBarPct: 25,
-    teamLabel: "Up to 1 provider",
+    teamLabel: "Up to 3 providers",
     featureGroups: [
       {
         label: "OUR CORE FEATURES, AND",
@@ -156,6 +166,7 @@ const ehrPlans: EHRPlan[] = [
       {
         label: "",
         features: [
+          "Up to 50 client profiles",
           "Credentialing & Enrollment Access",
           "5 free insurance claims/mo",
         ],
@@ -181,7 +192,7 @@ const ehrPlans: EHRPlan[] = [
     annualCreditsPerMonth: 3000,
     creditsLabel: "Resets monthly",
     creditBarPct: 65,
-    teamLabel: "Up to 5 providers",
+    teamLabel: "Up to 10 providers",
     teamSublabel: `Add providers from $${PLAN_TIER_EXTRA_COST.GROWTH}/clinician`,
     featureGroups: [
       {
@@ -190,6 +201,7 @@ const ehrPlans: EHRPlan[] = [
           "Automated appointment reminders",
           "Calendar sync (Google & Outlook)",
           "Automatic insurance status checks",
+          "Unlimited client profiles",
           "10 free insurance claims/mo",
         ],
         collapsible: false,
@@ -215,7 +227,7 @@ const ehrPlans: EHRPlan[] = [
     annualCreditsPerMonth: 5000,
     creditsLabel: "Resets monthly",
     creditBarPct: 100,
-    teamLabel: "Unlimited providers",
+    teamLabel: "Up to 100 providers",
     teamSublabel: "No per-provider fees",
     featureGroups: [
       {
@@ -236,67 +248,6 @@ const ehrPlans: EHRPlan[] = [
   },
 ];
 
-const aiScribePlans: AIScribePlan[] = [
-  {
-    name: "BASIC",
-    audienceTag: "For solo practitioners doing up to 20 sessions/month",
-    badge: "STARTER",
-    badgeType: "free",
-    monthlyPrice: 29,
-    originalMonthlyPrice: null,
-    annualPrice: 278,
-    annualSavings: 70,
-    annualOriginal: 348,
-    creditsPerMonth: 300,
-    approxSessions: 20,
-    costPerSession: 1.45,
-    valueLine: null,
-    cta: "Get Started",
-    ctaStyle: "outlined",
-    creditBarPct: 8,
-    teamLabel: "1 provider",
-  },
-  {
-    name: "PROFESSIONAL",
-    audienceTag: "For full-time practitioners doing up to 40 sessions/month",
-    badge: "MOST POPULAR",
-    badgeType: "popular",
-    monthlyPrice: 49,
-    originalMonthlyPrice: null,
-    annualPrice: 470,
-    annualSavings: 118,
-    annualOriginal: 588,
-    creditsPerMonth: 500,
-    approxSessions: 38,
-    costPerSession: 1.29,
-    valueLine: null,
-    cta: "Get Started",
-    ctaStyle: "solid",
-    isPopular: true,
-    creditBarPct: 33,
-    teamLabel: "Up to 3 providers",
-  },
-  {
-    name: "CLINIC",
-    audienceTag: "For small clinics sharing up to 75 sessions/month",
-    badge: "FOR TEAMS",
-    badgeType: "free",
-    monthlyPrice: 99,
-    originalMonthlyPrice: null,
-    annualPrice: 950,
-    annualSavings: 238,
-    annualOriginal: 1188,
-    creditsPerMonth: 1000,
-    approxSessions: 75,
-    costPerSession: 1.32,
-    valueLine: null,
-    cta: "Get Started",
-    ctaStyle: "outlined",
-    creditBarPct: 100,
-    teamLabel: "Up to 8 providers",
-  },
-];
-
 const badgeClasses = (type: BadgeType) => {
   if (type === "free") return "bg-[#ECFDF5] text-[#065F46]";
   if (type === "popular") return "bg-[#FEF3C7] text-[#92400E]";
@@ -314,18 +265,11 @@ function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, ac
   const [alertExhausted, setAlertExhausted] = useState(true);
 
   const planDisplayName: Record<string, string> = {
+    FREE: "Free",
     BASIC: "EHR Essential",
     GROWTH: "Growth",
     SCALER: "Scaler",
   };
-
-  const signupModeMap: Record<string, "EHR" | "AI Scribe"> = {
-    "full-ehr": "EHR",
-    "ai-scribe": "AI Scribe",
-  };
-  const storedMode = localStorage.getItem("signup_mode");
-  const defaultPlanMode: "EHR" | "AI Scribe" = storedMode ? (signupModeMap[storedMode] ?? "EHR") : "EHR";
-  const [planMode, setPlanMode] = useState<"EHR" | "AI Scribe">(defaultPlanMode);
 
   useEffect(() => {
     if (autoOpenPlans) {
@@ -437,7 +381,7 @@ function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, ac
           <div className="flex items-center gap-2 mb-1">
             <Zap className="size-3.5 text-[#14B8A6] flex-shrink-0" />
             <span style={{ fontSize: "15px", fontWeight: "bold" }} className="text-[#14B8A6]">
-              {displayCredits.toLocaleString()} credits / month
+              {displayCredits.toLocaleString()} credits{plan.creditsLabel === "One-time grant" ? "" : " / month"}
             </span>
           </div>
           <p style={{ fontSize: "11px" }} className="text-[#9CA3AF] mb-1">
@@ -506,136 +450,6 @@ function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, ac
   };
 
   // ── AI Scribe card template ───────────────────────────────────────────────
-  const sharedScribeFeatures = [
-    "AI Transcriber — joins your online sessions via link",
-    "AI Session Notes — SOAP, DAP, BIRP formats",
-    "AI Prescription generator",
-  ];
-
-  const renderAIScribeCard = (plan: AIScribePlan) => {
-    const isActive = activePlanMode === "AI Scribe" && activePlanName === plan.name;
-
-    let badgeText = plan.badge;
-    let badgeType = plan.badgeType;
-    if (billingPeriod === "annual" && plan.annualSavings) {
-      badgeText = `SAVE $${plan.annualSavings}/YEAR`;
-      badgeType = "discount";
-    }
-
-    const mainPrice = (billingPeriod === "annual" && plan.annualPrice)
-      ? `$${plan.annualPrice}`
-      : `$${plan.monthlyPrice}`;
-
-    const strikePrice = (billingPeriod === "annual" && plan.annualOriginal)
-      ? `$${plan.annualOriginal}/yr`
-      : null;
-
-    const priceUnit = (billingPeriod === "annual" && plan.annualPrice) ? "/ year" : "/ month";
-
-    return (
-      <div
-        key={plan.name}
-        className={`border rounded-xl p-5 flex flex-col ${
-          plan.isPopular
-            ? "border-[#14B8A6] border-2 shadow-[0_4px_20px_rgba(20,184,166,0.15)] bg-[#F0FDFA]"
-            : "border-[#E5E7EB] dark:border-gray-700 bg-white dark:bg-gray-800"
-        }`}
-      >
-        {/* Badge */}
-        <div className="mb-3">
-          <span className={`inline-block text-[10px] font-bold px-2 py-1 rounded ${badgeClasses(badgeType)}`}>
-            {badgeText}
-          </span>
-        </div>
-
-        {/* Plan name + audience */}
-        <div className="mb-4">
-          <h3 style={{ fontSize: "20px", fontWeight: "bold" }} className="text-[#111827] dark:text-white mb-1">
-            {plan.name}
-          </h3>
-          <p style={{ fontSize: "11px" }} className="text-[#9CA3AF]">{plan.audienceTag}</p>
-        </div>
-
-        <hr className="border-[#E5E7EB] dark:border-gray-700 mb-4" />
-
-        {/* Price block */}
-        <div className="mb-4">
-          <div className="flex items-baseline gap-2">
-            {strikePrice && (
-              <span style={{ fontSize: "13px" }} className="text-[#9CA3AF] line-through">{strikePrice}</span>
-            )}
-            <span style={{ fontSize: "36px", fontWeight: "800", lineHeight: 1 }} className="text-[#111827] dark:text-white">
-              {mainPrice}
-            </span>
-            <span style={{ fontSize: "13px" }} className="text-[#9CA3AF]">{priceUnit}</span>
-          </div>
-          {billingPeriod === "annual" && plan.annualSavings && (
-            <p style={{ fontSize: "12px" }} className="text-[#14B8A6] mt-1">
-              Save ${plan.annualSavings}/year vs monthly
-            </p>
-          )}
-        </div>
-
-        <hr className="border-[#E5E7EB] dark:border-gray-700 mb-4" />
-
-        {/* Credits block */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="size-3.5 text-[#14B8A6] flex-shrink-0" />
-            <span style={{ fontSize: "15px", fontWeight: "bold" }} className="text-[#14B8A6]">
-              {plan.creditsPerMonth.toLocaleString()} credits / month
-            </span>
-          </div>
-        </div>
-
-        <hr className="border-[#E5E7EB] dark:border-gray-700 mb-4" />
-
-        {/* Team block */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2">
-            <Users className="size-3.5 text-[#6B7280] flex-shrink-0" />
-            <span style={{ fontSize: "13px", fontWeight: "600" }} className="text-[#374151] dark:text-gray-300">
-              {plan.teamLabel}
-            </span>
-          </div>
-        </div>
-        <hr className="border-[#E5E7EB] dark:border-gray-700 mb-4" />
-
-        {/* Features — identical across all AI Scribe plans */}
-        <div className="flex-1 mb-6">
-          <span style={{ fontSize: "10px" }} className="uppercase tracking-widest font-bold text-[#9CA3AF] block mb-2">
-            What's included
-          </span>
-          <ul className="space-y-1.5">
-            {sharedScribeFeatures.map((feat, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <Check className="size-3.5 text-[#14B8A6] flex-shrink-0 mt-0.5" />
-                <span style={{ fontSize: "13px" }} className="text-[#374151] dark:text-gray-300">{feat}</span>
-              </li>
-            ))}
-            {plan.name === "CLINIC" && (
-              <li style={{ fontSize: "11px" }} className="text-[#9CA3AF] italic pl-5">Shared across all providers</li>
-            )}
-          </ul>
-        </div>
-
-        {/* CTA */}
-        <button
-          disabled={isActive}
-          className={`w-full py-2.5 rounded-lg text-[13px] font-semibold transition-colors ${
-            isActive
-              ? "bg-[#14B8A6] text-white cursor-default"
-              : plan.ctaStyle === "solid"
-              ? "bg-[#14B8A6] hover:bg-[#0d9488] text-white"
-              : "border-2 border-[#14B8A6] text-[#14B8A6] hover:bg-[#14B8A6] hover:text-white"
-          }`}
-        >
-          {isActive ? "Current Plan" : plan.cta}
-        </button>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6 px-3 md:px-0">
       {/* Current Plan Card */}
@@ -746,24 +560,8 @@ function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, ac
 
         {isPlansExpanded && (
           <div>
-            {/* Mode + Period toggles */}
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-              <div className="inline-flex bg-[#F3F4F6] dark:bg-gray-700 rounded-lg p-1">
-                {([["EHR + AI Scribe", "EHR"], ["AI Scribe Only", "AI Scribe"]] as [string, "EHR" | "AI Scribe"][]).map(([label, val]) => (
-                  <button
-                    key={val}
-                    onClick={() => setPlanMode(val)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      planMode === val
-                        ? "bg-white dark:bg-gray-600 text-[#111827] dark:text-white shadow-sm"
-                        : "text-[#6B7280] dark:text-gray-400"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
+            {/* Period toggle */}
+            <div className="flex justify-end mb-3">
               <div className="inline-flex bg-[#F3F4F6] dark:bg-gray-700 rounded-lg p-1">
                 {(["Monthly", "Annual"] as const).map((label) => {
                   const val = label.toLowerCase() as "monthly" | "annual";
@@ -784,18 +582,25 @@ function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, ac
               </div>
             </div>
 
-            {/* Mode explainer */}
-            <p className="text-[12px] text-[#6B7280] dark:text-gray-400 mb-6">
-              {planMode === "EHR"
-                ? "EHR + AI Scribe — Full clinic management with AI tools included."
-                : "AI Scribe Only — Just AI transcription, notes & prescriptions. No EHR."}
-            </p>
-
             {/* Plan Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-              {planMode === "EHR"
-                ? ehrPlans.map(plan => renderEHRCard(plan))
-                : aiScribePlans.map(plan => renderAIScribeCard(plan))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+              {ehrPlans.map(plan => renderEHRCard(plan))}
+            </div>
+
+            {/* Enterprise Banner */}
+            <div className="mt-6 border border-[#E5E7EB] dark:border-gray-600 rounded-xl p-6 text-center bg-[#F9FAFB] dark:bg-gray-750">
+              <h4 className="text-[14px] font-semibold text-[#111827] dark:text-white mb-1">
+                Need more than 100 providers?
+              </h4>
+              <p className="text-[13px] text-[#6B7280] dark:text-gray-400 mb-4">
+                Our Enterprise plan offers custom pricing, dedicated support, and tailored solutions for large organizations.
+              </p>
+              <button
+                onClick={() => {}}
+                className="px-6 py-2.5 bg-[#1E3A8A] hover:bg-[#1e40af] text-white text-[13px] font-medium rounded-lg transition-colors"
+              >
+                Talk to our Enterprise Sales Team
+              </button>
             </div>
           </div>
         )}

@@ -301,7 +301,7 @@ export function Chat() {
     service: string;
     date: string;
     time: string;
-    sessionType: "video" | "chat";
+    sessionType: "video" | "chat" | "in-person";
     location: "online" | "offline";
   }) => {
     console.log("Appointment scheduled:", appointment);

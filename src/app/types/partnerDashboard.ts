@@ -80,7 +80,7 @@ export interface MockClient {
   treatingProviderId: string;
 }
 
-export type PlanTier = "BASIC" | "GROWTH" | "SCALER";
+export type PlanTier = "FREE" | "BASIC" | "GROWTH" | "SCALER";
 
 export const ESTABLISHMENT_TYPES = [
   "hospital",
@@ -94,18 +94,21 @@ export const ESTABLISHMENT_TYPES = [
 export type EstablishmentType = (typeof ESTABLISHMENT_TYPES)[number];
 
 export const PLAN_TIER_LIMITS: Record<PlanTier, number | null> = {
-  BASIC: 1,
-  GROWTH: 5,
-  SCALER: null,
+  FREE: 1,
+  BASIC: 3,
+  GROWTH: 10,
+  SCALER: 100,
 };
 
 export const PLAN_TIER_PRICING: Record<PlanTier, number> = {
+  FREE: 0,
   BASIC: 49,
   GROWTH: 99,
   SCALER: 149,
 };
 
 export const PLAN_TIER_EXTRA_COST: Record<PlanTier, number> = {
+  FREE: 0,
   BASIC: 0,
   GROWTH: 19,
   SCALER: 0,

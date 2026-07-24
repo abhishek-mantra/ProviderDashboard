@@ -22,7 +22,7 @@ interface AddAppointmentModalProps {
     service: string;
     date: string;
     time: string;
-    sessionType: "video" | "chat";
+    sessionType: "video" | "chat" | "in-person";
     location: string;
   }) => void;
   preselectedClient?: {
@@ -46,7 +46,7 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
   } : null);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: string; weekday: string } | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [sessionType, setSessionType] = useState<"video" | "chat">("video");
+  const [sessionType, setSessionType] = useState<"video" | "chat" | "in-person">("video");
   const [location, setLocation] = useState<string>("online");
   const [customAddress, setCustomAddress] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -626,7 +626,7 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                       Session type:
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -652,6 +652,19 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                       >
                         <MessageSquare className="size-4" />
                         <span className="font-medium">Chat</span>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSessionType("in-person")}
+                        className={`py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                          sessionType === "in-person"
+                            ? "bg-[#00c0ff] text-white shadow-sm"
+                            : "bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        <MapPin className="size-4" />
+                        <span className="font-medium">In Person</span>
                       </motion.button>
                     </div>
                   </motion.div>
@@ -691,63 +704,65 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                   </motion.div>
 
                   {/* AI Transcriber Checkbox */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.28 }}
-                    className="mb-6"
-                  >
-                    <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
-                      <div className="p-4 bg-gradient-to-r from-purple-50/80 via-indigo-50/50 to-teal-50/60 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-teal-950/30 rounded-2xl border border-purple-200 dark:border-purple-800/60">
-                        <div className="flex items-center justify-between gap-3">
-                          <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={addAITranscriber}
-                              onChange={(e) => setAddAITranscriber(e.target.checked)}
-                              className="size-5 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-600 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                  Add AI Transcriber to session
-                                </span>
-                                {selectedClient?.credits === 0 && !addAITranscriber ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 text-[10px] font-bold rounded-full border border-amber-300/50 flex-shrink-0">
-                                    0 Credits
+                  {sessionType !== "in-person" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.28 }}
+                      className="mb-6"
+                    >
+                      <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
+                        <div className="p-4 bg-gradient-to-r from-purple-50/80 via-indigo-50/50 to-teal-50/60 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-teal-950/30 rounded-2xl border border-purple-200 dark:border-purple-800/60">
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={addAITranscriber}
+                                onChange={(e) => setAddAITranscriber(e.target.checked)}
+                                className="size-5 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-600 cursor-pointer flex-shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                    Add AI Transcriber to session
                                   </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex-shrink-0">
-                                    AI
-                                  </span>
-                                )}
+                                  {selectedClient?.credits === 0 && !addAITranscriber ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 text-[10px] font-bold rounded-full border border-amber-300/50 flex-shrink-0">
+                                      0 Credits
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex-shrink-0">
+                                      AI
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
+                                  Automatically transcribe & generate SOAP note
+                                </p>
                               </div>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
-                                Automatically transcribe & generate SOAP note
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-
-                        {selectedClient?.credits === 0 && !addAITranscriber && (
-                          <div className="mt-3 pt-2.5 border-t border-purple-200/60 dark:border-purple-800/60 flex items-center justify-between text-xs">
-                            <span className="text-gray-500 dark:text-gray-400 text-[11px]">Need credits to enable AI Transcriber?</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/settings/billing/credit-usage');
-                              }}
-                              className="font-bold text-purple-700 dark:text-purple-300 hover:text-purple-800 flex items-center gap-1 cursor-pointer hover:underline text-xs"
-                            >
-                              <span>Buy Credits</span>
-                              <ChevronRight className="size-3.5" />
-                            </button>
+                            </label>
                           </div>
-                        )}
+
+                          {selectedClient?.credits === 0 && !addAITranscriber && (
+                            <div className="mt-3 pt-2.5 border-t border-purple-200/60 dark:border-purple-800/60 flex items-center justify-between text-xs">
+                              <span className="text-gray-500 dark:text-gray-400 text-[11px]">Need credits to enable AI Transcriber?</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate('/settings/billing/credit-usage');
+                                }}
+                                className="font-bold text-purple-700 dark:text-purple-300 hover:text-purple-800 flex items-center gap-1 cursor-pointer hover:underline text-xs"
+                              >
+                                <span>Buy Credits</span>
+                                <ChevronRight className="size-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  )}
 
                   {/* Confirm Button */}
                   <motion.button

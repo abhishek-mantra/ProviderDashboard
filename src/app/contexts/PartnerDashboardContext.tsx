@@ -38,11 +38,17 @@ interface PartnerDashboardContextType {
   setIntakeFlows: React.Dispatch<React.SetStateAction<IntakeFlow[]>>;
   setFormEntries: React.Dispatch<React.SetStateAction<FormEntry[]>>;
   setFormResponses: React.Dispatch<React.SetStateAction<FormResponse[]>>;
+  topUpCredits: number;
+  addTopUpCredits: (minutes: number) => void;
 }
 
 const PartnerDashboardContext = createContext<PartnerDashboardContextType | undefined>(undefined);
 
 export function PartnerDashboardProvider({ children }: { children: ReactNode }) {
+  const [topUpCredits, setTopUpCredits] = useState<number>(0);
+  const addTopUpCredits = useCallback((minutes: number) => {
+    setTopUpCredits((prev) => prev + minutes);
+  }, []);
   const [establishments, setEstablishments] = useState<Establishment[]>(mockEstablishments);
   const [members, setMembers] = useState<EstablishmentMember[]>(
     mockEstablishments.flatMap((e) => e.members)
@@ -248,6 +254,8 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         setIntakeFlows,
         setFormEntries,
         setFormResponses,
+        topUpCredits,
+        addTopUpCredits,
       }}
     >
       {children}

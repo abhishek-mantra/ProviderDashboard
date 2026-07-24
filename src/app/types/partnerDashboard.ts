@@ -101,8 +101,8 @@ export const PLAN_TIER_LIMITS: Record<PlanTier, number | null> = {
 
 export const PLAN_TIER_PRICING: Record<PlanTier, number> = {
   BASIC: 49,
-  GROWTH: 79,
-  SCALER: 99,
+  GROWTH: 99,
+  SCALER: 149,
 };
 
 export const PLAN_TIER_EXTRA_COST: Record<PlanTier, number> = {

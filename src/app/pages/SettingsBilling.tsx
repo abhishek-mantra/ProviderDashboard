@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router";
-import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST } from "../types/partnerDashboard";
+import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST, PlanTier } from "../types/partnerDashboard";
 
 export function SettingsBilling() {
   const location = useLocation();
@@ -18,6 +18,10 @@ export function SettingsBilling() {
       setActiveSubTab("manage-credit-usage");
     }
   }, []);
+
+  const [activePlanName] = useState<PlanTier>("GROWTH");
+  const [activePlanMode] = useState<"EHR" | "AI Scribe">("EHR");
+  const activePlan = ehrPlans.find(p => p.name === activePlanName);
 
   const billingSubTabs = [
     { id: "overview", label: "Overview" },
@@ -51,9 +55,9 @@ export function SettingsBilling() {
 
       {/* Tab Content */}
       <div>
-        {activeSubTab === "overview" && <OverviewContent autoOpenPlans={!!(location.state as any)?.openAvailablePlans} />}
+        {activeSubTab === "overview" && <OverviewContent autoOpenPlans={!!(location.state as any)?.openAvailablePlans} activePlan={activePlan} activePlanName={activePlanName} activePlanMode={activePlanMode} />}
         {activeSubTab === "payments" && <PaymentsContent />}
-        {activeSubTab === "manage-credit-usage" && <ManageCreditUsageContent />}
+        {activeSubTab === "manage-credit-usage" && <ManageCreditUsageContent activePlan={activePlan} />}
       </div>
     </div>
   );
@@ -145,7 +149,6 @@ const ehrPlans: EHRPlan[] = [
         features: [
           "AI Transcriber",
           "AI Session Notes",
-          "AI Prescription generator",
         ],
         collapsible: false,
         defaultExpanded: true,
@@ -171,8 +174,8 @@ const ehrPlans: EHRPlan[] = [
     badgeType: "free",
     monthlyPrice: PLAN_TIER_PRICING.GROWTH,
     originalMonthlyPrice: null,
-    annualPrice: PLAN_TIER_PRICING.GROWTH * 12 - 190,
-    annualSavings: 190,
+    annualPrice: PLAN_TIER_PRICING.GROWTH * 12 - 238,
+    annualSavings: 238,
     annualOriginal: PLAN_TIER_PRICING.GROWTH * 12,
     creditsPerMonth: 3000,
     annualCreditsPerMonth: 3000,
@@ -205,8 +208,8 @@ const ehrPlans: EHRPlan[] = [
     badgeType: "free",
     monthlyPrice: PLAN_TIER_PRICING.SCALER,
     originalMonthlyPrice: null,
-    annualPrice: PLAN_TIER_PRICING.SCALER * 12 - 238,
-    annualSavings: 238,
+    annualPrice: PLAN_TIER_PRICING.SCALER * 12 - 358,
+    annualSavings: 358,
     annualOriginal: PLAN_TIER_PRICING.SCALER * 12,
     creditsPerMonth: 5000,
     annualCreditsPerMonth: 5000,
@@ -302,18 +305,13 @@ const badgeClasses = (type: BadgeType) => {
 
 // ─── Overview Content ───────────────────────────────────────────────────────
 
-function OverviewContent({ autoOpenPlans = false }: { autoOpenPlans?: boolean }) {
+function OverviewContent({ autoOpenPlans = false, activePlan, activePlanName, activePlanMode }: { autoOpenPlans?: boolean; activePlan: EHRPlan | undefined; activePlanName: PlanTier; activePlanMode: "EHR" | "AI Scribe" }) {
   const [isPlansExpanded, setIsPlansExpanded] = useState(autoOpenPlans);
   const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
   const [alert70, setAlert70] = useState(true);
   const [alert90, setAlert90] = useState(true);
   const [alertExhausted, setAlertExhausted] = useState(true);
-
-  // Simulate user state — in production these come from auth/session context
-  const activePlanName = "GROWTH";
-  const activePlanMode = "EHR";
-  const activePlan = ehrPlans.find(p => p.name === activePlanName);
 
   const planDisplayName: Record<string, string> = {
     BASIC: "EHR Essential",
@@ -704,10 +702,9 @@ function OverviewContent({ autoOpenPlans = false }: { autoOpenPlans?: boolean })
         </div>
         <div className="space-y-3">
           {[
-            { icon: Zap, color: "#14B8A6", bg: "#CCFBF1", name: "AI Transcriber", cost: "5 credits", desc: "Transcribe session audio into text automatically." },
-            { icon: FileText, color: "#1E40AF", bg: "#DBEAFE", name: "AI-Assisted Session Notes", cost: "3 credits", desc: "Auto-generate structured session notes from transcripts." },
-            { icon: Pill, color: "#15803D", bg: "#DCFCE7", name: "AI Prescription", cost: "2 credits", desc: "Generate AI-powered prescription drafts from session context." },
-            { icon: Bell, color: "#7C3AED", bg: "#EDE9FE", name: "AI CRM", cost: "2 credits", desc: "Generate client communication drafts with AI." },
+            { icon: Zap, color: "#14B8A6", bg: "#CCFBF1", name: "AI Transcriber", cost: "1 credit / minute", desc: "Transcribe session audio into text automatically." },
+            { icon: FileText, color: "#1E40AF", bg: "#DBEAFE", name: "AI-Assisted Session Notes", cost: "1 credit", desc: "Auto-generate structured session notes from transcripts." },
+            { icon: Pill, color: "#15803D", bg: "#DCFCE7", name: "AI Prescription", cost: "1 credit", desc: "Generate AI-powered prescription drafts from session context." },
           ].map((item) => {
             const Icon = item.icon;
             return (
@@ -1350,58 +1347,60 @@ function PaymentsContent() {
 }
 
 // Manage Credit Usage Content
-function ManageCreditUsageContent() {
+function ManageCreditUsageContent({ activePlan }: { activePlan: EHRPlan | undefined }) {
   const location = useLocation();
   const [isBreakdownExpanded, setIsBreakdownExpanded] = useState(false);
   const [isBuyCreditsExpanded, setIsBuyCreditsExpanded] = useState(!!(location.state as any)?.openManageCredits);
   const [historyFilter, setHistoryFilter] = useState("All Tools");
   const [monthFilter, setMonthFilter] = useState("This Month");
   const [creditQty, setCreditQty] = useState(10000);
-  const CREDIT_PRICE_PER_1000 = 0.40;
+  const CREDIT_PRICE_PER_1000 = 20.00;
   const monthlyPrice = ((creditQty / 1000) * CREDIT_PRICE_PER_1000).toFixed(2);
 
   const presets = [
+    { label: "500",  value: 500 },
+    { label: "1K",   value: 1000 },
+    { label: "2.5K", value: 2500 },
+    { label: "5K",   value: 5000 },
     { label: "10K",  value: 10000 },
     { label: "25K",  value: 25000 },
-    { label: "50K",  value: 50000 },
-    { label: "100K", value: 100000 },
-    { label: "250K", value: 250000 },
-    { label: "500K", value: 500000 },
   ];
 
   const historyRows = [
-    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -420, date: "Jun 1, 2026 · 9:14 AM" },
-    { tool: "Session Notes", platform: "EHR", icon: <FileText className="size-3.5 text-[#1E40AF]" />, iconBg: "#DBEAFE", activity: "AI-assisted note generated", credits: -180, date: "May 31, 2026 · 4:45 PM" },
-    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -390, date: "May 31, 2026 · 2:30 PM" },
-    { tool: "Prescription", platform: "EHR", icon: <Pill className="size-3.5 text-[#15803D]" />, iconBg: "#DCFCE7", activity: "AI prescription generated", credits: -210, date: "May 30, 2026 · 11:00 AM" },
-    { tool: "AI Reminder", platform: "CRM", icon: <Bell className="size-3.5 text-[#7C3AED]" />, iconBg: "#EDE9FE", activity: "Reminder calling batch sent", credits: -850, date: "May 29, 2026 · 3:00 PM" },
-    { tool: "Session Notes", platform: "EHR", icon: <FileText className="size-3.5 text-[#1E40AF]" />, iconBg: "#DBEAFE", activity: "Manual note created", credits: -90, date: "May 28, 2026 · 10:20 AM" },
-    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -460, date: "May 27, 2026 · 2:15 PM" },
-    { tool: "Prescription", platform: "EHR", icon: <Pill className="size-3.5 text-[#15803D]" />, iconBg: "#DCFCE7", activity: "Manual prescription created", credits: -95, date: "May 26, 2026 · 9:30 AM" },
+    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -42, date: "Jun 1, 2026 · 9:14 AM" },
+    { tool: "Session Notes", platform: "EHR", icon: <FileText className="size-3.5 text-[#1E40AF]" />, iconBg: "#DBEAFE", activity: "AI-assisted note generated", credits: -1, date: "May 31, 2026 · 4:45 PM" },
+    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -38, date: "May 31, 2026 · 2:30 PM" },
+    { tool: "Prescription", platform: "EHR", icon: <Pill className="size-3.5 text-[#15803D]" />, iconBg: "#DCFCE7", activity: "AI prescription generated", credits: -1, date: "May 30, 2026 · 11:00 AM" },
+    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -50, date: "May 29, 2026 · 3:00 PM" },
+    { tool: "Session Notes", platform: "EHR", icon: <FileText className="size-3.5 text-[#1E40AF]" />, iconBg: "#DBEAFE", activity: "Manual note created", credits: -1, date: "May 28, 2026 · 10:20 AM" },
+    { tool: "AI Transcriber", platform: "EHR", icon: <Zap className="size-3.5 text-[#14B8A6]" />, iconBg: "#CCFBF1", activity: "Session transcription completed", credits: -45, date: "May 27, 2026 · 2:15 PM" },
+    { tool: "Prescription", platform: "EHR", icon: <Pill className="size-3.5 text-[#15803D]" />, iconBg: "#DCFCE7", activity: "Manual prescription created", credits: -1, date: "May 26, 2026 · 9:30 AM" },
   ];
 
   const filteredRows = historyRows
     .filter(r => historyFilter === "All Tools" || r.tool === historyFilter);
 
-  const totalOrgCredits = 30000;      // bought from plan
-  const totalCreditsUsed = 20000;     // used across all platforms
-  const ehrCreditsUsed = 13000;       // of those 20k, EHR used 13k
-  const otherPlatformCreditsUsed = totalCreditsUsed - ehrCreditsUsed; // 7k CRM etc
-  const orgCreditsRemaining = totalOrgCredits - totalCreditsUsed;     // 10,000
+  const planCredits = activePlan?.creditsPerMonth ?? 3000;
 
-  const percentTotalUsed = ((totalCreditsUsed / totalOrgCredits) * 100).toFixed(1);   // 66.7%
-  const percentEHRofUsed = ((ehrCreditsUsed / totalCreditsUsed) * 100).toFixed(1);    // 65.0%
+  const totalOrgCredits = planCredits;
+  const totalCreditsUsed = Math.round(planCredits * 0.667);
+  const ehrCreditsUsed = Math.round(totalCreditsUsed * 0.65);
+  const otherPlatformCreditsUsed = totalCreditsUsed - ehrCreditsUsed;
+  const orgCreditsRemaining = totalOrgCredits - totalCreditsUsed;
 
-  const transcriberUsed = 7800;   // 60% of EHR usage
-  const sessionNotesUsed = 3510;  // 27% of EHR usage
-  const prescriptionUsed = 1690;  // 13% of EHR usage
+  const percentTotalUsed = ((totalCreditsUsed / totalOrgCredits) * 100).toFixed(1);
+  const percentEHRofUsed = ((ehrCreditsUsed / totalCreditsUsed) * 100).toFixed(1);
 
-  const freeCreditsTotal = 30000;
+  const transcriberUsed = Math.round(ehrCreditsUsed * 0.60);
+  const sessionNotesUsed = Math.round(ehrCreditsUsed * 0.27);
+  const prescriptionUsed = Math.round(ehrCreditsUsed * 0.13);
+
+  const freeCreditsTotal = planCredits;
   const freeCreditsUsed = historyRows.filter(r => r.platform === "EHR").reduce((sum, r) => sum + Math.abs(r.credits), 0);
   const freeCreditsRemaining = freeCreditsTotal - freeCreditsUsed;
   const freePercent = ((freeCreditsUsed / freeCreditsTotal) * 100).toFixed(0);
 
-  const purchasedCredits = 5000;
+  const purchasedCredits = 500;
   const purchasedUsed = historyRows.filter(r => r.platform === "CRM").reduce((sum, r) => sum + Math.abs(r.credits), 0);
   const purchasedRemaining = purchasedCredits - purchasedUsed;
 

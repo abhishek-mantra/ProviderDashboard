@@ -1,58 +1,23 @@
-import { useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Download } from "lucide-react";
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  serviceType: string;
-  initials: string;
-  avatarColor: string;
-}
+import { useClaims } from "../contexts/ClaimContext";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function CMS1500Form() {
   const navigate = useNavigate();
-  const { id, clientId } = useParams();
-  const location = useLocation();
-  const clientData = location.state?.client as Client | undefined;
+  const { claimId } = useParams();
+  const { claims } = useClaims();
+  const { providers, currentProviderId } = usePartnerDashboard();
 
-  // Determine if we're coming from the new claims flow or old client-based flow
-  const isNewClaimsFlow = location.pathname.includes('/claims/new/');
-  
+  const claim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
+  const currentProvider = providers.find((p) => p.id === (claim?.providerId || currentProviderId)) || providers[0];
+
   const handleBack = () => {
-    if (isNewClaimsFlow && clientId) {
-      navigate(`/claims/new/${clientId}`, { state: { client: clientData } });
+    if (claim) {
+      navigate(`/claims/${claim.id}`);
     } else {
-      navigate(`/clients/${id}/insurance/claims/create`);
+      navigate("/claims");
     }
-  };
-
-  const [formData, setFormData] = useState({
-    // All form fields here
-    payerId: "",
-    insuranceType: [] as string[],
-    insuredIdNumber: "",
-    patientName: "John",
-    patientSex: "",
-    insuredName: "",
-    patientAddress: "Street",
-    patientCity: "City",
-    patientState: "State",
-    patientZip: "ZIP",
-    patientTelephone: "",
-    patientRelationship: "",
-    insuredAddress: "",
-    insuredCity: "",
-    insuredState: "",
-    insuredZip: "",
-    insuredTelephone: "",
-    reservedNucc: "",
-  });
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
   };
 
   return (
@@ -82,12 +47,14 @@ export function CMS1500Form() {
                 CMS-1500 Health Insurance Claim Form
               </h2>
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 bg-[#364153] text-white text-xs font-medium rounded">
-                  APPROVED
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {claim?.claimNumber || "Claim #"}
                 </span>
-                <button className="px-3 py-1 bg-[#dbeafe] dark:bg-blue-900/30 text-[#1447e6] dark:text-blue-400 text-xs font-medium rounded">
-                  Claim Details ▼
-                </button>
+                {claim?.payerName && (
+                  <span className="px-3 py-1 bg-[#364153] text-white text-xs font-medium rounded">
+                    {claim.payerName}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -97,24 +64,26 @@ export function CMS1500Form() {
               <div className="grid grid-cols-2 gap-2 mb-2">
                 {/* Left Column - Box 1 */}
                 <div className="border border-[#d1d5dc] p-2">
-                  <div className="mb-2">
-                    <p className="text-[10px] font-semibold text-[#0a0a0a] mb-1">PAYER ID</p>
-                    <div className="border-b border-[#d1d5dc] h-[21px]"></div>
+                <div className="mb-2">
+                  <p className="text-[10px] font-semibold text-[#0a0a0a] mb-1">PAYER ID</p>
+                  <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
+                    <span className="text-[10px] text-gray-700 dark:text-gray-300">{claim?.payerId || ""}</span>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-[#0a0a0a] mb-1">Carrier</p>
-                    <div className="space-y-[2px]">
-                      <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">Name</p>
-                      </div>
-                      <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">Address line 1</p>
-                      </div>
-                      <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">Address line 2</p>
-                      </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-[#0a0a0a] mb-1">Carrier</p>
+                  <div className="space-y-[2px]">
+                    <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
+                      <p className="text-xs text-gray-700 dark:text-gray-300">{claim?.payerName || "Name"}</p>
+                    </div>
+                    <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
+                      <p className="text-xs text-[rgba(10,10,10,0.5)]">Address line 1</p>
+                    </div>
+                    <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
+                      <p className="text-xs text-[rgba(10,10,10,0.5)]">Address line 2</p>
                     </div>
                   </div>
+                </div>
                 </div>
 
                 {/* Right Column - Split into Insurance checkboxes and Insured's ID */}
@@ -154,7 +123,7 @@ export function CMS1500Form() {
                 <div className="border border-[#d1d5dc] p-2">
                   <p className="text-[9px] font-semibold text-[#0a0a0a] mb-1">2. PATIENT'S NAME</p>
                   <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">John</p>
+                    <p className="text-xs text-gray-800 dark:text-gray-200">{claim?.clientName || "___________________________"}</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[21px] flex items-center px-1 mt-[2px]">
                     <p className="text-xs text-[rgba(10,10,10,0.5)]">First name</p>
@@ -588,10 +557,14 @@ export function CMS1500Form() {
                     21. DIAGNOSIS OR NATURE OF ILLNESS OR INJURY Relate A-L to service line below (24E)
                   </p>
                   <div className="grid grid-cols-4 gap-1">
-                    {['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.'].map((letter) => (
+                    {['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.'].map((letter, i) => (
                       <div key={letter} className="flex items-center gap-0.5">
                         <span className="text-[8px]">{letter}</span>
-                        <div className="border border-[#d1d5dc] h-[16px] flex-1"></div>
+                        <div className="border border-[#d1d5dc] h-[16px] flex-1 flex items-center px-0.5">
+                          <span className="text-[8px] text-gray-800 dark:text-gray-200 truncate">
+                            {claim?.diagnosisCodes?.[i] || ""}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -613,7 +586,11 @@ export function CMS1500Form() {
                     <p className="text-[9px] font-semibold text-[#0a0a0a] mb-1 leading-tight">
                       23. PRIOR AUTHORIZATION NUMBER
                     </p>
-                    <div className="border-b border-[#d1d5dc] h-[18px]"></div>
+                    <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1">
+                      <span className="text-[9px] text-gray-800 dark:text-gray-200">
+                        {claim?.authorizationCode || ""}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -668,54 +645,67 @@ export function CMS1500Form() {
                 </div>
 
                 {/* Service Lines - 6 rows */}
-                {[1, 2, 3, 4, 5, 6].map((line) => (
-                  <div key={line} className="grid grid-cols-12 gap-px bg-[#d1d5dc] border-t border-[#d1d5dc]">
-                    <div className="col-span-2 bg-white p-1">
-                      <div className="flex gap-px">
-                        <div className="flex-1 border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
-                          <p className="text-xs text-[rgba(10,10,10,0.5)]">MM DD YY (MM DD YY)</p>
+                {Array.from({ length: 6 }).map((_, line) => {
+                  const sl = claim?.serviceLines?.[line];
+                  return (
+                    <div key={line} className="grid grid-cols-12 gap-px bg-[#d1d5dc] border-t border-[#d1d5dc]">
+                      <div className="col-span-2 bg-white p-1">
+                        <div className="flex gap-px">
+                          <div className="flex-1 border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
+                            <p className="text-[8px] text-gray-700 dark:text-gray-300 truncate px-0.5">
+                              {sl?.dateOfService || ""}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px]"></div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px]"></div>
-                    </div>
-                    <div className="col-span-2 bg-white p-1">
-                      <div className="flex gap-px">
-                        <div className="flex-1 border-b border-[#d1d5dc] h-[20px] flex items-center px-1">
-                          <p className="text-xs text-[rgba(10,10,10,0.5)]">Description</p>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px]"></div>
+                      </div>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px]"></div>
+                      </div>
+                      <div className="col-span-2 bg-white p-1">
+                        <div className="flex gap-px">
+                          <div className="flex-1 border-b border-[#d1d5dc] h-[20px] flex items-center px-1">
+                            <p className="text-[8px] text-gray-700 dark:text-gray-300 truncate">
+                              {sl?.serviceCode || ""}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">1</p>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
+                          <p className="text-[8px] text-gray-700 dark:text-gray-300">
+                            {sl ? `A` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
+                          <p className="text-[8px] text-gray-700 dark:text-gray-300">
+                            {sl ? `$${sl.chargeAmount}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
+                          <p className="text-[8px] text-gray-700 dark:text-gray-300">
+                            {sl?.units || ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px]"></div>
+                      </div>
+                      <div className="bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px]"></div>
+                      </div>
+                      <div className="col-span-2 bg-white p-1">
+                        <div className="border-b border-[#d1d5dc] h-[20px]"></div>
                       </div>
                     </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">2</p>
-                      </div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px] flex items-center justify-center">
-                        <p className="text-xs text-[rgba(10,10,10,0.5)]">3</p>
-                      </div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px]"></div>
-                    </div>
-                    <div className="bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px]"></div>
-                    </div>
-                    <div className="col-span-2 bg-white p-1">
-                      <div className="border-b border-[#d1d5dc] h-[20px]"></div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Row 8: Federal Tax, Patient Account, Accept Assignment, Total Charge, Amount Paid, Rsvd NUCC */}
@@ -773,7 +763,9 @@ export function CMS1500Form() {
                     28. TOTAL CHARGE
                   </p>
                   <div className="border border-[#d1d5dc] h-[18px] flex items-center justify-center">
-                    <p className="text-xs">$</p>
+                    <p className="text-[10px] font-medium text-gray-800 dark:text-gray-200">
+                      {claim ? `$${claim.totalAmount.toFixed(2)}` : "$"}
+                    </p>
                   </div>
                 </div>
 
@@ -816,22 +808,26 @@ export function CMS1500Form() {
                     32. SERVICE FACILITY LOCATION INFORMATION
                   </p>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-0.5">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">Name</p>
+                    <p className="text-xs text-gray-900 dark:text-white font-medium">Mantra Behavioral Health Suite 400</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-0.5">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">Address</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300">100 Healthcare Plaza</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-1">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">City, State, ZIP</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300">San Francisco, CA 94103</p>
                   </div>
                   <div className="grid grid-cols-2 gap-1">
                     <div>
                       <p className="text-[8px] text-gray-600 mb-0.5">a. NPI</p>
-                      <div className="border-b border-[#d1d5dc] h-[16px]"></div>
+                      <div className="border-b border-[#d1d5dc] h-[16px] flex items-center px-1">
+                        <span className="text-[10px] font-mono font-medium">1982736405</span>
+                      </div>
                     </div>
                     <div>
                       <p className="text-[8px] text-gray-600 mb-0.5">b. Other ID</p>
-                      <div className="border-b border-[#d1d5dc] h-[16px]"></div>
+                      <div className="border-b border-[#d1d5dc] h-[16px] flex items-center px-1">
+                        <span className="text-[10px] font-mono text-gray-500">FAC-94103</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -842,25 +838,29 @@ export function CMS1500Form() {
                     33. BILLING PROVIDER INFO & PH #
                   </p>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-0.5">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">Name</p>
+                    <p className="text-xs text-gray-900 dark:text-white font-bold">{currentProvider?.name || "Dr. Sarah Miller, PsyD"}</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-0.5">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">Address</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300">100 Healthcare Plaza, Suite 400</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-1">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">City, State, ZIP</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300">San Francisco, CA 94103</p>
                   </div>
                   <div className="border-b border-[#d1d5dc] h-[18px] flex items-center px-1 mb-1">
-                    <p className="text-xs text-[rgba(10,10,10,0.5)]">Phone #</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300">+1 (800) 555-0199</p>
                   </div>
                   <div className="grid grid-cols-2 gap-1">
                     <div>
                       <p className="text-[8px] text-gray-600 mb-0.5">a. NPI</p>
-                      <div className="border-b border-[#d1d5dc] h-[16px]"></div>
+                      <div className="border-b border-[#d1d5dc] h-[16px] flex items-center px-1">
+                        <span className="text-[10px] font-mono font-medium">1982736405</span>
+                      </div>
                     </div>
                     <div>
                       <p className="text-[8px] text-gray-600 mb-0.5">b. Other ID</p>
-                      <div className="border-b border-[#d1d5dc] h-[16px]"></div>
+                      <div className="border-b border-[#d1d5dc] h-[16px] flex items-center px-1">
+                        <span className="text-[10px] font-mono text-gray-500">LIC-PSY9402</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -882,15 +882,22 @@ export function CMS1500Form() {
                 onClick={handleBack}
                 className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                Back to Session Selection
+                Back to Claim Details
               </button>
               <div className="flex items-center gap-3">
-                <button className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
                   <Download className="size-4" />
                   Download PDF
                 </button>
-                <button className="px-6 py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl font-medium transition-colors">
-                  Submit Claim
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl font-medium transition-colors"
+                >
+                  <Download className="size-4" />
+                  Print / Download PDF
                 </button>
               </div>
             </div>

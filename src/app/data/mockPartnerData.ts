@@ -641,11 +641,11 @@ export const mockCareTeamMemberships: CareTeamMembership[] = [
 ];
 
 export const mockClients: MockClient[] = [
-  { id: "1", name: "Sarah Johnson", email: "sarah.j@example.com", treatingProviderId: "prov-1" },
-  { id: "2", name: "Michael Chen", email: "m.chen@example.com", treatingProviderId: "prov-1" },
-  { id: "3", name: "Emma Thompson", email: "emma.t@example.com", treatingProviderId: "prov-3" },
-  { id: "4", name: "David Martinez", email: "d.martinez@example.com", treatingProviderId: "prov-admin" },
-  { id: "5", name: "Olivia Brown", email: "olivia.b@example.com", treatingProviderId: "prov-1" },
-  { id: "6", name: "Liam Garcia", email: "liam.g@example.com", treatingProviderId: "prov-3" },
-  { id: "7", name: "Sophia Miller", email: "sophia.m@example.com", treatingProviderId: "prov-1" },
+  { id: "1", name: "Sarah Johnson", email: "sarah.j@example.com", treatingProviderId: "prov-1", insuranceRegion: "US" },
+  { id: "2", name: "Michael Chen", email: "m.chen@example.com", treatingProviderId: "prov-1", insuranceRegion: "UK" },
+  { id: "3", name: "Emma Thompson", email: "emma.t@example.com", treatingProviderId: "prov-3", insuranceRegion: "CA" },
+  { id: "4", name: "David Martinez", email: "d.martinez@example.com", treatingProviderId: "prov-admin", insuranceRegion: "AE" },
+  { id: "5", name: "Olivia Brown", email: "olivia.b@example.com", treatingProviderId: "prov-1", insuranceRegion: "US" },
+  { id: "6", name: "Liam Garcia", email: "liam.g@example.com", treatingProviderId: "prov-3", insuranceRegion: "UK" },
+  { id: "7", name: "Sophia Miller", email: "sophia.m@example.com", treatingProviderId: "prov-1", insuranceRegion: "CA" },
 ];

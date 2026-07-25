@@ -73,11 +73,14 @@ export interface CareTeamMembership {
   addedAt: string;
 }
 
+import type { ClaimRegion } from "./claims";
+
 export interface MockClient {
   id: string;
   name: string;
   email: string;
   treatingProviderId: string;
+  insuranceRegion?: ClaimRegion;
 }
 
 export type PlanTier = "FREE" | "BASIC" | "GROWTH" | "SCALER";

@@ -1,21 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, ShieldCheck, Upload, Eye, Plus, Filter, Calendar, Edit2, Search, X } from "lucide-react";
-
-interface Claim {
-  id: string;
-  claimId: string;
-  dateOfService: string;
-  payer: string;
-  amountBilled: string;
-  clientResponsibility: string;
-  status: "paid" | "submitted" | "accepted" | "denied";
-  lastUpdated: string;
-}
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useClaims } from "../contexts/ClaimContext";
+import { REGION_LABELS, CLAIM_STATUS_LABELS } from "../types/claims";
+import type { ClaimRegion, ClaimStatus } from "../types/claims";
 
 export function ClientInsurance() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { clients, updateClientInsuranceRegion } = usePartnerDashboard();
+  const { claims: allClaims } = useClaims();
+  const contextClient = id ? clients.find((c) => c.id === id) : undefined;
   const [activeTab, setActiveTab] = useState<"insurance" | "claims">("insurance");
   
   // Insurance form state
@@ -37,68 +33,86 @@ export function ClientInsurance() {
   // Claims filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "submitted" | "accepted" | "denied">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [payerFilter, setPayerFilter] = useState<string>("all");
 
-  const claims: Claim[] = [
-    {
-      id: "001",
-      claimId: "CLM-2024-001",
-      dateOfService: "Feb 1, 2024",
-      payer: "Blue Cross Blue Shield",
-      amountBilled: "$150.00",
-      clientResponsibility: "$30.00",
-      status: "paid",
-      lastUpdated: "Feb 15, 2024",
-    },
-    {
-      id: "002",
-      claimId: "CLM-2024-002",
-      dateOfService: "Feb 8, 2024",
-      payer: "Blue Cross Blue Shield",
-      amountBilled: "$150.00",
-      clientResponsibility: "$30.00",
-      status: "submitted",
-      lastUpdated: "Feb 9, 2024",
-    },
-    {
-      id: "003",
-      claimId: "CLM-2024-003",
-      dateOfService: "Feb 15, 2024",
-      payer: "Blue Cross Blue Shield",
-      amountBilled: "$150.00",
-      clientResponsibility: "$30.00",
-      status: "accepted",
-      lastUpdated: "Feb 16, 2024",
-    },
-  ];
+  const clientClaims = id ? allClaims.filter((c) => c.clientId === id) : [];
+  const uniquePayers = Array.from(new Set(clientClaims.map((c) => c.payerName).filter(Boolean))).sort();
 
-  const getStatusStyles = (status: Claim["status"]) => {
+  const getStatusBadge = (status: ClaimStatus) => {
+    const label = CLAIM_STATUS_LABELS[status] || status;
     switch (status) {
       case "paid":
-        return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400";
-      case "submitted":
-        return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
-      case "accepted":
-        return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+      case "approved":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            {label}
+          </span>
+        );
       case "denied":
-        return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400";
+      case "rejected_by_intermediary":
+      case "eligibility_failed":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {label}
+          </span>
+        );
+      case "submitted":
+      case "scrubbing":
+      case "pending_with_payer":
+      case "eligibility_pending":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+            {label}
+          </span>
+        );
+      case "draft":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+            {label}
+          </span>
+        );
+      case "manual_generated":
+      case "superbill_generated":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+            {label}
+          </span>
+        );
       default:
-        return "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300";
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+            {label}
+          </span>
+        );
     }
   };
 
-  // Get unique payers for filter
-  const uniquePayers = Array.from(new Set(claims.map(claim => claim.payer))).sort();
-
-  // Filter claims based on search and filters
-  const filteredClaims = claims.filter(claim => {
-    const matchesSearch = claim.claimId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.payer.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredClaims = clientClaims.filter((claim) => {
+    const matchesSearch = claim.claimNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (claim.payerName || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || claim.status === statusFilter;
-    const matchesPayer = payerFilter === "all" || claim.payer === payerFilter;
+    const matchesPayer = payerFilter === "all" || claim.payerName === payerFilter;
     return matchesSearch && matchesStatus && matchesPayer;
   });
+
+  const formatCurrency = (amount: number, currency: string) => {
+    switch (currency) {
+      case "USD": return `$${amount.toFixed(2)}`;
+      case "GBP": return `£${amount.toFixed(2)}`;
+      case "CAD": return `C$${amount.toFixed(2)}`;
+      case "AED": return `AED ${amount.toFixed(2)}`;
+      default: return `$${amount.toFixed(2)}`;
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen p-2 md:p-6">
@@ -354,6 +368,42 @@ export function ClientInsurance() {
                 </div>
               </div>
 
+              {/* Insurance Region */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 md:pt-6">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Insurance Region
+                </h3>
+                {contextClient ? (
+                  <div>
+                    <label className="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">
+                      Region <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={contextClient.insuranceRegion || "US"}
+                      onChange={(e) => updateClientInsuranceRegion(id!, e.target.value as ClaimRegion)}
+                      className="w-full px-2.5 md:px-3.5 py-2 md:py-2.5 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white text-xs md:text-sm appearance-none max-w-xs"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "right 0.875rem center",
+                        backgroundSize: "16px",
+                      }}
+                    >
+                      {(Object.entries(REGION_LABELS) as [ClaimRegion, string][]).map(([value, label]) => (
+                        <option key={value} value={value}>{label} ({value})</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                      Affects which payers, fields, and claim templates are shown in the Insurance Claims module.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Insurance region isn't available for this client yet.
+                  </p>
+                )}
+              </div>
+
               {/* Insurance Card (Front) */}
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">
@@ -540,7 +590,7 @@ export function ClientInsurance() {
 
                   {/* New Claim Button */}
                   <button
-                    onClick={() => navigate(`/clients/${id}/insurance/claims/create`)}
+                    onClick={() => navigate(`/claims/new/${id}`)}
                     className="flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap"
                   >
                     <Plus className="size-3.5 md:size-4" />
@@ -559,14 +609,13 @@ export function ClientInsurance() {
                       </label>
                       <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        onChange={(e) => setStatusFilter(e.target.value)}
                         className="w-full px-2.5 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] text-xs text-gray-900 dark:text-white"
                       >
                         <option value="all">All Status</option>
-                        <option value="paid">Paid</option>
-                        <option value="submitted">Submitted</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="denied">Denied</option>
+                        {["draft","eligibility_pending","eligibility_confirmed","eligibility_failed","submitted","scrubbing","pending_with_payer","approved","paid","denied","rejected_by_intermediary","manual_generated","superbill_generated"].map((s) => (
+                          <option key={s} value={s}>{CLAIM_STATUS_LABELS[s as ClaimStatus] || s}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -614,34 +663,30 @@ export function ClientInsurance() {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5">
-                          {claim.claimId}
+                          {claim.claimNumber}
                         </div>
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-medium capitalize ${getStatusStyles(
-                            claim.status
-                          )}`}
-                        >
-                          {claim.status}
-                        </span>
+                        {getStatusBadge(claim.status)}
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {claim.amountBilled}
+                          {formatCurrency(claim.totalAmount, claim.currency)}
                         </div>
                       </div>
                     </div>
                     <div className="space-y-1 mb-2">
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-500 dark:text-gray-400">Date:</span>
-                        <span className="text-gray-600 dark:text-gray-400">{claim.dateOfService}</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {claim.serviceLines[0]?.dateOfService || "N/A"}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-500 dark:text-gray-400">Payer:</span>
-                        <span className="text-gray-600 dark:text-gray-400">{claim.payer}</span>
+                        <span className="text-gray-600 dark:text-gray-400">{claim.payerName || "N/A"}</span>
                       </div>
                     </div>
                     <button
-                      onClick={() => navigate(`/clients/${id}/insurance/claims/${claim.id}`)}
+                      onClick={() => navigate(`/claims/${claim.id}`)}
                       className="w-full flex items-center justify-center gap-1 text-[#4169E1] hover:text-[#3557c7] text-xs font-medium py-1.5 border-t border-gray-200 dark:border-gray-700"
                     >
                       <Eye className="size-3.5" />
@@ -657,7 +702,7 @@ export function ClientInsurance() {
                   <thead className="bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Claim ID
+                        Claim
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         Date of Service
@@ -666,7 +711,7 @@ export function ClientInsurance() {
                         Payer
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Amount Billed
+                        Amount
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         Status
@@ -684,36 +729,30 @@ export function ClientInsurance() {
                       >
                         <td className="px-4 py-3.5">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {claim.claimId}
+                            {claim.claimNumber}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {claim.dateOfService}
+                            {claim.serviceLines[0]?.dateOfService || "N/A"}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {claim.payer}
+                            {claim.payerName || "N/A"}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {claim.amountBilled}
+                            {formatCurrency(claim.totalAmount, claim.currency)}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusStyles(
-                              claim.status
-                            )}`}
-                          >
-                            {claim.status}
-                          </span>
+                          {getStatusBadge(claim.status)}
                         </td>
                         <td className="px-4 py-3.5">
                           <button
-                            onClick={() => navigate(`/clients/${id}/insurance/claims/${claim.id}`)}
+                            onClick={() => navigate(`/claims/${claim.id}`)}
                             className="flex items-center gap-1.5 text-[#4169E1] hover:text-[#3557c7] text-sm font-medium"
                           >
                             <Eye className="size-4" />

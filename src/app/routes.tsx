@@ -28,16 +28,16 @@ import { Invoices } from "./pages/Invoices";
 import { InvoiceDetail } from "./pages/InvoiceDetail";
 import { CreateInvoice } from "./pages/CreateInvoice";
 import { AddPayment } from "./pages/AddPayment";
-import { CreateClaim } from "./pages/CreateClaim";
 import { ClaimDetail } from "./pages/ClaimDetail";
 import { CMS1500Form } from "./pages/CMS1500Form";
+import { ItemizedClaimSummary } from "./pages/ItemizedClaimSummary";
+import { SuperbillDocument } from "./pages/SuperbillDocument";
 import { SessionNotes } from "./pages/SessionNotes";
 import { SessionNotesList } from "./pages/SessionNotesList";
 import { AddSessionNote } from "./pages/AddSessionNote";
 import { ViewSessionNote } from "./pages/ViewSessionNote";
 import { CredentialStatus } from "./pages/CredentialStatus";
 import { Claims } from "./pages/Claims";
-import { NewClaim } from "./pages/NewClaim";
 import { OtherTools } from "./pages/OtherTools";
 import { AICRM } from "./pages/AICRM";
 import { Tools } from "./pages/Tools";
@@ -82,6 +82,18 @@ import { MyForms } from "./pages/MyForms";
 import { FormBuilder } from "./pages/FormBuilder";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
+// New claim flow pages
+import { FlowPicker } from "./pages/FlowPicker";
+import { MantraEligibility } from "./pages/MantraEligibility";
+import { MantraSessions } from "./pages/MantraSessions";
+import { MantraDetails } from "./pages/MantraDetails";
+import { MantraReview } from "./pages/MantraReview";
+import { ManualSessions } from "./pages/ManualSessions";
+import { ManualDetails } from "./pages/ManualDetails";
+import { ManualGenerate } from "./pages/ManualGenerate";
+import { SuperbillSessions } from "./pages/SuperbillSessions";
+import { SuperbillGenerate } from "./pages/SuperbillGenerate";
+
 export const router = createBrowserRouter([
   { path: "/get-started", element: <ErrorBoundary><GetStarted /></ErrorBoundary> },
   { path: "/verify", element: <ErrorBoundary><OTPVerify /></ErrorBoundary> },
@@ -125,8 +137,6 @@ export const router = createBrowserRouter([
       { path: "clients/:id/invoices/:invoiceId", element: <InvoiceDetail /> },
       { path: "clients/:id/invoices/:invoiceId/add-payment", element: <AddPayment /> },
       { path: "clients/:id/insurance", element: <ClientInsurance /> },
-      { path: "clients/:id/insurance/claims/create", element: <CreateClaim /> },
-      { path: "clients/:id/insurance/claims/create/cms1500", element: <CMS1500Form /> },
       { path: "clients/:id/insurance/claims/:claimId", element: <ClaimDetail /> },
       { path: "clients/:id/pathway", element: <ClientPathway /> },
       { path: "clients/:id/insights", element: <ClientInsights /> },
@@ -144,10 +154,24 @@ export const router = createBrowserRouter([
       { path: "tasks", element: <Tasks /> },
       { path: "insurance", element: <InsurancePage /> },
       { path: "credential-status", element: <CredentialStatus /> },
+
+      // Unified Claims Routes (replacing old /claims/new/:clientId)
       { path: "claims", element: <Claims /> },
-      { path: "claims/new/:clientId", element: <NewClaim /> },
-      { path: "claims/new/:clientId/cms1500", element: <CMS1500Form /> },
+      { path: "claims/new/:clientId", element: <FlowPicker /> },
+      { path: "claims/new/:clientId/mantra/eligibility", element: <MantraEligibility /> },
+      { path: "claims/new/:clientId/mantra/sessions", element: <MantraSessions /> },
+      { path: "claims/new/:clientId/mantra/details", element: <MantraDetails /> },
+      { path: "claims/new/:clientId/mantra/review", element: <MantraReview /> },
+      { path: "claims/new/:clientId/manual/sessions", element: <ManualSessions /> },
+      { path: "claims/new/:clientId/manual/details", element: <ManualDetails /> },
+      { path: "claims/new/:clientId/manual/generate", element: <ManualGenerate /> },
+      { path: "claims/new/:clientId/superbill/sessions", element: <SuperbillSessions /> },
+      { path: "claims/new/:clientId/superbill/generate", element: <SuperbillGenerate /> },
+      { path: "claims/:claimId/cms1500", element: <CMS1500Form /> },
+      { path: "claims/:claimId/summary", element: <ItemizedClaimSummary /> },
+      { path: "claims/:claimId/superbill", element: <SuperbillDocument /> },
       { path: "claims/:claimId", element: <ClaimDetail /> },
+
       { path: "client-leads", element: <ClientLeads /> },
       { path: "other-tools", element: <OtherTools /> },
       { path: "ai-crm", element: <AICRM /> },

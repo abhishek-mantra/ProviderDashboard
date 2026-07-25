@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { Provider, EstablishmentMember, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse } from "../types/partnerDashboard";
 import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses } from "../data/mockPartnerData";
+import type { ClaimRegion } from "../types/claims";
 
 interface PartnerDashboardContextType {
   establishments: Establishment[];
@@ -27,6 +28,7 @@ interface PartnerDashboardContextType {
   removeCareTeamMembership: (clientId: string, providerId: string) => void;
   clientTreatingProviders: Record<string, string>;
   reassignClient: (clientId: string, providerId: string) => void;
+  updateClientInsuranceRegion: (clientId: string, region: ClaimRegion) => void;
   canViewClientClinicalContent: (clientId: string) => boolean;
   canViewIntakeResponse: (form: IntakeForm, clientId: string, viewerId?: string) => boolean;
   clients: MockClient[];
@@ -57,6 +59,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   const [careTeamMemberships, setCareTeamMemberships] = useState<CareTeamMembership[]>(
     mockCareTeamMemberships
   );
+  const [clients, setClients] = useState<MockClient[]>(mockClients);
   const [clientTreatingProviders, setClientTreatingProviders] = useState<Record<string, string>>(
     Object.fromEntries(mockClients.map((client) => [client.id, client.treatingProviderId]))
   );
@@ -216,6 +219,15 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     setClientTreatingProviders((prev) => ({ ...prev, [clientId]: providerId }));
   }, []);
 
+  const updateClientInsuranceRegion = useCallback(
+    (clientId: string, region: ClaimRegion) => {
+      setClients((prev) =>
+        prev.map((c) => (c.id === clientId ? { ...c, insuranceRegion: region } : c))
+      );
+    },
+    []
+  );
+
   return (
     <PartnerDashboardContext.Provider
       value={{
@@ -245,7 +257,8 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         canViewIntakeResponse,
         clientTreatingProviders,
         reassignClient,
-        clients: mockClients,
+        updateClientInsuranceRegion,
+        clients,
         intakeForms,
         intakeFlows,
         formEntries,

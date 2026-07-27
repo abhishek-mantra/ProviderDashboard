@@ -25,6 +25,7 @@ export function IntakeForms() {
     currentEstablishmentId,
     isCurrentUserAdmin,
     providers,
+    canViewIntakeResponse,
   } = usePartnerDashboard();
 
   const [pageLoading, setPageLoading] = useState(true);
@@ -84,9 +85,11 @@ export function IntakeForms() {
   const establishmentEntries = useMemo(
     () => formEntries.filter((fe) => {
       const form = intakeForms.find((f) => f.id === fe.formId);
-      return form?.establishmentId === currentEstablishmentId;
+      if (form?.establishmentId !== currentEstablishmentId) return false;
+      if (!form) return false;
+      return canViewIntakeResponse(form, fe.clientId);
     }),
-    [formEntries, intakeForms, currentEstablishmentId]
+    [formEntries, intakeForms, currentEstablishmentId, canViewIntakeResponse]
   );
 
   const filteredActiveForms = useMemo(() => {

@@ -53,13 +53,13 @@ export const mockProviders: Provider[] = [
   },
   {
     id: "prov-6",
-    name: "Dr. James Wilson",
+    name: "James Wilson",
     email: "james.wilson@mantracare.com",
-    profession: "Cardiologist",
+    profession: "Yoga" as any,
     credentialExpiresAt: "2026-09-20T00:00:00Z",
     rating: 4.5,
     verificationStatus: "verified",
-    planMode: "ai-scribe",
+    planMode: "full-ehr",
   },
   {
     id: "prov-admin",

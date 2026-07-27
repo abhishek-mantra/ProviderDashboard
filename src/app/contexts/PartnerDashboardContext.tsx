@@ -15,6 +15,7 @@ interface PartnerDashboardContextType {
   setPracticeMembers: React.Dispatch<React.SetStateAction<PracticeMember[]>>;
   superAdmins: EstablishmentSuperAdmin[];
   customRoles: CustomRole[];
+  addCustomRole: (role: CustomRole) => void;
   providers: Provider[];
   setProviders: React.Dispatch<React.SetStateAction<Provider[]>>;
   careTeamMemberships: CareTeamMembership[];
@@ -47,7 +48,7 @@ interface PartnerDashboardContextType {
   canViewIntakeResponse: (form: IntakeForm, clientId: string, viewerId?: string) => boolean;
   addClient: (client: Omit<MockClient, "id">) => MockClient;
   setClients: React.Dispatch<React.SetStateAction<MockClient[]>>;
-  referClient: (clientId: string, toPracticeId: string) => string;
+  referClient: (clientId: string, toPracticeId: string, targetProviderId?: string) => string;
   getLinkedClientRecords: (clientId: string) => MockClient[];
   clients: MockClient[];
   intakeForms: IntakeForm[];
@@ -74,7 +75,11 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   const [practices, setPractices] = useState<Practice[]>(mockPractices);
   const [practiceMembers, setPracticeMembers] = useState<PracticeMember[]>(mockPracticeMembers);
   const [superAdmins] = useState<EstablishmentSuperAdmin[]>(mockSuperAdmins);
-  const [customRoles] = useState<CustomRole[]>(mockCustomRoles);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>(mockCustomRoles);
+
+  const addCustomRole = useCallback((role: CustomRole) => {
+    setCustomRoles((prev) => [...prev, role]);
+  }, []);
   const [providers, setProviders] = useState<Provider[]>(mockProviders);
   const [careTeamMemberships, setCareTeamMemberships] = useState<CareTeamMembership[]>(mockCareTeamMemberships);
   const [clients, setClients] = useState<MockClient[]>(mockClients);
@@ -377,7 +382,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     []
   );
 
-  const referClient = useCallback((clientId: string, toPracticeId: string): string => {
+  const referClient = useCallback((clientId: string, toPracticeId: string, targetProviderId?: string): string => {
     const sourceClient = clients.find((c) => c.id === clientId);
     if (!sourceClient) throw new Error(`Client ${clientId} not found`);
     const targetPractice = practices.find((p) => p.id === toPracticeId);
@@ -389,7 +394,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
       name: sourceClient.name,
       email: sourceClient.email,
       practiceId: toPracticeId,
-      treatingProviderId: sourceClient.treatingProviderId,
+      treatingProviderId: targetProviderId || "",
       insuranceRegion: sourceClient.insuranceRegion,
       referredFromClientId: clientId,
     };
@@ -426,6 +431,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         setPracticeMembers,
         superAdmins,
         customRoles,
+        addCustomRole,
         providers,
         setProviders,
         careTeamMemberships,

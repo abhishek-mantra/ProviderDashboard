@@ -13,6 +13,7 @@ export function DevRoleSwitcher() {
     currentEstablishmentId,
     practiceMembers,
     setCurrentEstablishmentId,
+    setCurrentPracticeId,
   } = usePartnerDashboard();
   const { planMode, setPlanMode } = usePlanMode();
 
@@ -20,6 +21,14 @@ export function DevRoleSwitcher() {
 
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const currentEstablishment = mockEstablishments.find((e) => e.id === currentEstablishmentId);
+
+  const handleSelectProvider = (providerId: string) => {
+    setCurrentProviderId(providerId);
+    const activeMember = practiceMembers.find((m) => m.providerId === providerId && m.memberStatus === "active");
+    if (activeMember && activeMember.practiceId) {
+      setCurrentPracticeId(activeMember.practiceId);
+    }
+  };
 
   return (
     <>
@@ -81,7 +90,7 @@ export function DevRoleSwitcher() {
                 const supervisor = practiceMembers.find((member) => member.role === "Supervisor" && member.memberStatus === "active");
                 const supervisorProvider = providers.find((provider) => provider.id === supervisor?.providerId);
                 return supervisorProvider ? (
-                  <button onClick={() => setCurrentProviderId(supervisorProvider.id)} className="w-full rounded-xl border border-purple-200 bg-purple-50 p-3 text-left dark:border-purple-900/40 dark:bg-purple-900/20">
+                  <button onClick={() => handleSelectProvider(supervisorProvider.id)} className="w-full rounded-xl border border-purple-200 bg-purple-50 p-3 text-left dark:border-purple-900/40 dark:bg-purple-900/20">
                     <p className="text-xs font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-300">Supervisor test account</p>
                     <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{supervisorProvider.name}</p>
                   </button>
@@ -89,50 +98,48 @@ export function DevRoleSwitcher() {
               })()}
               <div>
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">
-                  Current Provider
+                  Current Provider / Staff Member
                 </label>
                 <div className="space-y-1">
-                  {providers.map((provider) => (
-                    <button
-                      key={provider.id}
-                      onClick={() => setCurrentProviderId(provider.id)}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left ${
-                        currentProviderId === provider.id
-                          ? "bg-[#00c0ff]/10 border-2 border-[#00c0ff]"
-                          : "border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-750"
-                      }`}
-                    >
-                      <div className="size-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-xs">
-                        {provider.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {provider.name}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            {provider.profession}
-                          </p>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
-                            provider.planMode === "provider"
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                              : provider.planMode === "ai-scribe"
-                              ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
-                              : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
-                          }`}>
-                            {provider.planMode === "provider" ? "Mantra" : provider.planMode === "ai-scribe" ? "AI" : "EHR"}
-                          </span>
+                  {providers.map((provider) => {
+                    const m = practiceMembers.find((mem) => mem.providerId === provider.id && mem.memberStatus === "active");
+                    const roleName = m ? (typeof m.role === "string" ? m.role : "Custom Role") : (provider.id === "prov-admin" ? "Super Admin" : "Staff");
+                    return (
+                      <button
+                        key={provider.id}
+                        onClick={() => handleSelectProvider(provider.id)}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left ${
+                          currentProviderId === provider.id
+                            ? "bg-[#00c0ff]/10 border-2 border-[#00c0ff]"
+                            : "border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-750"
+                        }`}
+                      >
+                        <div className="size-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-xs">
+                          {provider.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
                         </div>
-                      </div>
-                      {currentProviderId === provider.id && (
-                        <RefreshCw className="size-3.5 text-[#00c0ff] animate-spin" />
-                      )}
-                    </button>
-                  ))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {provider.name}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                              {roleName}
+                            </span>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {provider.profession}
+                            </p>
+                          </div>
+                        </div>
+                        {currentProviderId === provider.id && (
+                          <RefreshCw className="size-3.5 text-[#00c0ff] animate-spin" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

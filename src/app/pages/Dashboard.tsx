@@ -210,8 +210,10 @@ export function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { planMode } = usePlanMode();
-  const { isCurrentUserAdmin, providers, currentProviderId, practiceMembers, clients, formEntries, currentEstablishmentId } = usePartnerDashboard();
+  const { isCurrentUserAdmin, providers, currentProviderId, practiceMembers, clients, formEntries, currentEstablishmentId, getPermissionsForCurrentUser } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
+  const userPerms = getPermissionsForCurrentUser();
+  const isReceptionist = !isCurrentUserAdmin && !userPerms.viewClinicalNotes && userPerms.manageBilling;
   const isTranscriberOnly = planMode === "transcriber-only";
   const pendingRequests = isCurrentUserAdmin ? 30 : 6;
   const pendingMessages = isCurrentUserAdmin ? 25 : 10;
@@ -415,33 +417,192 @@ export function Dashboard() {
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen px-1 py-2 md:p-6">
-{/* Welcome */}
-      <div className="mb-6 md:mb-8">
-        {isTranscriberOnly ? (
-          <div>
-            <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-              Good morning, Alex
-            </h1>
-            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-              Ready for your next session?
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 md:gap-4">
-            <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
-              <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+      {/* Receptionist / Front Desk Portal */}
+      {isReceptionist && (
+        <div className="space-y-6 mb-8">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-700 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
+                  <UserCheck className="size-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400 text-emerald-950 uppercase tracking-wider">
+                      Front Desk Portal
+                    </span>
+                    <span className="text-xs text-emerald-100">
+                      Receptionist / Billing
+                    </span>
+                  </div>
+                  <h1 className="text-xl md:text-2xl font-bold">Welcome, {currentProvider?.name || "James Wilson"}</h1>
+                  <p className="text-xs text-emerald-100 mt-0.5">
+                    Managing patient check-ins, appointments, client registration, and front-desk billing.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => navigate("/sessions")}
+                  className="px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Calendar className="size-4" />
+                  Check-In & Appointments
+                </button>
+                <button
+                  onClick={() => navigate("/billing")}
+                  className="px-4 py-2.5 bg-emerald-900/50 hover:bg-emerald-900/80 text-white rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5"
+                >
+                  <CreditCard className="size-4" />
+                  Billing & Invoices
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Front Desk KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Scheduled Today</span>
+                <div className="size-8 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Calendar className="size-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">12 Clients</p>
+              <p className="text-xs text-emerald-600 font-medium mt-1">4 checked-in · 2 waiting</p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Intake Submissions</span>
+                <div className="size-8 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400">
+                  <ClipboardList className="size-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formEntries.length || 5} Forms</p>
+              <p className="text-xs text-purple-600 font-medium mt-1">Ready for clinician review</p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Front Desk Collections</span>
+                <div className="size-8 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <DollarSign className="size-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">$1,450</p>
+              <p className="text-xs text-emerald-600 font-medium mt-1">Co-pays & cash collected</p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Practice Referrals</span>
+                <div className="size-8 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <UserPlus className="size-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">3 Pending</p>
+              <p className="text-xs text-amber-600 font-medium mt-1">Incoming cross-practice transfers</p>
+            </div>
+          </div>
+
+          {/* Today's Reception Check-In Roster */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <UserCheck className="size-5 text-emerald-600" />
+                  Today's Reception Check-in Roster
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Manage patient arrivals, verify session formats, and collect co-pays.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/clients")}
+                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                View Client Directory
+              </button>
+            </div>
+
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {[
+                { name: "Rachit Dubey", time: "10:00 AM", format: "In-Person", provider: "Dr. Sarah Johnson", status: "Checked In", fee: "$85.00 Paid" },
+                { name: "Sarah Jenkins", time: "11:30 AM", format: "In-Person", provider: "Dr. Michael Chen", status: "Arrived - Waiting", fee: "Co-pay $25 Pending" },
+                { name: "Michael Chen", time: "02:00 PM", format: "Virtual Video", provider: "Dr. Priya Sharma", status: "Scheduled", fee: "Covered by Insurance" },
+                { name: "Emma Thompson", time: "03:30 PM", format: "In-Person", provider: "Dr. David Kim", status: "Scheduled", fee: "$150.00 Unpaid" },
+              ].map((item, idx) => (
+                <div key={idx} className="py-3.5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-bold rounded-xl flex items-center justify-center text-xs">
+                      {item.time}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.format} · Provider: <span className="font-semibold text-gray-700 dark:text-gray-300">{item.provider}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{item.fee}</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      item.status.includes("Checked In")
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                        : item.status.includes("Arrived")
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    }`}>
+                      {item.status}
+                    </span>
+                    <button
+                      onClick={() => toast.success(`${item.name} checked in successfully!`)}
+                      className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      Check In
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Welcome Header for Clinicians / Admins */}
+      {!isReceptionist && (
+        <div className="mb-6 md:mb-8">
+          {isTranscriberOnly ? (
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                Dashboard
+                Good morning, Alex
               </h1>
               <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                Welcome back! Here's what's happening with your practice today
+                Ready for your next session?
               </p>
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
+                <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
+                  Dashboard
+                </h1>
+                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                  Welcome back! Here's what's happening with your practice today
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Your Rating Card */}
       {!isTranscriberOnly && currentProvider && (

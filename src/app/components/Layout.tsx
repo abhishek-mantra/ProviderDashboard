@@ -657,6 +657,7 @@ export function Layout() {
           </Link>
         );
       case 'ai-transcriber':
+        if (!getPermissionsForCurrentUser().viewClinicalNotes) return null;
         return (
           <Link
             to="/ai-transcriber"
@@ -673,6 +674,7 @@ export function Layout() {
           </Link>
         );
       case 'session-notes':
+        if (!getPermissionsForCurrentUser().viewClinicalNotes) return null;
         return (
           <Link
             to="/session-notes"
@@ -689,6 +691,7 @@ export function Layout() {
           </Link>
         );
       case 'prescriptions':
+        if (!getPermissionsForCurrentUser().viewClinicalNotes) return null;
         return (
           <Link
             to="/prescriptions"

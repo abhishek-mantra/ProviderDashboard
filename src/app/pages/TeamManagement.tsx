@@ -42,6 +42,7 @@ export function TeamManagement() {
     isCurrentUserAdmin,
     isCurrentUserSuperAdmin,
     customRoles,
+    addCustomRole,
     getCurrentEstablishment,
     getCurrentPractice,
     updatePracticeMember,
@@ -175,9 +176,23 @@ export function TeamManagement() {
   };
 
   const handleSaveCustomRole = () => {
-    if (!customRoleForm.name.trim()) return;
-    toast.success(`Custom role "${customRoleForm.name}" saved`);
+    if (!customRoleForm.name.trim() || !currentEstablishmentId) return;
+    const newRoleId = `role-custom-${Date.now()}`;
+    const newRole: CustomRole = {
+      id: newRoleId,
+      establishmentId: currentEstablishmentId,
+      name: customRoleForm.name.trim(),
+      permissions: { ...customRoleForm.permissions },
+    };
+    addCustomRole(newRole);
+    setFormData((prev) => ({
+      ...prev,
+      useCustomRole: true,
+      customRoleId: newRoleId,
+    }));
     setShowCustomRoleBuilder(false);
+    setCustomRoleForm({ name: "", permissions: { ...ROLE_PERMISSION_DEFAULTS.Clinician } });
+    toast.success(`Custom role "${newRole.name}" created and selected!`);
   };
 
   const roleLabel = (m: PracticeMember) =>

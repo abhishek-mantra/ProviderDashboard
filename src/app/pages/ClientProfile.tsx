@@ -60,8 +60,11 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const [clientType, setClientType] = useState<"Mantra" | "Personal" | "InactiveOnboarded">("Mantra");
   const [isMobileAppModalOpen, setIsMobileAppModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"summary" | "linked">("summary");
+  const [showReferModal, setShowReferModal] = useState(false);
+  const [targetPracticeId, setTargetPracticeId] = useState("");
+  const [targetProviderId, setTargetProviderId] = useState("");
   const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, currentPracticeId, referClient, getLinkedClientRecords } = usePartnerDashboard();
+  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, practiceMembers, currentPracticeId, referClient, getLinkedClientRecords } = usePartnerDashboard();
 
   const clientRecord = clients.find((item) => item.id === id) || clients[0];
   const linkedRecords = getLinkedClientRecords(id || "");
@@ -333,9 +336,9 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                 </div>
               )}
 
-              {/* Practice badge */}
+              {/* Practice badge & Refer to Practice button */}
               {clientPractice && (
-                <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                     {clientPractice.name}
                   </span>
@@ -345,12 +348,24 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                       {linkedRecords.length} linked
                     </span>
                   )}
+                  {otherPractices.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setShowReferModal(true);
+                        setTargetPracticeId(otherPractices[0]?.id || "");
+                        setTargetProviderId("");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00c0ff]/10 text-[#00c0ff] hover:bg-[#00c0ff]/20 transition-colors"
+                    >
+                      <GitBranch className="size-3.5" />
+                      Refer to Practice
+                    </button>
+                  )}
                 </div>
               )}
-              
               {/* Additional info for InactiveOnboarded clients */}
               {client.type === "InactiveOnboarded" && (
-                <div className="space-y-2">
+                <div className="space-y-2 mt-2">
                   <div className="flex flex-wrap items-center gap-2 md:gap-4">
                     <div className="flex items-center gap-1.5 md:gap-2">
                       <MapPin className="size-3 md:size-4 text-gray-400 flex-shrink-0" />
@@ -474,24 +489,126 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
               })}
             </div>
           )}
-          {/* Referral action */}
+          {/* Referral action with Practitioner Selection */}
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => {
-                if (id) {
-                  const targetId = otherPractices[0]?.id;
-                  if (targetId) {
-                    referClient(id, targetId);
-                    toast.success("Client referred successfully");
-                  }
-                }
+                setShowReferModal(true);
+                setTargetPracticeId(otherPractices[0]?.id || "");
+                setTargetProviderId("");
               }}
               disabled={otherPractices.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-xl transition-all border border-amber-200 dark:border-amber-800 font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl transition-all border border-purple-200 dark:border-purple-800 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
             >
               <GitBranch className="size-4" />
-              Refer to another practice
+              Refer to Another Practice Location
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Referral & Practitioner Assignment Modal */}
+      {showReferModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowReferModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <div className="flex items-center gap-2">
+                <GitBranch className="size-5 text-purple-600 dark:text-purple-400" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Refer Client to Practice</h3>
+              </div>
+              <button
+                onClick={() => setShowReferModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XCircle className="size-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Refer <strong>{client.name}</strong> to another practice location under your establishment.
+            </p>
+
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Target Practice Location *
+                </label>
+                <select
+                  value={targetPracticeId}
+                  onChange={(e) => {
+                    setTargetPracticeId(e.target.value);
+                    setTargetProviderId("");
+                  }}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-[#00c0ff]"
+                >
+                  {otherPractices.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.city || "Virtual"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Assign Practitioner (Optional)
+                </label>
+                <select
+                  value={targetProviderId}
+                  onChange={(e) => setTargetProviderId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-[#00c0ff]"
+                >
+                  <option value="">Unassigned (Target Practice Admin will assign)</option>
+                  {practiceMembers
+                    .filter((m) => m.practiceId === targetPracticeId && m.memberStatus === "active")
+                    .map((m) => {
+                      const p = providers.find((prov) => prov.id === m.providerId);
+                      return (
+                        <option key={m.providerId} value={m.providerId}>
+                          {p?.name || m.providerId} ({p?.profession || "Practitioner"})
+                        </option>
+                      );
+                    })}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {targetProviderId
+                    ? "Practitioner will be assigned as Treating Provider immediately upon referral."
+                    : "If unassigned, the client will wait in the target practice roster for an admin to assign."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setShowReferModal(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (id && targetPracticeId) {
+                    referClient(id, targetPracticeId, targetProviderId || undefined);
+                    setShowReferModal(false);
+                    const targetPract = practices.find((p) => p.id === targetPracticeId);
+                    toast.success(
+                      targetProviderId
+                        ? `Client referred to ${targetPract?.name || "practice"} and practitioner assigned!`
+                        : `Client referred to ${targetPract?.name || "practice"}! Target practice team notified.`
+                    );
+                  }
+                }}
+                className="flex-1 px-4 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-xl font-bold transition-all shadow-md"
+              >
+                Confirm Referral
+              </button>
+            </div>
           </div>
         </div>
       )}

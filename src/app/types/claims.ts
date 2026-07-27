@@ -51,6 +51,7 @@ export interface Claim {
   status: ClaimStatus;
   clientId: string;
   clientName: string;
+  practiceId: string;
   providerId: string;
   payerId: string | null;
   payerName: string | null;

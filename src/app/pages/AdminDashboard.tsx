@@ -27,12 +27,12 @@ import {
   PLAN_TIER_EXTRA_COST,
   PLAN_TIER_PRICING,
 } from "../types/partnerDashboard";
-import type { EstablishmentMember, MockClient } from "../types/partnerDashboard";
+import type { PracticeMember, MockClient } from "../types/partnerDashboard";
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function computeAggregateBilling(
-  establishmentMembers: EstablishmentMember[],
+  establishmentMembers: PracticeMember[],
   providers: typeof mockProviders,
   clients: MockClient[],
   clientTreatingProviders: Record<string, string>,
@@ -65,19 +65,22 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const {
     establishments,
-    members,
+    practiceMembers,
     providers,
     setEstablishments,
     careTeamMemberships,
+    currentPracticeId,
     currentEstablishmentId,
     isCurrentUserAdmin,
     getCurrentEstablishment,
+    getCurrentPractice,
+    practices,
     clients,
     clientTreatingProviders,
   } = usePartnerDashboard();
 
   const establishment = getCurrentEstablishment();
-  const establishmentMembers = members.filter(
+  const establishmentMembers = practiceMembers.filter(
     (m) => m.establishmentId === currentEstablishmentId && m.memberStatus !== "offboarded"
   );
 
@@ -122,12 +125,12 @@ export function AdminDashboard() {
   const verificationPendingCount = establishmentMembers.filter(
     (m) => m.memberStatus === "verification-pending"
   ).length;
-  const adminCount = establishmentMembers.filter((m) => m.roles.isAdmin).length;
+  const adminCount = establishmentMembers.filter((m) => m.role === "Admin" || m.role === "Admin").length;
   const supervisorCount = establishmentMembers.filter(
-    (m) => m.roles.clinical === "Supervisor"
+    (m) => m.role === "Supervisor"
   ).length;
   const clinicianCount = establishmentMembers.filter(
-    (m) => m.roles.clinical === "Clinician"
+    (m) => m.role === "Clinician"
   ).length;
 
   const verificationPendingMembers = establishmentMembers
@@ -136,6 +139,8 @@ export function AdminDashboard() {
       ...m,
       provider: providers.find((p) => p.id === m.providerId),
     }));
+
+  const currentPractice = getCurrentPractice() || practices.find((p) => p.id === currentPracticeId) || practices[0];
 
   // Action Center mock data
   const mockPendingAppointments = activeCount * 3;
@@ -147,11 +152,11 @@ export function AdminDashboard() {
   const listingChecks = [
     { label: "Establishment name", passed: !!establishment.name },
     { label: "About description", passed: !!establishment.about },
-    { label: "Specialties listed", passed: establishment.specialties.length > 0 },
-    { label: "Insurance panels", passed: establishment.insurance.length > 0 },
-    { label: "Photos uploaded", passed: establishment.photos.length > 0 || !!establishment.coverPhoto },
-    { label: "Visiting hours set", passed: Object.values(establishment.visitingHours).some((h) => h.isOpen) },
-    { label: "Address complete", passed: !!(establishment.streetAddress && establishment.city && establishment.state) },
+    { label: "Specialties listed", passed: (currentPractice?.specialties?.length ?? 0) > 0 },
+    { label: "Insurance panels", passed: (currentPractice?.insurance?.length ?? 0) > 0 },
+    { label: "Photos uploaded", passed: (currentPractice?.photos?.length ?? 0) > 0 || !!currentPractice?.coverPhoto },
+    { label: "Visiting hours set", passed: currentPractice?.visitingHours ? Object.values(currentPractice.visitingHours).some((h) => h.isOpen) : false },
+    { label: "Address complete", passed: !!(currentPractice?.streetAddress && currentPractice?.city && currentPractice?.state) },
   ];
   const listingHealthScore = Math.round(
     (listingChecks.filter((c) => c.passed).length / listingChecks.length) * 100
@@ -163,10 +168,10 @@ export function AdminDashboard() {
     toast.success("Listing reconfirmed");
   };
 
-  // Combined Availability — use establishment visiting hours as the merged view
+  // Combined Availability — use practice visiting hours as the merged view
   const combinedAvailability = daysOfWeek.map((day) => ({
     day,
-    ...establishment.visitingHours[day],
+    ...(currentPractice?.visitingHours?.[day] || { isOpen: false, from: "09:00", to: "17:00" }),
   }));
 
   // Computed aggregate billing from live member/provider data
@@ -697,7 +702,7 @@ export function AdminDashboard() {
                         {member.provider?.name || member.providerId}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {member.provider?.email} · {member.roles.clinical}
+                        {member.provider?.email} · {typeof member.role === "string" ? member.role : "Custom"}
                       </p>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Toaster, toast } from "./ui/sonner";
 import { usePlanMode } from "../contexts/PlanModeContext";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
+import { PracticeSwitcher } from "./PracticeSwitcher";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 function MantraProviderUpgradePopup({ onClose, onGetListed }: {
@@ -939,6 +940,11 @@ export function Layout() {
               </div>
             </>
           )}
+        </div>
+
+        {/* Practice Switcher */}
+        <div className="mb-1">
+          <PracticeSwitcher collapsed={shouldShowCollapsed()} />
         </div>
 
         {/* Configure Menu mode banner */}

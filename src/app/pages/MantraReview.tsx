@@ -11,7 +11,7 @@ export function MantraReview() {
   const { clientId } = useParams();
   const location = useLocation();
   const { createNewClaim, updateClaim } = useClaims();
-  const { clients, currentProviderId } = usePartnerDashboard();
+  const { clients, currentProviderId, currentPracticeId } = usePartnerDashboard();
 
   const client = clients.find((c) => c.id === clientId);
   const clientName = client?.name || "Client";
@@ -41,6 +41,7 @@ export function MantraReview() {
         region,
         clientId: clientId || "1",
         clientName,
+        practiceId: client?.practiceId || currentPracticeId,
         providerId: currentProviderId,
         payerId: selectedPayerId,
         payerName: selectedPayerName,

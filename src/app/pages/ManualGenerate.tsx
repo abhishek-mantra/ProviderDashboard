@@ -10,7 +10,7 @@ export function ManualGenerate() {
   const { clientId } = useParams();
   const location = useLocation();
   const { createNewClaim } = useClaims();
-  const { clients, currentProviderId } = usePartnerDashboard();
+  const { clients, currentProviderId, currentPracticeId } = usePartnerDashboard();
 
   const client = clients.find((c) => c.id === clientId);
   const clientName = client?.name || "Client";
@@ -30,6 +30,7 @@ export function ManualGenerate() {
       region,
       clientId: clientId || "1",
       clientName,
+      practiceId: client?.practiceId || currentPracticeId,
       providerId: currentProviderId,
       payerId: null,
       payerName: null,

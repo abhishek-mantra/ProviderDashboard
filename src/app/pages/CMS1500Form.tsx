@@ -6,10 +6,13 @@ import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 export function CMS1500Form() {
   const navigate = useNavigate();
   const { claimId } = useParams();
-  const { claims } = useClaims();
-  const { providers, currentProviderId } = usePartnerDashboard();
+  const { providers, currentProviderId, currentPracticeId, isCurrentUserSuperAdmin } = usePartnerDashboard();
 
-  const claim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
+  const rawClaim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
+  const claim =
+    rawClaim && (isCurrentUserSuperAdmin || !rawClaim.practiceId || rawClaim.practiceId === currentPracticeId)
+      ? rawClaim
+      : undefined;
   const currentProvider = providers.find((p) => p.id === (claim?.providerId || currentProviderId)) || providers[0];
 
   const handleBack = () => {

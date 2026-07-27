@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, Link } from "react-router";
 import { useState, useMemo } from "react";
 import {
   ArrowLeft,
@@ -32,6 +32,8 @@ import {
   ChevronLeft,
   ClipboardCheck,
   Download,
+  GitBranch,
+  ExternalLink,
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import MantraCareLogo from "../../imports/MantraCare_(1)-1.svg";
@@ -40,7 +42,7 @@ import { MobileAppModal } from "../components/MobileAppModal";
 import { usePlanMode } from "../contexts/PlanModeContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { CareTeamManager } from "./CareTeamManager";
-import { mockClients, PHQ9_ITEMS, GAD7_ITEMS } from "../data/mockPartnerData";
+import { PHQ9_ITEMS, GAD7_ITEMS } from "../data/mockPartnerData";
 import { FIELD_TYPE_LABELS } from "../types/partnerDashboard";
 import type { IntakeForm, FormResponse, FormField } from "../types/partnerDashboard";
 import { getScreeningScoreLabel, getScreeningScoreColor } from "../types/partnerDashboard";
@@ -57,12 +59,14 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const id = clientId ?? routeId;
   const [clientType, setClientType] = useState<"Mantra" | "Personal" | "InactiveOnboarded">("Mantra");
   const [isMobileAppModalOpen, setIsMobileAppModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"summary">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "linked">("summary");
   const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent, providers, intakeForms, formResponses } = usePartnerDashboard();
+  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, currentPracticeId, referClient, getLinkedClientRecords } = usePartnerDashboard();
 
-  // Mock client data - in real app this would come from API based on id
-  const clientRecord = mockClients.find((item) => item.id === id) || mockClients[0];
+  const clientRecord = clients.find((item) => item.id === id) || clients[0];
+  const linkedRecords = getLinkedClientRecords(id || "");
+  const clientPractice = practices.find((p) => p.id === clientRecord?.practiceId);
+  const otherPractices = practices.filter((p) => p.id !== currentPracticeId);
   const client = {
     id: id || "168019",
     name: clientName || clientRecord.name,
@@ -298,6 +302,11 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                     </svg>
                     <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">{client.gender}</span>
                   </div>
+                  {clientPractice && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                      {clientPractice.name}
+                    </span>
+                  )}
                 </div>
               )}
               
@@ -323,6 +332,21 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                   </div>
                 </div>
               )}
+
+              {/* Practice badge */}
+              {clientPractice && (
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {clientPractice.name}
+                  </span>
+                  {linkedRecords.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300">
+                      <GitBranch className="size-3" />
+                      {linkedRecords.length} linked
+                    </span>
+                  )}
+                </div>
+              )}
               
               {/* Additional info for InactiveOnboarded clients */}
               {client.type === "InactiveOnboarded" && (
@@ -344,6 +368,11 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                       <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">{client.gender}</span>
                     </div>
                   </div>
+                  {clientPractice && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                      {clientPractice.name}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -384,9 +413,89 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
             Summary
           </div>
         </button>
+        <button
+          onClick={() => { setActiveTab("linked"); }}
+          className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+            activeTab === "linked"
+              ? "border-[#043570] text-[#043570] dark:text-[#00c0ff] dark:border-[#00c0ff]"
+              : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <GitBranch className="size-4" />
+            Linked Records {linkedRecords.length > 0 && `(${linkedRecords.length})`}
+          </div>
+        </button>
       </div>
 
       {/* Summary Tab Content */}
+      {activeTab === "linked" && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+            <div className="size-2 md:size-2.5 bg-purple-500 rounded-full"></div>
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Linked Records</h3>
+          </div>
+          {clientRecord && clientRecord.referredFromClientId && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                <span className="font-semibold">Referred from:</span>{' '}
+                {clients.find((c) => c.id === clientRecord.referredFromClientId)?.name || "Unknown source"}
+              </p>
+            </div>
+          )}
+          {linkedRecords.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No linked client records found.</p>
+          ) : (
+            <div className="space-y-3">
+              {linkedRecords.map((linked) => {
+                const linkedPractice = practices.find((p) => p.id === linked.practiceId);
+                return (
+                  <div key={linked.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                      <ExternalLink className="size-4 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{linked.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{linked.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                        {linkedPractice?.name || linked.practiceId}
+                      </span>
+                      <Link
+                        to={`/clients/${linked.id}`}
+                        className="p-1.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 rounded-lg transition-all"
+                      >
+                        <Eye className="size-3.5 text-[#4169E1]" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Referral action */}
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => {
+                if (id) {
+                  const targetId = otherPractices[0]?.id;
+                  if (targetId) {
+                    referClient(id, targetId);
+                    toast.success("Client referred successfully");
+                  }
+                }
+              }}
+              disabled={otherPractices.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-xl transition-all border border-amber-200 dark:border-amber-800 font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <GitBranch className="size-4" />
+              Refer to another practice
+            </button>
+          </div>
+        </div>
+      )}
+
       {activeTab === "summary" && (
         <>
           {/* Summary Section: clinical content is limited to the treating clinician,
@@ -556,13 +665,13 @@ export function FormResponseViewer({
   response: FormResponse;
   onBack: () => void;
 }) {
-  const { currentProviderId, currentUserMemberships, providers, clientTreatingProviders, setFormResponses } = usePartnerDashboard();
+  const { currentProviderId, currentPracticeMemberships, providers, clientTreatingProviders, setFormResponses } = usePartnerDashboard();
   const sortedFields = [...form.fields].sort((a, b) => a.order - b.order);
 
   // Find active memberships
-  const activeMemberships = currentUserMemberships.filter((m) => m.memberStatus === "active");
+  const activeMemberships = currentPracticeMemberships.filter((m) => m.memberStatus === "active");
   const supervisorMembership = activeMemberships.find(
-    (m) => m.roles.clinical === "Supervisor" || m.roles.isAdmin || (m.supervises && m.supervises.length > 0)
+    (m) => m.role === "Supervisor" || m.role === "Admin" || (m.supervises && m.supervises.length > 0)
   );
 
   const treatingProviderId = clientTreatingProviders[response.clientId];

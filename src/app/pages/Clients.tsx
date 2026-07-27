@@ -1,25 +1,31 @@
-import { useState } from "react";
-import { Search, MessageSquare, Eye, Edit, ChevronLeft, ChevronRight, Info, RotateCw, ChevronDown, UserPlus, X, Filter, Download, MoreVertical, Trash2, Mail as MailIcon, Archive, UserX, CheckSquare, Square, RefreshCw, TrendingUp, TrendingDown, Users, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Clock, CheckCircle2, XCircle, AlertCircle, Send, Ban } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, MessageSquare, Eye, Edit, ChevronLeft, ChevronRight, Info, RotateCw, ChevronDown, UserPlus, X, Filter, Download, MoreVertical, Trash2, Mail as MailIcon, Archive, UserX, CheckSquare, Square, RefreshCw, TrendingUp, TrendingDown, Users, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Clock, CheckCircle2, XCircle, AlertCircle, Send, Ban, GitBranch, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router";
 import { AddClientModal } from "../components/AddClientModal";
 import mantraCareLogo from "../../imports/MantraCare_(1).svg";
 import { AvatarWithFallback } from "../components/AvatarWithFallback";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { usePracticeScopedClients } from "../hooks/usePracticeScopedData";
 import { ClientProfile } from "./ClientProfile";
+import type { MockClient } from "../types/partnerDashboard";
 
-interface Client {
+interface DisplayClient {
   id: string;
   name: string;
   email: string;
+  practiceId: string;
   onboardingStatus: "Joined" | "Expired" | "Invite Sent" | "Not Sent";
   status: "Active" | "Inactive" | "Archived" | "Switched" | "Prospective" | null;
   favorite: boolean;
   avatar: string | undefined;
+  referredFromClientId?: string;
+  linkedCount: number;
 }
 
 export function Clients() {
-  const { isCurrentUserAdmin, currentProviderId, careTeamMemberships, providers, clientTreatingProviders, reassignClient } = usePartnerDashboard();
+  const { isCurrentUserAdmin, currentProviderId, careTeamMemberships, providers, clientTreatingProviders, reassignClient, addClient, referClient, getLinkedClientRecords, practices, currentPracticeId } = usePartnerDashboard();
+  const practiceScopedClients = usePracticeScopedClients();
   const [searchQuery, setSearchQuery] = useState("");
   const [onboardingFilter, setOnboardingFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -29,116 +35,33 @@ export function Clients() {
   const [showOnboardingTooltip, setShowOnboardingTooltip] = useState(false);
   const [showStatusTooltip, setShowStatusTooltip] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState<string | null>(null);
-  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
-  const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [onboardingDropdownOpen, setOnboardingDropdownOpen] = useState(false);
   const [statusDropdownFilterOpen, setStatusDropdownFilterOpen] = useState(false);
   const [onboardingSearchQuery, setOnboardingSearchQuery] = useState("");
   const [statusSearchQuery, setStatusSearchQuery] = useState("");
+  const [referDropdownOpen, setReferDropdownOpen] = useState<string | null>(null);
+  const [linkedViewClientId, setLinkedViewClientId] = useState<string | null>(null);
   const rowsPerPage = 10;
 
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: "1",
-      name: "Sarah Johnson",
-      email: "sarah.johnson478@gmail.com",
-      onboardingStatus: "Invite Sent",
-      status: "Prospective",
-      favorite: false,
-      avatar: "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHBvcnRyYWl0JTIwaGVhZHNob3R8ZW58MXx8fHwxNzczOTg2NTk0fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "2",
-      name: "Michael Chen",
-      email: "m.chen@outlook.com",
-      onboardingStatus: "Joined",
-      status: "Active",
-      favorite: true,
-      avatar: "https://images.unsplash.com/photo-1738566061505-556830f8b8f5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBhc2lhbiUyMG1hbiUyMGJ1c2luZXNzJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzczOTg2NzE5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "3",
-      name: "Emily Davis",
-      email: "emily.davis@yahoo.com",
-      onboardingStatus: "Joined",
-      status: "Inactive",
-      favorite: true,
-      avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJ1c2luZXNzJTIwaGVhZHNob3QlMjBibG9uZGV8ZW58MXx8fHwxNzc0MDY1OTc3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "4",
-      name: "David Martinez",
-      email: "d.martinez@gmail.com",
-      onboardingStatus: "Joined",
-      status: "Active",
-      favorite: true,
-      avatar: "https://images.unsplash.com/photo-1643269552626-5e2874c5309b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoaXNwYW5pYyUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc3NDA2NTk3N3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "5",
-      name: "Jessica Thompson",
-      email: "jthompson65@gmail.com",
-      onboardingStatus: "Joined",
-      status: "Active",
-      favorite: false,
-      avatar: "https://images.unsplash.com/flagged/photo-1573582677725-863b570e3c00?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHBvcnRyYWl0JTIwaGVhZHNob3QlMjBicnVuZXR0ZXxlbnwxfHx8fDE3NzQwNjU5Nzh8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "6",
-      name: "Robert Wilson",
-      email: "rwilson56@mantra.care",
-      onboardingStatus: "Joined",
-      status: "Switched",
-      favorite: true,
-      avatar: "https://images.unsplash.com/photo-1769636930047-4478f12cf430?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBibGFjayUyMG1hbiUyMGJ1c2luZXNzJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzczOTkwMzg4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "7",
-      name: "Amanda Brown",
-      email: "12312.12312@gmail.com",
-      onboardingStatus: "Expired",
-      status: "Archived",
-      favorite: false,
-      avatar: "https://images.unsplash.com/photo-1758798261207-7039105e8195?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHBvcnRyYWl0JTIwcmVkaGVhZHxlbnwxfHx8fDE3NzQwNjU5Nzh8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "8",
-      name: "James Anderson",
-      email: "j.anderson38@outlook.com",
-      onboardingStatus: "Joined",
-      status: "Active",
-      favorite: false,
-      avatar: "https://images.unsplash.com/photo-1762753674498-73ec49feafc4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0MDY1OTc5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "9",
-      name: "Lisa Taylor",
-      email: "ltaylor@mantra.care",
-      onboardingStatus: "Joined",
-      status: "Inactive",
-      favorite: false,
-      avatar: "https://images.unsplash.com/photo-1758599543111-36ce5c34fceb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHBvcnRyYWl0JTIwZ2xhc3Nlc3xlbnwxfHx8fDE3NzQwNjU5Nzl8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "10",
-      name: "Christopher Lee",
-      email: "c.lee@outlook.com",
-      onboardingStatus: "Expired",
-      status: "Prospective",
-      favorite: false,
-      avatar: "https://images.unsplash.com/photo-1584940120505-117038d90b05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYXR1cmUlMjBtYW4lMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDF8fHx8MTc3NDA2NTk3OXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    },
-    {
-      id: "11",
-      name: "Alex Thompson",
-      email: "alex.thompson@email.com",
-      onboardingStatus: "Joined",
-      status: "Active",
-      favorite: false,
-      avatar: undefined,
-    },
-  ]);
+  const clients = useMemo<DisplayClient[]>(() =>
+    practiceScopedClients.map((mc) => {
+      const linked = getLinkedClientRecords(mc.id);
+      return {
+        id: mc.id,
+        name: mc.name,
+        email: mc.email,
+        practiceId: mc.practiceId,
+        onboardingStatus: "Joined" as const,
+        status: "Active" as const,
+        favorite: mc.email.endsWith("@mantra.care") || mc.email.endsWith("@example.com"),
+        avatar: undefined,
+        referredFromClientId: mc.referredFromClientId,
+        linkedCount: linked.length,
+      };
+    }),
+    [practiceScopedClients, getLinkedClientRecords]
+  );
 
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
@@ -156,6 +79,8 @@ export function Clients() {
   const startIndex = (currentPage - 1) * rowsPerPage;
   const paginatedClients = filteredClients.slice(startIndex, startIndex + rowsPerPage);
   const getAssignedProvider = (clientId: string) => providers.find((p) => p.id === clientTreatingProviders[clientId]);
+
+  const otherPractices = practices.filter((p) => p.id !== currentPracticeId);
 
   const getOnboardingStatusBadge = (status: string) => {
     switch (status) {
@@ -256,64 +181,44 @@ export function Clients() {
     }
   };
 
-  const handleAddClient = (client: {
+  const handleAddClient = (clientData: {
     firstName: string;
     lastName: string;
     email: string;
     service: string;
     inviteToMantra?: boolean;
   }) => {
-    console.log("Adding client:", client);
-    const newClient: Client = {
-      id: (clients.length + 1).toString(),
-      name: `${client.firstName} ${client.lastName}`,
-      email: client.email,
-      onboardingStatus: client.inviteToMantra ? "Invite Sent" : "Not Sent",
-      status: "Prospective",
-      favorite: false,
-      avatar: "https://via.placeholder.com/150",
-    };
-    setClients([newClient, ...clients]);
-    reassignClient(newClient.id, currentProviderId);
-    // In a real app, this would make an API call to save the client
+    const newMockClient = addClient({
+      name: `${clientData.firstName} ${clientData.lastName}`,
+      email: clientData.email,
+      practiceId: currentPracticeId,
+      treatingProviderId: currentProviderId,
+    });
+    reassignClient(newMockClient.id, currentProviderId);
   };
 
-  const handleResendEmail = (clientId: string) => {
-    setClients((prevClients) =>
-      prevClients.map((client) =>
-        client.id === clientId
-          ? { ...client, onboardingStatus: "Invite Sent" as const }
-          : client
-      )
-    );
+  const handleResendEmail = (_clientId: string) => {
+    // In a real app this would send the invitation email via API
   };
 
-  const handleChangeStatus = (clientId: string, newStatus: Client["status"]) => {
-    setClients((prevClients) =>
-      prevClients.map((client) =>
-        client.id === clientId ? { ...client, status: newStatus } : client
-      )
-    );
+  const handleChangeStatus = (_clientId: string, _newStatus: DisplayClient["status"]) => {
     setStatusDropdownOpen(null);
   };
 
-  const statusOptions: Array<Client["status"]> = ["Active", "Inactive", "Archived", "Switched", "Prospective"];
+  const statusOptions: Array<DisplayClient["status"]> = ["Active", "Inactive", "Archived", "Switched", "Prospective"];
 
-  const getStatusOptionsForClient = (client: Client): Array<Client["status"]> => {
+  const getStatusOptionsForClient = (client: DisplayClient): Array<DisplayClient["status"]> => {
     const isMantraClient = client.email.endsWith("@mantra.care");
-    
     if (isMantraClient) {
-      // Mantra clients get all options
       return statusOptions;
     } else {
-      // Non-Mantra clients: remove "Inactive" and "Switched"
       return statusOptions.filter(status => status !== "Inactive" && status !== "Switched");
     }
   };
 
-  const getInitials = (name: string) => {
-    const names = name.split(' ');
-    return names.map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const handleReferClient = (clientId: string, toPracticeId: string) => {
+    referClient(clientId, toPracticeId);
+    setReferDropdownOpen(null);
   };
 
   const clearFilters = () => {
@@ -323,6 +228,8 @@ export function Clients() {
   };
 
   const hasActiveFilters = searchQuery !== "" || onboardingFilter !== "All" || statusFilter !== "All";
+
+  const getPracticeName = (practiceId: string) => practices.find((p) => p.id === practiceId)?.name || practiceId;
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen p-1 md:p-6">
@@ -662,6 +569,9 @@ export function Clients() {
                   <span className="text-sm font-semibold text-white">Assigned To</span>
                 </th>
                 <th className="px-3 md:px-4 py-2 md:py-3 text-left">
+                  <span className="text-sm font-semibold text-white">Practice</span>
+                </th>
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left">
                   <div className="flex items-center gap-2 relative">
                     <span className="text-sm font-semibold text-white">Status</span>
                     <div
@@ -783,6 +693,13 @@ export function Clients() {
                         </span>
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            {getPracticeName(client.practiceId)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 md:px-4 py-2 md:py-3">
                         {client.status ? (
                           !client.favorite ? (
                             // Non-Mantra client - show dropdown
@@ -876,21 +793,83 @@ export function Clients() {
                               <MessageSquare className="size-4 text-[#4169E1]" />
                             </motion.div>
                           </Link>
-                          {!client.favorite && (
-                            <Link
-                              to={`/clients/${client.id}/edit`}
-                              className="p-2 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 inline-block"
-                              title="Edit"
+                          <Link
+                            to={`/clients/${client.id}/edit`}
+                            className="p-2 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 inline-block"
+                            title="Edit"
+                          >
+                            <motion.div
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                             >
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Edit className="size-4 text-[#4169E1]" />
-                              </motion.div>
-                            </Link>
+                              <Edit className="size-4 text-[#4169E1]" />
+                            </motion.div>
+                          </Link>
+                          {/* Refer action */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setReferDropdownOpen(referDropdownOpen === client.id ? null : client.id)}
+                              className="p-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 rounded-lg transition-all border border-amber-200 dark:border-amber-800"
+                              title="Refer to another practice"
+                            >
+                              <GitBranch className="size-4 text-amber-600" />
+                            </button>
+                            {referDropdownOpen === client.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setReferDropdownOpen(null)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 z-20 overflow-hidden"
+                                >
+                                  <div className="px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                                    Refer to practice
+                                  </div>
+                                  {otherPractices.length === 0 ? (
+                                    <div className="px-4 py-3 text-sm text-gray-400">No other practices available</div>
+                                  ) : (
+                                    otherPractices.map((p) => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => handleReferClient(client.id, p.id)}
+                                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all flex items-center gap-2.5"
+                                      >
+                                        <ExternalLink className="size-3.5 text-gray-400" />
+                                        <span className="text-gray-700 dark:text-gray-300 font-medium">{p.name}</span>
+                                      </button>
+                                    ))
+                                  )}
+                                </motion.div>
+                              </>
+                            )}
+                          </div>
+                          {/* Linked records indicator */}
+                          {client.linkedCount > 0 && (
+                            <button
+                              onClick={() => setLinkedViewClientId(linkedViewClientId === client.id ? null : client.id)}
+                              className="p-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 rounded-lg transition-all border border-purple-200 dark:border-purple-800 relative"
+                              title={`${client.linkedCount} linked record(s)`}
+                            >
+                              <GitBranch className="size-4 text-purple-600" />
+                              <span className="absolute -top-1.5 -right-1.5 size-4 bg-purple-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                {client.linkedCount}
+                              </span>
+                            </button>
                           )}
                         </div>
+                        {/* Linked records panel */}
+                        {linkedViewClientId === client.id && (
+                          <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl">
+                            <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">Linked Records</div>
+                            {getLinkedClientRecords(client.id).map((linked) => (
+                              <div key={linked.id} className="flex items-center gap-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                                <ExternalLink className="size-3 text-gray-400" />
+                                <span>{linked.name}</span>
+                                <span className="text-xs text-gray-400">({getPracticeName(linked.practiceId)})</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
                     </motion.tr>
                   ))
@@ -900,7 +879,7 @@ export function Clients() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    <td colSpan={4} className="px-6 py-16 text-center">
+                    <td colSpan={5} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="size-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4">
                           <Search className="size-8 text-gray-400" />
@@ -1114,15 +1093,25 @@ export function Clients() {
                   </div>
                 )}
 
+                {/* Practice Badge */}
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 block">
+                    Practice
+                  </label>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {getPracticeName(client.practiceId)}
+                  </span>
+                </div>
+
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <Link
-                      to={`/clients/${client.id}`}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm text-center"
-                    >
-                      <Eye className="size-4" />
-                      View
-                    </Link>
+                  <Link
+                    to={`/clients/${client.id}`}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm text-center"
+                  >
+                    <Eye className="size-4" />
+                    View
+                  </Link>
                   <Link
                     to="/chat/1"
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30 text-[#4169E1] font-medium text-sm"
@@ -1130,16 +1119,76 @@ export function Clients() {
                     <MessageSquare className="size-4" />
                     Chat
                   </Link>
-                  {!client.favorite && (
-                    <Link
-                      to={`/clients/${client.id}/edit`}
-                      className="p-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30"
-                      title="Edit"
+                  <Link
+                    to={`/clients/${client.id}/edit`}
+                    className="p-2.5 bg-[#4169E1]/10 hover:bg-[#4169E1]/20 dark:bg-[#4169E1]/20 dark:hover:bg-[#4169E1]/30 rounded-lg transition-all border border-[#4169E1]/30"
+                    title="Edit"
+                  >
+                    <Edit className="size-4 text-[#4169E1]" />
+                  </Link>
+                  {/* Refer action */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setReferDropdownOpen(referDropdownOpen === client.id ? null : client.id)}
+                      className="p-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 rounded-lg transition-all border border-amber-200 dark:border-amber-800"
+                      title="Refer to another practice"
                     >
-                      <Edit className="size-4 text-[#4169E1]" />
-                    </Link>
+                      <GitBranch className="size-4 text-amber-600" />
+                    </button>
+                    {referDropdownOpen === client.id && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setReferDropdownOpen(null)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 z-20 overflow-hidden"
+                        >
+                          <div className="px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                            Refer to practice
+                          </div>
+                          {otherPractices.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-400">No other practices available</div>
+                          ) : (
+                            otherPractices.map((p) => (
+                              <button
+                                key={p.id}
+                                onClick={() => handleReferClient(client.id, p.id)}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all flex items-center gap-2.5"
+                              >
+                                <ExternalLink className="size-3.5 text-gray-400" />
+                                <span className="text-gray-700 dark:text-gray-300 font-medium">{p.name}</span>
+                              </button>
+                            ))
+                          )}
+                        </motion.div>
+                      </>
+                    )}
+                  </div>
+                  {client.linkedCount > 0 && (
+                    <button
+                      onClick={() => setLinkedViewClientId(linkedViewClientId === client.id ? null : client.id)}
+                      className="p-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 rounded-lg transition-all border border-purple-200 dark:border-purple-800 relative"
+                      title={`${client.linkedCount} linked record(s)`}
+                    >
+                      <GitBranch className="size-4 text-purple-600" />
+                      <span className="absolute -top-1.5 -right-1.5 size-4 bg-purple-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                        {client.linkedCount}
+                      </span>
+                    </button>
                   )}
                 </div>
+                {linkedViewClientId === client.id && (
+                  <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl">
+                    <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">Linked Records</div>
+                    {getLinkedClientRecords(client.id).map((linked) => (
+                      <div key={linked.id} className="flex items-center gap-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                        <ExternalLink className="size-3 text-gray-400" />
+                        <span>{linked.name}</span>
+                        <span className="text-xs text-gray-400">({getPracticeName(linked.practiceId)})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             ))
           ) : (

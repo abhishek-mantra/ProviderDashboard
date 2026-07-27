@@ -53,17 +53,110 @@ export interface Address {
   zip: string;
 }
 
-export interface EstablishmentMember {
-  providerId: string;
+export const BASE_ROLES = [
+  "Admin",
+  "Clinician",
+  "Supervisor",
+  "Accountant",
+  "Reception/Billing",
+] as const;
+export type BaseRole = (typeof BASE_ROLES)[number];
+
+export interface PermissionSet {
+  viewOwnClients: boolean;
+  viewAllPracticeClients: boolean;
+  viewClinicalNotes: boolean;
+  manageTeam: boolean;
+  manageBilling: boolean;
+  viewFinancialReports: boolean;
+  manageClientRecords: boolean;
+  manageAvailabilitySchedule: boolean;
+  manageEstablishmentSettings: boolean;
+}
+
+export const ROLE_PERMISSION_DEFAULTS: Record<BaseRole, PermissionSet> = {
+  Admin: {
+    viewOwnClients: true, viewAllPracticeClients: true, viewClinicalNotes: false,
+    manageTeam: true, manageBilling: true, viewFinancialReports: true,
+    manageClientRecords: true, manageAvailabilitySchedule: true,
+    manageEstablishmentSettings: false,
+  },
+  Clinician: {
+    viewOwnClients: true, viewAllPracticeClients: false, viewClinicalNotes: true,
+    manageTeam: false, manageBilling: false, viewFinancialReports: false,
+    manageClientRecords: false, manageAvailabilitySchedule: true,
+    manageEstablishmentSettings: false,
+  },
+  Supervisor: {
+    viewOwnClients: true, viewAllPracticeClients: false, viewClinicalNotes: true,
+    manageTeam: false, manageBilling: false, viewFinancialReports: false,
+    manageClientRecords: false, manageAvailabilitySchedule: true,
+    manageEstablishmentSettings: false,
+  },
+  Accountant: {
+    viewOwnClients: false, viewAllPracticeClients: false, viewClinicalNotes: false,
+    manageTeam: false, manageBilling: true, viewFinancialReports: true,
+    manageClientRecords: false, manageAvailabilitySchedule: false,
+    manageEstablishmentSettings: false,
+  },
+  "Reception/Billing": {
+    viewOwnClients: false, viewAllPracticeClients: true, viewClinicalNotes: false,
+    manageTeam: false, manageBilling: true, viewFinancialReports: false,
+    manageClientRecords: true, manageAvailabilitySchedule: true,
+    manageEstablishmentSettings: false,
+  },
+};
+
+export interface CustomRole {
+  id: string;
   establishmentId: string;
-  roles: {
-    isAdmin: boolean;
-    clinical: "Clinician" | "Supervisor" | null;
-  };
+  name: string;
+  basedOnRole?: BaseRole;
+  permissions: PermissionSet;
+}
+
+export interface Practice {
+  id: string;
+  establishmentId: string;
+  name: string;
+  type: EstablishmentType;
+  streetAddress: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  visitingHours: { [key: string]: { isOpen: boolean; from: string; to: string } };
+  specialties: string[];
+  specialtyServices: { [key: string]: string[] };
+  fees: { sessionType: string; price: number }[];
+  slidingScaleAvailable: boolean;
+  paymentMethodsAccepted: string[];
+  clientFocus: { ageGroups: string[]; participants: string[] };
+  communitiesServed: string[];
+  therapyModalities: string[];
+  sessionFormat: "in-person" | "online" | "both";
+  freeConsultation: { offered: boolean; durationMinutes?: number };
+  insurance: string[];
+  coverPhoto: string;
+  photos: string[];
+  status: "draft" | "under-review" | "live";
+}
+
+export interface PracticeMember {
+  providerId: string;
+  practiceId: string;
+  establishmentId: string;
+  role: BaseRole | { customRoleId: string };
+  isSupervisorRole: boolean;
   supervises: string[];
   memberStatus: "invited" | "verification-pending" | "active" | "offboarded";
   invitedAt: string;
   joinedAt: string | null;
+}
+
+export interface EstablishmentSuperAdmin {
+  providerId: string;
+  establishmentId: string;
+  grantedAt: string;
 }
 
 export interface CareTeamMembership {
@@ -79,8 +172,10 @@ export interface MockClient {
   id: string;
   name: string;
   email: string;
+  practiceId: string;
   treatingProviderId: string;
   insuranceRegion?: ClaimRegion;
+  referredFromClientId?: string;
 }
 
 export type PlanTier = "FREE" | "BASIC" | "GROWTH" | "SCALER";
@@ -124,46 +219,14 @@ export interface Establishment {
   type: EstablishmentType;
   name: string;
   nameDescription?: string;
-  specialties: string[];
-  specialtyServices: { [key: string]: string[] };
-  specialtiesDescription?: string;
-  yearsInOperation: string;
-  yearsInOperationDescription?: string;
   about: string;
-  bedCapacity: string;
   accreditation: string;
-  insuranceDescription?: string;
-  streetAddress: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  visitingHours: {
-    [key: string]: { isOpen: boolean; from: string; to: string };
-  };
-  coverPhoto: string;
-  photos: string[];
-  videoUrl: string;
-  insurance: string[];
-  fees: { sessionType: string; price: number }[];
-  slidingScaleAvailable: boolean;
-  paymentMethodsAccepted: string[];
-  clientFocus: {
-    ageGroups: string[];
-    participants: string[];
-  };
-  clientFocusDescription?: string;
-  communitiesServed: string[];
-  therapyModalities: string[];
-  therapyModalitiesDescription?: string;
-  sessionFormat: "in-person" | "online" | "both";
-  freeConsultation: {
-    offered: boolean;
-    durationMinutes?: number;
-  };
-  status: "draft" | "under-review" | "live";
+  bedCapacity: string;
+  yearsInOperation: string;
   lastConfirmedAt: string;
   planTier: PlanTier;
-  members: EstablishmentMember[];
+  practiceIds: string[];
+  superAdmins: EstablishmentSuperAdmin[];
 }
 
 // ── Controlled-list constants ───────────────────────────────────────────────

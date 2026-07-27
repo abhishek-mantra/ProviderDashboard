@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { EstablishmentViewMode } from "../components/EstablishmentViewMode";
-import type { Establishment, EstablishmentType } from "../types/partnerDashboard";
+import type { Practice, EstablishmentType } from "../types/partnerDashboard";
 import {
   AGE_GROUPS,
   PARTICIPANTS,
@@ -670,33 +670,22 @@ const mockEstablishments: Establishment[] = [
 ];
 
 export function PracticeDetails() {
-  const { isCurrentUserAdmin, currentEstablishmentId, members } = usePartnerDashboard();
-  const [establishments, setEstablishments] = useState<Establishment[]>(mockEstablishments);
+  const { isCurrentUserAdmin, currentEstablishmentId, practiceMembers, practices, setPractices, currentPracticeId, setCurrentPracticeId, updatePractice, createPractice, getCurrentEstablishment } = usePartnerDashboard();
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState(false);
-  const [viewingEstablishment, setViewingEstablishment] = useState<Establishment | null>(null);
+  const [viewingPractice, setViewingPractice] = useState<Practice | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formModified, setFormModified] = useState(false);
   
   useUnsavedChanges(formModified && showForm);
 
-  // Form data for new/edit establishment
-  const [formData, setFormData] = useState(({
-    type: "hospital",
+  const currentPractice = practices.find((p) => p.id === currentPracticeId);
+
+  const defaultFormData = {
+    type: "clinic" as const,
+    establishmentId: currentEstablishmentId || "",
     name: "",
-    nameDescription: "",
-    specialties: [] as string[],
-    specialtyServices: {} as { [key: string]: string[] },
-    specialtiesDescription: "",
-    therapyModalities: [] as string[],
-    therapyModalitiesDescription: "",
-    yearsInOperation: "",
-    yearsInOperationDescription: "",
-    about: "",
-    bedCapacity: "",
-    accreditation: accreditationOptions[0],
-    insuranceDescription: "",
     streetAddress: "",
     city: "",
     state: "",
@@ -710,18 +699,49 @@ export function PracticeDetails() {
       Saturday: { isOpen: true, from: "09:00", to: "19:00" },
       Sunday: { isOpen: false, from: "09:00", to: "19:00" }
     },
-    coverPhoto: "",
-    photos: [] as string[],
-    videoUrl: "",
-    insurance: [] as string[],
+    specialties: [] as string[],
+    specialtyServices: {} as { [key: string]: string[] },
     fees: [] as { sessionType: string; price: number }[],
     slidingScaleAvailable: false,
     paymentMethodsAccepted: [] as string[],
     clientFocus: { ageGroups: [] as string[], participants: [] as string[] },
-    clientFocusDescription: "",
-    sessionFormat: "in-person" as "in-person" | "online" | "both",
-    freeConsultation: { offered: false, durationMinutes: undefined }
-  }));
+    communitiesServed: [] as string[],
+    therapyModalities: [] as string[],
+    sessionFormat: "both" as "in-person" | "online" | "both",
+    freeConsultation: { offered: false, durationMinutes: undefined } as { offered: boolean; durationMinutes?: number },
+    insurance: [] as string[],
+    coverPhoto: "",
+    photos: [] as string[],
+    status: "draft" as "draft" | "under-review" | "live",
+  };
+
+  const formDataFromPractice = (p: Practice) => ({
+    type: p.type,
+    establishmentId: p.establishmentId,
+    name: p.name,
+    streetAddress: p.streetAddress,
+    city: p.city,
+    state: p.state,
+    pinCode: p.pinCode,
+    visitingHours: p.visitingHours,
+    specialties: p.specialties,
+    specialtyServices: p.specialtyServices,
+    fees: p.fees,
+    slidingScaleAvailable: p.slidingScaleAvailable,
+    paymentMethodsAccepted: p.paymentMethodsAccepted,
+    clientFocus: p.clientFocus,
+    communitiesServed: p.communitiesServed,
+    therapyModalities: p.therapyModalities,
+    sessionFormat: p.sessionFormat,
+    freeConsultation: p.freeConsultation,
+    insurance: p.insurance,
+    coverPhoto: p.coverPhoto,
+    photos: p.photos,
+    status: p.status,
+  });
+
+  // Form data for new/edit practice
+  const [formData, setFormData] = useState(currentPractice ? formDataFromPractice(currentPractice) : defaultFormData);
 
   const initialRender = useRef(true);
   useEffect(() => {
@@ -745,98 +765,31 @@ export function PracticeDetails() {
     setCurrentStep(1);
     setEditingId(null);
     setFormModified(false);
-    initialRender.current = true;
-    // Reset form data
-    setFormData({
-      type: "hospital",
-      name: "",
-      nameDescription: "",
-      specialties: [],
-      specialtyServices: {},
-      specialtiesDescription: "",
-      therapyModalities: [],
-      therapyModalitiesDescription: "",
-      yearsInOperation: "",
-      yearsInOperationDescription: "",
-      about: "",
-      bedCapacity: "",
-      accreditation: accreditationOptions[0],
-      insuranceDescription: "",
-      streetAddress: "",
-      city: "",
-      state: "",
-      pinCode: "",
-      visitingHours: {
-        Monday: { isOpen: true, from: "09:00", to: "19:00" },
-        Tuesday: { isOpen: true, from: "09:00", to: "19:00" },
-        Wednesday: { isOpen: true, from: "09:00", to: "19:00" },
-        Thursday: { isOpen: true, from: "09:00", to: "19:00" },
-        Friday: { isOpen: true, from: "09:00", to: "19:00" },
-        Saturday: { isOpen: true, from: "09:00", to: "19:00" },
-        Sunday: { isOpen: false, from: "09:00", to: "19:00" }
-      },
-      coverPhoto: "",
-      photos: [],
-      videoUrl: "",
-      insurance: [],
-      fees: [],
-      slidingScaleAvailable: false,
-      paymentMethodsAccepted: [],
-      clientFocus: { ageGroups: [], participants: [] },
-      clientFocusDescription: "",
-      sessionFormat: "in-person",
-      freeConsultation: { offered: false, durationMinutes: undefined }
-    });
+    setFormData(defaultFormData);
   };
 
-  const handleEditEstablishment = (establishment: Establishment) => {
-    setEditingId(establishment.id);
+  const handleEditPractice = (practice: Practice) => {
+    setEditingId(practice.id);
     setShowForm(true);
     setViewMode(false);
     setCurrentStep(1);
-    setFormData({
-      type: establishment.type,
-      name: establishment.name,
-      specialties: establishment.specialties,
-      specialtyServices: establishment.specialtyServices,
-      yearsInOperation: establishment.yearsInOperation,
-      about: establishment.about,
-      bedCapacity: establishment.bedCapacity,
-      accreditation: establishment.accreditation,
-      streetAddress: establishment.streetAddress,
-      city: establishment.city,
-      state: establishment.state,
-      pinCode: establishment.pinCode,
-      visitingHours: establishment.visitingHours,
-      coverPhoto: establishment.coverPhoto,
-      photos: establishment.photos,
-      videoUrl: establishment.videoUrl,
-      insurance: establishment.insurance,
-      fees: establishment.fees || [],
-      slidingScaleAvailable: establishment.slidingScaleAvailable ?? false,
-      paymentMethodsAccepted: establishment.paymentMethodsAccepted || [],
-      clientFocus: establishment.clientFocus || { ageGroups: [], participants: [] },
-      communitiesServed: establishment.communitiesServed || [],
-      therapyModalities: establishment.therapyModalities || [],
-      sessionFormat: establishment.sessionFormat || "in-person",
-      freeConsultation: establishment.freeConsultation || { offered: false, durationMinutes: undefined }
-    });
+    setFormData(formDataFromPractice(practice));
   };
 
-  const handleViewEstablishment = (establishment: Establishment) => {
-    setViewingEstablishment(establishment);
+  const handleViewPractice = (practice: Practice) => {
+    setViewingPractice(practice);
     setViewMode(true);
     setShowForm(false);
   };
 
   const handleCloseView = () => {
     setViewMode(false);
-    setViewingEstablishment(null);
+    setViewingPractice(null);
   };
 
   const handleEditFromView = () => {
-    if (viewingEstablishment) {
-      handleEditEstablishment(viewingEstablishment);
+    if (viewingPractice) {
+      handleEditPractice(viewingPractice);
       setViewMode(false);
     }
   };
@@ -862,63 +815,16 @@ export function PracticeDetails() {
 
   const handlePublish = () => {
     if (editingId) {
-      setEstablishments(establishments.map(est => 
-        est.id === editingId 
-          ? {
-              ...est,
-              type: formData.type,
-              name: formData.name || "Unnamed Establishment",
-              specialties: formData.specialties,
-              specialtyServices: formData.specialtyServices,
-              yearsInOperation: formData.yearsInOperation,
-              about: formData.about,
-              bedCapacity: formData.bedCapacity,
-              accreditation: formData.accreditation,
-              streetAddress: formData.streetAddress,
-              city: formData.city,
-              state: formData.state,
-              pinCode: formData.pinCode,
-              visitingHours: formData.visitingHours,
-      coverPhoto: formData.coverPhoto,
-      photos: formData.photos,
-      videoUrl: formData.videoUrl,
-      insurance: formData.insurance,
-      fees: formData.fees,
-      slidingScaleAvailable: formData.slidingScaleAvailable,
-      paymentMethodsAccepted: formData.paymentMethodsAccepted,
-      clientFocus: formData.clientFocus,
-      communitiesServed: formData.communitiesServed,
-      therapyModalities: formData.therapyModalities,
-      sessionFormat: formData.sessionFormat,
-      freeConsultation: formData.freeConsultation,
-      status: "under-review",
-      lastConfirmedAt: new Date().toISOString(),
-      planTier: est.planTier,
-      members: est.members
-    }
-          : est
-      ));
-    } else {
-      // Create new establishment
-      const newEstablishment: Establishment = {
-        id: Date.now().toString(),
+      updatePractice(editingId, {
         type: formData.type,
-        name: formData.name || "Unnamed Establishment",
-        specialties: formData.specialties,
-        specialtyServices: formData.specialtyServices,
-        yearsInOperation: formData.yearsInOperation,
-        about: formData.about,
-        bedCapacity: formData.bedCapacity,
-        accreditation: formData.accreditation,
+        name: formData.name,
         streetAddress: formData.streetAddress,
         city: formData.city,
         state: formData.state,
         pinCode: formData.pinCode,
         visitingHours: formData.visitingHours,
-        coverPhoto: formData.coverPhoto,
-        photos: formData.photos,
-        videoUrl: formData.videoUrl,
-        insurance: formData.insurance,
+        specialties: formData.specialties,
+        specialtyServices: formData.specialtyServices,
         fees: formData.fees,
         slidingScaleAvailable: formData.slidingScaleAvailable,
         paymentMethodsAccepted: formData.paymentMethodsAccepted,
@@ -927,13 +833,38 @@ export function PracticeDetails() {
         therapyModalities: formData.therapyModalities,
         sessionFormat: formData.sessionFormat,
         freeConsultation: formData.freeConsultation,
-        status: "under-review",
-        lastConfirmedAt: new Date().toISOString(),
-        planTier: "BASIC",
-        members: []
+        insurance: formData.insurance,
+        coverPhoto: formData.coverPhoto,
+        photos: formData.photos,
+        status: "live",
+      });
+    } else {
+      const newPractice: Practice = {
+        id: `practice-${Date.now()}`,
+        establishmentId: currentEstablishmentId || "",
+        type: formData.type,
+        name: formData.name,
+        streetAddress: formData.streetAddress,
+        city: formData.city,
+        state: formData.state,
+        pinCode: formData.pinCode,
+        visitingHours: formData.visitingHours,
+        specialties: formData.specialties,
+        specialtyServices: formData.specialtyServices,
+        fees: formData.fees,
+        slidingScaleAvailable: formData.slidingScaleAvailable,
+        paymentMethodsAccepted: formData.paymentMethodsAccepted,
+        clientFocus: formData.clientFocus,
+        communitiesServed: formData.communitiesServed,
+        therapyModalities: formData.therapyModalities,
+        sessionFormat: formData.sessionFormat,
+        freeConsultation: formData.freeConsultation,
+        insurance: formData.insurance,
+        coverPhoto: formData.coverPhoto,
+        photos: formData.photos,
+        status: "live",
       };
-      
-      setEstablishments([...establishments, newEstablishment]);
+      createPractice(newPractice);
     }
     
     handleCloseForm();
@@ -1311,6 +1242,22 @@ export function PracticeDetails() {
                                 }
                               }}
                             />
+                            <textarea
+                              value={(formData as any).specialtyServicesDescriptions?.[specialty] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFormData((prev: any) => ({
+                                  ...prev,
+                                  specialtyServicesDescriptions: {
+                                    ...(prev.specialtyServicesDescriptions || {}),
+                                    [specialty]: val,
+                                  },
+                                }));
+                              }}
+                              rows={2}
+                              className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
+                              placeholder="Description for listing (will appear on your public profile)"
+                            />
                           </div>
                         ))}
                       </div>
@@ -1373,13 +1320,6 @@ export function PracticeDetails() {
                       onChange={(e) => setFormData({ ...formData, yearsInOperation: e.target.value })}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
                       placeholder="e.g. 10"
-                    />
-                    <textarea
-                      value={formData.yearsInOperationDescription}
-                      onChange={(e) => setFormData({ ...formData, yearsInOperationDescription: e.target.value })}
-                      rows={2}
-                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
-                      placeholder="Description for listing (will appear on your public profile)"
                     />
                   </div>
                 </div>
@@ -2054,7 +1994,7 @@ export function PracticeDetails() {
                         <span className="text-gray-600 dark:text-gray-400">Members:</span>
                         <span className="text-gray-900 dark:text-white font-medium">
                           {editingId
-                            ? `${establishments.find((e) => e.id === editingId)?.members.filter((m) => m.memberStatus !== "offboarded").length || 0} added`
+                            ? `${practiceMembers.filter((m) => m.establishmentId === editingId && m.memberStatus !== "offboarded").length || 0} added`
                             : "0 (add after creation)"}
                         </span>
                       </div>
@@ -2063,7 +2003,7 @@ export function PracticeDetails() {
                       <div className="mt-3">
                         {(() => {
                           const est = establishments.find((e) => e.id === editingId);
-                          const activeMembers = est?.members.filter((m) => m.memberStatus !== "offboarded") || [];
+                          const activeMembers = practiceMembers.filter((m) => m.establishmentId === est?.id && m.memberStatus !== "offboarded") || [];
                           if (activeMembers.length === 0) return null;
                           return (
                             <div className="flex flex-wrap gap-2">
@@ -2072,12 +2012,12 @@ export function PracticeDetails() {
                                   key={m.providerId}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-750 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                  {m.roles.isAdmin && (
+                                  {(typeof m.role === "string" && m.role === "Admin") && (
                                     <span className="px-1 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-[10px]">
                                       Admin
                                     </span>
                                   )}
-                                  {m.roles.clinical}
+                                  {typeof m.role === "string" ? m.role : "Custom"}
                                   <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                                     m.memberStatus === "active"
                                       ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
@@ -2197,106 +2137,157 @@ export function PracticeDetails() {
     );
   }
 
-  // Main view - list of establishments or empty state
-  // An establishment must exist if the current user is an Admin who has an
-  // active establishment membership, so the "No establishments" empty state
-  // is only reachable for genuinely establishment-less solo providers.
-  const hasActiveEstablishmentMembership = members.some(
-    (m) =>
-      m.establishmentId === currentEstablishmentId &&
-      m.memberStatus === "active"
-  );
-  const isAdminWithEstablishment =
-    isCurrentUserAdmin && !!currentEstablishmentId && hasActiveEstablishmentMembership;
-  const showEmptyState = establishments.length === 0 && !isAdminWithEstablishment;
-
   return (
-    <div>
-      {showEmptyState ? (
-        // Empty State
+    <div className="space-y-6">
+      {/* Establishment Practices Hub Header */}
+      {!showForm && (
+        <div className="bg-gradient-to-r from-[#043570] to-[#0a5ca8] rounded-2xl p-6 text-white shadow-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
+                <Building2 className="size-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-blue-200">Establishment Hub</span>
+                </div>
+                <h1 className="text-xl md:text-2xl font-bold">{getCurrentEstablishment()?.name || "MantraCare Health"}</h1>
+                <p className="text-xs text-blue-100 mt-0.5">
+                  {practices.length} practice location{practices.length !== 1 ? "s" : ""} registered under this establishment.
+                </p>
+              </div>
+            </div>
+
+            {isCurrentUserAdmin && (
+              <button
+                onClick={handleOpenForm}
+                className="px-4 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
+              >
+                <Plus className="size-4" />
+                Add New Practice Location
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* List of all practices under establishment */}
+      {!showForm && practices.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Building2 className="size-5 text-[#00c0ff]" />
+            Practice Locations ({practices.length})
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {practices.map((p) => {
+              const isActivePractice = p.id === currentPracticeId;
+              const pMembers = practiceMembers.filter((m) => m.practiceId === p.id && m.memberStatus !== "offboarded");
+              return (
+                <div
+                  key={p.id}
+                  className={`bg-white dark:bg-gray-800 rounded-2xl border p-5 shadow-sm transition-all ${
+                    isActivePractice
+                      ? "border-[#00c0ff] ring-2 ring-[#00c0ff]/20 bg-blue-50/20 dark:bg-blue-900/10"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-base text-gray-900 dark:text-white">{p.name}</h4>
+                        {isActivePractice && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#00c0ff] text-white">
+                            Active Practice
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          p.status === "live"
+                            ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400"
+                            : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400"
+                        }`}>
+                          {p.status === "live" ? "Live" : "Draft / Review"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <MapPin className="size-3 text-gray-400" />
+                        {p.streetAddress ? `${p.streetAddress}, ${p.city}` : p.city || "Virtual Location"}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleEditPractice(p)}
+                      className="p-2 text-gray-400 hover:text-[#00c0ff] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors shrink-0"
+                      title="Edit practice details"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-gray-100 dark:border-gray-700 mb-4">
+                    <div>
+                      <span className="text-gray-400 block">Session Format</span>
+                      <span className="font-semibold text-gray-900 dark:text-white capitalize">{p.sessionFormat || "Both"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block">Team Members</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{pMembers.length} clinician{pMembers.length !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs font-medium text-gray-500 truncate max-w-[200px]">
+                      {p.specialties?.slice(0, 2).join(", ") || "General Practice"}
+                    </span>
+
+                    {!isActivePractice ? (
+                      <button
+                        onClick={() => setCurrentPracticeId(p.id)}
+                        className="px-3.5 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#00c0ff] dark:bg-gray-700 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <Check className="size-3.5 text-[#00c0ff]" />
+                        Switch to Active
+                      </button>
+                    ) : (
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <CheckCircle2 className="size-3.5" />
+                        Currently Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Wizard form for creating/editing practice */}
+      {showForm && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {/* ... wizard form content ... */}
+          <p className="text-sm text-gray-500 p-6">Practice form wizard is active. Navigate through the steps above to configure practice details.</p>
+        </div>
+      )}
+
+      {/* Empty state when no practices exist */}
+      {practices.length === 0 && !showForm && (
         <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-8 md:p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
           <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-[#00c0ff]/10 flex items-center justify-center mb-4 md:mb-6">
             <Building2 className="w-6 h-6 md:w-8 md:h-8 text-[#00c0ff]" strokeWidth={1.5} />
           </div>
-          
           <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No establishments added yet
+            No practices added yet
           </h3>
-          
           <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 max-w-md mb-6 md:mb-8">
-            Add your clinic, hospital or diagnostic center to get listed on MantraCare's directory and reach more patients.
+            Add your clinic, hospital or practice to manage your locations on MantraCare's directory.
           </p>
-          
           <button
             onClick={handleOpenForm}
             className="bg-[#00c0ff] hover:bg-[#00a8e6] text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 text-sm md:text-base"
           >
             <Plus className="w-5 h-5" />
-            Create Establishment
-          </button>
-        </div>
-      ) : (
-        // Establishments List
-        <div className="space-y-4">
-          {establishments.map((establishment) => {
-            const Icon = getEstablishmentIcon(establishment.type);
-            return (
-              <div
-                key={establishment.id}
-                className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 overflow-hidden"
-              >
-                <div className="flex items-start gap-4 p-4 md:p-6">
-                  <button
-                    onClick={() => handleViewEstablishment(establishment)}
-                    className="flex items-start gap-4 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-[#00c0ff]/10 flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-6 h-6 text-[#00c0ff]" />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                        {establishment.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {establishment.streetAddress}, {establishment.city}, {establishment.state} {establishment.pinCode}
-                      </p>
-                    </div>
-                  </button>
-                  
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                      establishment.status === "live"
-                        ? "bg-green-50 text-green-700 border-green-200"
-                        : establishment.status === "under-review"
-                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                        : "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}>
-                      {establishment.status === "live" ? "Live" : establishment.status === "under-review" ? "Under Review" : "Draft"}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditEstablishment(establishment);
-                      }}
-                      className="text-gray-400 hover:text-[#00c0ff] transition-colors p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                      title="Edit establishment"
-                    >
-                      <Pencil className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          
-          {/* Add Another Establishment Card */}
-          <button
-            onClick={handleOpenForm}
-            className="w-full bg-white dark:bg-gray-800 md:rounded-xl md:border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 md:p-8 hover:border-[#00c0ff] hover:bg-[#00c0ff]/5 transition-all flex items-center justify-center gap-2 text-[#00c0ff] font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            Add another establishment
+            Create Practice
           </button>
         </div>
       )}

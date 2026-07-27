@@ -16,6 +16,7 @@ export function EstablishmentViewMode({
   getEstablishmentIcon,
   getEstablishmentLabel
 }: EstablishmentViewModeProps) {
+  const est = establishment;
   const Icon = getEstablishmentIcon(establishment.type);
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -100,7 +101,7 @@ export function EstablishmentViewMode({
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Specialties</span>
               <p className="text-base text-gray-900 dark:text-white font-medium">
-                {establishment.specialties.join(", ") || "—"}
+                {(est as any).specialties?.join(", ") || "—"}
               </p>
             </div>
 
@@ -128,9 +129,9 @@ export function EstablishmentViewMode({
                 <span className="text-gray-700 dark:text-gray-300 font-medium">
                   {day}
                 </span>
-                {establishment.visitingHours[day]?.isOpen ? (
+                {(est as any).visitingHours?.[day]?.isOpen ? (
                   <span className="text-gray-600 dark:text-gray-400">
-                    {establishment.visitingHours[day]?.from} - {establishment.visitingHours[day]?.to}
+                    {(est as any).visitingHours[day]?.from} - {(est as any).visitingHours[day]?.to}
                   </span>
                 ) : (
                   <span className="text-gray-400 dark:text-gray-500">Closed</span>
@@ -141,14 +142,14 @@ export function EstablishmentViewMode({
         </div>
 
         {/* Services */}
-        {Object.keys(establishment.specialtyServices).length > 0 && (
+        {(est as any).specialtyServices && Object.keys((est as any).specialtyServices).length > 0 && (
           <div className="bg-white dark:bg-gray-800 md:rounded-xl md:border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Services Offered
             </h3>
             
             <div className="space-y-3">
-              {Object.entries(establishment.specialtyServices).map(([specialty, services]) => (
+              {Object.entries((est as any).specialtyServices as Record<string, string[]>).map(([specialty, services]) => (
                 services.length > 0 && (
                   <div key={specialty}>
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

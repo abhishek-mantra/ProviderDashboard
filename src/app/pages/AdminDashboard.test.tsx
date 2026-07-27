@@ -38,11 +38,11 @@ import {
   PLAN_TIER_PRICING,
   getCredentialExpiryStatus,
 } from "../types/partnerDashboard";
-import type { EstablishmentMember } from "../types/partnerDashboard";
+import type { PracticeMember } from "../types/partnerDashboard";
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-function computeAggregateBilling(establishmentMembers: EstablishmentMember[], providers: typeof mockProviders) {
+function computeAggregateBilling(establishmentMembers: PracticeMember[], providers: typeof mockProviders) {
   const activeMembers = establishmentMembers.filter((m) => m.memberStatus === "active");
   const perMember = activeMembers.map((member) => {
     const provider = providers.find((p) => p.id === member.providerId);
@@ -69,9 +69,9 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const {
     establishments,
-    members,
+    practiceMembers,
     providers,
-    addMember,
+    addPracticeMember,
     addProvider,
     setEstablishments,
     careTeamMemberships,
@@ -92,7 +92,7 @@ export function AdminDashboard() {
   });
 
   const establishment = getCurrentEstablishment();
-  const establishmentMembers = members.filter(
+  const establishmentMembers = practiceMembers.filter(
     (m) => m.establishmentId === currentEstablishmentId && m.memberStatus !== "offboarded"
   );
 
@@ -138,12 +138,12 @@ export function AdminDashboard() {
   const verificationPendingCount = establishmentMembers.filter(
     (m) => m.memberStatus === "verification-pending"
   ).length;
-  const adminCount = establishmentMembers.filter((m) => m.roles.isAdmin).length;
+  const adminCount = establishmentMembers.filter((m) => m.role === "Admin").length;
   const supervisorCount = establishmentMembers.filter(
-    (m) => m.roles.clinical === "Supervisor"
+    (m) => m.role === "Supervisor"
   ).length;
   const clinicianCount = establishmentMembers.filter(
-    (m) => m.roles.clinical === "Clinician"
+    (m) => m.role === "Clinician"
   ).length;
 
   const verificationPendingMembers = establishmentMembers
@@ -199,19 +199,18 @@ export function AdminDashboard() {
       planMode: "provider",
       credentialExpiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
     });
-    const newMember: EstablishmentMember = {
+    const newMember: PracticeMember = {
       providerId,
-      establishmentId: currentEstablishmentId,
-      roles: {
-        clinical: formData.role,
-        isAdmin: formData.isAdmin,
-      },
+      practiceId: currentPracticeId,
+      establishmentId: currentEstablishmentId ?? "",
+      role: formData.isAdmin ? "Admin" : formData.role === "Supervisor" ? "Supervisor" : "Clinician",
+      isSupervisorRole: false,
       memberStatus: sendInvite ? "invited" : "verification-pending",
       supervises: [],
       invitedAt: new Date().toISOString(),
       joinedAt: null,
     };
-    addMember(newMember);
+    addPracticeMember(newMember);
     setShowAddMemberModal(false);
     setSendInvite(true);
     setFormData({ firstName: "", lastName: "", email: "", role: "Clinician", isAdmin: false });
@@ -736,7 +735,7 @@ export function AdminDashboard() {
                         {member.provider?.name || member.providerId}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {member.provider?.email} · {member.roles.clinical}
+                        {member.provider?.email} · {typeof member.role === "string" ? member.role : "Custom"}
                       </p>
                     </div>
                   </div>
@@ -824,7 +823,7 @@ export function AdminDashboard() {
                               <p className="text-sm font-medium text-gray-900 dark:text-white">
                                 {provider.name}
                               </p>
-                              {member.roles.isAdmin && (
+                              {(member.role === "Admin") && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
                                   Admin
                                 </span>
@@ -858,7 +857,7 @@ export function AdminDashboard() {
                       </td>
                       <td className="px-3 py-3 hidden sm:table-cell">
                         <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {member.roles.clinical}
+                          {typeof member.role === "string" ? member.role : "Custom"}
                         </span>
                       </td>
                       <td className="px-3 py-3 hidden md:table-cell">

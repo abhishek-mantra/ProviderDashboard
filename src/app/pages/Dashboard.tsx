@@ -210,7 +210,7 @@ export function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { planMode } = usePlanMode();
-  const { isCurrentUserAdmin, providers, currentProviderId, members, clients, formEntries, currentEstablishmentId } = usePartnerDashboard();
+  const { isCurrentUserAdmin, providers, currentProviderId, practiceMembers, clients, formEntries, currentEstablishmentId } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const isTranscriberOnly = planMode === "transcriber-only";
   const pendingRequests = isCurrentUserAdmin ? 30 : 6;
@@ -494,7 +494,7 @@ export function Dashboard() {
               <div className="p-3 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold">Active Providers</p>
                 <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
-                  {members.filter(m => m.establishmentId === currentEstablishmentId && m.memberStatus === 'active').length}
+                  {practiceMembers.filter(m => m.establishmentId === currentEstablishmentId && m.memberStatus === 'active').length}
                 </p>
               </div>
               <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-100/50 dark:border-blue-900/30">

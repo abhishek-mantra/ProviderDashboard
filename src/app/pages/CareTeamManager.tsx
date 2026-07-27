@@ -19,9 +19,10 @@ interface CareTeamManagerProps {
 
 export function CareTeamManager({ clientId }: CareTeamManagerProps) {
   const {
-    members,
+    practiceMembers,
     providers,
     careTeamMemberships,
+    currentPracticeId,
     currentEstablishmentId,
     currentProviderId,
     isCurrentUserAdmin,
@@ -38,13 +39,14 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
-  const establishmentMembers = members.filter(
+  const establishmentMembers = practiceMembers.filter(
     (m) => m.establishmentId === currentEstablishmentId && m.memberStatus === "active"
   );
 
-  const currentUserMember = members.find(
+  const currentUserMember = practiceMembers.find(
     (m) =>
       m.providerId === currentProviderId &&
+      m.practiceId === currentPracticeId &&
       m.establishmentId === currentEstablishmentId
   );
 
@@ -157,7 +159,7 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
                         {provider?.name || a.providerId}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {member?.roles.clinical || "Member"}
+                        {typeof member?.role === "string" ? member.role : "Custom"}
                       </p>
                     </div>
                     {(isCurrentUserAdmin || a.providerId === currentProviderId) && (
@@ -228,14 +230,14 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
                           <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                             {provider.name}
                           </p>
-                          {member.roles.isAdmin && (
+                          {(member.role === "Admin") && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
                               Admin
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {member.roles.clinical} · {assignments.length} client
+                          {typeof member.role === "string" ? member.role : "Custom"} · {assignments.length} client
                           {assignments.length !== 1 ? "s" : ""}
                         </p>
                       </div>
@@ -426,7 +428,7 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
                           {provider.name}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {member.roles.clinical}
+                          {typeof member.role === "string" ? member.role : "Custom"}
                         </p>
                       </div>
                       {alreadyAssigned ? (

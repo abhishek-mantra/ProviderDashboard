@@ -35,9 +35,10 @@ export function SupervisorDashboard() {
   const navigate = useNavigate();
   const {
     currentProviderId,
-    members,
+    practiceMembers,
     providers,
     isCurrentUserSupervisor,
+    currentPracticeId,
     currentEstablishmentId,
     clientTreatingProviders,
     clients,
@@ -48,26 +49,26 @@ export function SupervisorDashboard() {
   const [justReviewedId, setJustReviewedId] = useState<string | null>(null);
 
   const currentMember = useMemo(
-    () => members.find(
-      (m) => m.providerId === currentProviderId && m.establishmentId === currentEstablishmentId
+    () => practiceMembers.find(
+      (m) => m.providerId === currentProviderId && m.practiceId === currentPracticeId && m.establishmentId === currentEstablishmentId
     ),
-    [members, currentProviderId, currentEstablishmentId]
+    [practiceMembers, currentProviderId, currentPracticeId, currentEstablishmentId]
   );
 
   const supervisees = useMemo(
-    () => members.filter(
+    () => practiceMembers.filter(
       (m) => currentMember?.supervises.includes(m.providerId) && m.memberStatus === "active"
     ),
-    [members, currentMember]
+    [practiceMembers, currentMember]
   );
 
   const superviseeIds = useMemo(() => new Set(supervisees.map((s) => s.providerId)), [supervisees]);
 
   const superviseesPendingVerification = useMemo(
-    () => members.filter(
+    () => practiceMembers.filter(
       (m) => currentMember?.supervises.includes(m.providerId) && m.memberStatus === "verification-pending"
     ),
-    [members, currentMember]
+    [practiceMembers, currentMember]
   );
 
   const supervisedClients = useMemo(

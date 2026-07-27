@@ -11,7 +11,7 @@ export function DevRoleSwitcher() {
     providers,
     setCurrentProviderId,
     currentEstablishmentId,
-    members,
+    practiceMembers,
     setCurrentEstablishmentId,
   } = usePartnerDashboard();
   const { planMode, setPlanMode } = usePlanMode();
@@ -78,7 +78,7 @@ export function DevRoleSwitcher() {
               </div>
 
               {(() => {
-                const supervisor = members.find((member) => member.roles.clinical === "Supervisor" && member.memberStatus === "active");
+                const supervisor = practiceMembers.find((member) => member.role === "Supervisor" && member.memberStatus === "active");
                 const supervisorProvider = providers.find((provider) => provider.id === supervisor?.providerId);
                 return supervisorProvider ? (
                   <button onClick={() => setCurrentProviderId(supervisorProvider.id)} className="w-full rounded-xl border border-purple-200 bg-purple-50 p-3 text-left dark:border-purple-900/40 dark:bg-purple-900/20">

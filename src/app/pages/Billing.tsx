@@ -22,7 +22,7 @@ import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST, PLAN_TIER_LIMITS } from "../ty
 export function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getCurrentEstablishment, isCurrentUserAdmin, providers, members, clients, currentProviderId, clientTreatingProviders } = usePartnerDashboard();
+  const { getCurrentEstablishment, getCurrentPractice, isCurrentUserAdmin, providers, practiceMembers, clients, currentProviderId, clientTreatingProviders, practices, currentPracticeId } = usePartnerDashboard();
   const { planMode } = usePlanMode();
   const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "insurance" | "banktax">(
     (location.state as any)?.tab || "earnings"
@@ -36,7 +36,7 @@ export function Billing() {
   const establishment = getCurrentEstablishment();
 
   const establishmentMembers = establishment
-    ? members.filter((m) => m.establishmentId === establishment.id && m.memberStatus === "active")
+    ? practiceMembers.filter((m) => m.establishmentId === establishment.id && m.memberStatus === "active")
     : [];
   const establishmentProviders = establishmentMembers.map((m) => providers.find((p) => p.id === m.providerId)).filter(Boolean) as typeof providers;
 
@@ -443,6 +443,69 @@ export function Billing() {
                         </div>
                       </div>
                     )}
+
+                    {/* Per-Practice Breakdown */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm mb-6 md:mb-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Building2 className="size-5 text-[#043570] dark:text-[#00c0ff]" />
+                        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Practice Breakdown</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {practices.map((p) => {
+                          const activeMembers = practiceMembers.filter(
+                            (m) => m.practiceId === p.id && m.memberStatus === "active"
+                          );
+                          const practiceClients = clients.filter((c) => c.practiceId === p.id);
+                          const memberNames = activeMembers
+                            .map((m) => providers.find((pr) => pr.id === m.providerId)?.name)
+                            .filter(Boolean);
+                          return (
+                            <div
+                              key={p.id}
+                              className={`p-4 rounded-xl border ${
+                                p.id === currentPracticeId
+                                  ? "border-[#043570] dark:border-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/10"
+                                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{p.name}</span>
+                                  {p.id === currentPracticeId && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#043570] dark:bg-[#00c0ff] text-white dark:text-gray-900 font-bold">Current</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Active Members</span>
+                                  <p className="font-semibold text-gray-900 dark:text-white">{activeMembers.length}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Clients</span>
+                                  <p className="font-semibold text-gray-900 dark:text-white">{practiceClients.length}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Est. Monthly Revenue</span>
+                                  <p className="font-semibold text-gray-900 dark:text-white">
+                                    ${(practiceClients.length * 320 * 0.7).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              {memberNames.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {memberNames.map((name) => (
+                                    <span key={name} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                      {name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className={`grid grid-cols-1 ${planMode === "provider" ? "md:grid-cols-2" : ""} gap-4 md:gap-6 mb-6 md:mb-8`}>

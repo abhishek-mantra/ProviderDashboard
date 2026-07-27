@@ -1,8 +1,9 @@
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function SettingsOrganization() {
-  const { getCurrentEstablishment, members: allMembers } = usePartnerDashboard();
+  const { getCurrentEstablishment, getCurrentPractice, practiceMembers } = usePartnerDashboard();
   const est = getCurrentEstablishment();
+  const practice = getCurrentPractice();
 
   if (!est) {
     return (
@@ -13,20 +14,25 @@ export function SettingsOrganization() {
     );
   }
 
-  const activeMembers = allMembers.filter(
+  const activeMembers = practiceMembers.filter(
     (m) => m.establishmentId === est.id && m.memberStatus === "active"
   );
 
   const infoRows: { label: string; value: string }[] = [
     { label: "Organization Name", value: est.name },
     { label: "Type", value: est.type },
-    { label: "Status", value: est.status === "live" ? "Live" : est.status === "draft" ? "Draft" : "Under Review" },
-    { label: "Plan Tier", value: est.planTier === "growth" ? "Growth" : est.planTier === "pro" ? "Professional" : est.planTier === "starter" ? "Starter" : est.planTier === "enterprise" ? "Enterprise" : est.planTier },
+    { label: "Plan Tier", value: est.planTier },
     { label: "Active Team Members", value: String(activeMembers.length) },
-    { label: "Address", value: `${est.streetAddress}, ${est.city}, ${est.state} ${est.pinCode}` },
     { label: "Accreditation", value: est.accreditation },
     { label: "Years in Operation", value: est.yearsInOperation },
     { label: "Last Confirmed", value: new Date(est.lastConfirmedAt).toLocaleDateString() },
+    ...(practice
+      ? [
+          { label: "Practice", value: practice.name },
+          { label: "Address", value: `${practice.streetAddress}, ${practice.city}, ${practice.state} ${practice.pinCode}` },
+          { label: "Practice Status", value: practice.status === "live" ? "Live" : practice.status === "draft" ? "Draft" : "Under Review" },
+        ]
+      : []),
   ];
 
   return (

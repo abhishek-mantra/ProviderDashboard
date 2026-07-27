@@ -11,7 +11,7 @@ export function SuperbillGenerate() {
   const { clientId } = useParams();
   const location = useLocation();
   const { createNewClaim } = useClaims();
-  const { clients, currentProviderId } = usePartnerDashboard();
+  const { clients, currentProviderId, currentPracticeId } = usePartnerDashboard();
 
   const client = clients.find((c) => c.id === clientId);
   const clientName = client?.name || "Client";
@@ -32,6 +32,7 @@ export function SuperbillGenerate() {
       region,
       clientId: clientId || "1",
       clientName,
+      practiceId: client?.practiceId || currentPracticeId,
       providerId: currentProviderId,
       sessionIds: (selectedSessions || []).map((s) => s.id),
     });

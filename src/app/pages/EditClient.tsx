@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ArrowLeft, Upload, X, Edit2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function EditClient() {
   const navigate = useNavigate();
   const { clientId } = useParams();
+  const { clients, practices } = usePartnerDashboard();
+  const clientRecord = clients.find((c) => c.id === clientId);
+  const clientPractice = practices.find((p) => p.id === clientRecord?.practiceId);
 
   // Client Info fields
   const [firstName, setFirstName] = useState("Sarah");
@@ -192,6 +196,11 @@ export function EditClient() {
           <span>Back to Clients</span>
         </button>
         <h1 className="text-3xl text-gray-900 dark:text-white">Edit Client</h1>
+        {clientPractice && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Practice: {clientPractice.name}
+          </p>
+        )}
       </div>
 
       {/* Tabs */}

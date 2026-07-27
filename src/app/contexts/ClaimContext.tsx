@@ -34,6 +34,7 @@ function createInitialClaims(): Claim[] {
       status: "approved",
       clientId: "1",
       clientName: "Sarah Johnson",
+      practiceId: "practice-1",
       providerId: "prov-1",
       payerId: "us-1",
       payerName: "UnitedHealthcare",
@@ -75,7 +76,8 @@ function createInitialClaims(): Claim[] {
       region: "US",
       status: "pending_with_payer",
       clientId: "2",
-      clientName: "Rachit Sharma",
+      clientName: "Michael Chen",
+      practiceId: "practice-1",
       providerId: "prov-1",
       payerId: "us-2",
       payerName: "Cigna",
@@ -115,7 +117,8 @@ function createInitialClaims(): Claim[] {
       region: "US",
       status: "denied",
       clientId: "5",
-      clientName: "Mohini",
+      clientName: "Olivia Brown",
+      practiceId: "practice-1",
       providerId: "prov-1",
       payerId: "us-4",
       payerName: "Blue Cross Blue Shield",
@@ -155,8 +158,9 @@ function createInitialClaims(): Claim[] {
       region: "US",
       status: "manual_generated",
       clientId: "4",
-      clientName: "Manisha",
-      providerId: "prov-1",
+      clientName: "David Martinez",
+      practiceId: "practice-1",
+      providerId: "prov-admin",
       payerId: null,
       payerName: null,
       sessionIds: ["sess-4-1"],
@@ -175,6 +179,45 @@ function createInitialClaims(): Claim[] {
       currency: "USD",
       createdAt: "2026-02-26T09:00:00Z",
       updatedAt: "2026-02-28T10:00:00Z",
+    },
+    {
+      id: "seed-5",
+      claimNumber: "CLM-2026-099",
+      flowType: "mantra",
+      region: "US",
+      status: "approved",
+      clientId: "8",
+      clientName: "Aisha Patel",
+      practiceId: "practice-2",
+      providerId: "prov-5",
+      payerId: "us-1",
+      payerName: "UnitedHealthcare",
+      sessionIds: ["sess-8-1"],
+      diagnosisCodes: ["F41.1"],
+      serviceLines: [
+        { id: "sl-6", sessionId: "sess-8-1", dateOfService: "Mar 15, 2026", serviceCode: "90834", units: 1, chargeAmount: 180 },
+      ],
+      eligibilityCheck: {
+        requestedAt: "2026-03-14T10:00:00Z",
+        status: "confirmed",
+        responseAt: "2026-03-14T10:03:00Z",
+        coverageActive: true,
+        copayAmount: 20,
+        deductibleRemaining: 300,
+        authorizationRequired: false,
+        rawNote: "[MOCK] Coverage active.",
+      },
+      authorizationCode: null,
+      submittedDate: "2026-03-16T10:00:00Z",
+      statusHistory: [
+        { status: "draft", timestamp: "2026-03-14T09:00:00Z" },
+        { status: "submitted", timestamp: "2026-03-16T10:00:00Z" },
+        { status: "approved", timestamp: "2026-03-20T14:00:00Z" },
+      ],
+      totalAmount: 180,
+      currency: "USD",
+      createdAt: "2026-03-14T09:00:00Z",
+      updatedAt: "2026-03-20T14:00:00Z",
     },
   ];
 }
@@ -224,6 +267,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
       region: ClaimRegion;
       clientId: string;
       clientName: string;
+      practiceId?: string;
       providerId: string;
       payerId?: string | null;
       payerName?: string | null;
@@ -259,6 +303,8 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
 
       const totalAmount = finalServiceLines.reduce((sum, sl) => sum + sl.chargeAmount, 0);
 
+      const targetPracticeId = params.practiceId || "practice-1";
+
       const newClaim: Claim = {
         id: `claim-${Date.now()}`,
         claimNumber: generateClaimNumber(),
@@ -267,6 +313,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         status: "draft",
         clientId: params.clientId,
         clientName: params.clientName,
+        practiceId: targetPracticeId,
         providerId: params.providerId,
         payerId: params.payerId || null,
         payerName: params.payerName || null,

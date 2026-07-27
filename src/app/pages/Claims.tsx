@@ -41,7 +41,7 @@ export function Claims({
 }) {
   const navigate = useNavigate();
   const { claims } = useClaims();
-  const { clients: contextClients } = usePartnerDashboard();
+  const { clients: contextClients, currentPracticeId } = usePartnerDashboard();
   const [internalShowModal, setInternalShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [claimSearchQuery, setClaimSearchQuery] = useState("");
@@ -53,7 +53,11 @@ export function Claims({
     externalShowModal !== undefined ? externalShowModal : internalShowModal;
   const setShowClientSelectModal = externalSetShowModal || setInternalShowModal;
 
-  const clients: Client[] = contextClients.map((c, i) => ({
+  // Practice-scoped clients
+  const practiceClients = contextClients.filter((c) => c.practiceId === currentPracticeId);
+  const practiceClientIds = new Set(practiceClients.map((c) => c.id));
+
+  const clients: Client[] = practiceClients.map((c, i) => ({
     id: c.id,
     name: c.name,
     email: c.email || `${c.name.toLowerCase().replace(/\s+/g, ".")}@email.com`,
@@ -119,6 +123,8 @@ export function Claims({
   };
 
   const filteredClaims = claims.filter((claim) => {
+    const inPractice = practiceClientIds.has(claim.clientId);
+    if (!inPractice) return false;
     const matchesSearch =
       claim.clientName.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||
       claim.claimNumber.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||

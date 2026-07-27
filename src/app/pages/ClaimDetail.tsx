@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useClaims } from "../contexts/ClaimContext";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { CLAIM_STATUS_LABELS, getCurrencySymbol } from "../types/claims";
 import type { ClaimStatus, ClaimFlowType } from "../types/claims";
 
@@ -28,11 +29,17 @@ export function ClaimDetail() {
   const navigate = useNavigate();
   const { claimId } = useParams();
   const { getClaim, updateClaimStatus, updateClaim, claims } = useClaims();
+  const { currentPracticeId, isCurrentUserSuperAdmin } = usePartnerDashboard();
   const [simulating, setSimulating] = useState(false);
 
-  const claim = claimId
+  const rawClaim = claimId
     ? claims.find((c) => c.id === claimId || c.claimNumber === claimId)
     : undefined;
+
+  const claim =
+    rawClaim && (isCurrentUserSuperAdmin || !rawClaim.practiceId || rawClaim.practiceId === currentPracticeId)
+      ? rawClaim
+      : undefined;
 
   if (!claim) {
     return (

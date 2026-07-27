@@ -3,13 +3,15 @@ import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, ShieldCheck, Upload, Eye, Plus, Filter, Calendar, Edit2, Search, X } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
+import { usePracticeScopedClients } from "../hooks/usePracticeScopedData";
 import { REGION_LABELS, CLAIM_STATUS_LABELS } from "../types/claims";
 import type { ClaimRegion, ClaimStatus } from "../types/claims";
 
 export function ClientInsurance() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { clients, updateClientInsuranceRegion } = usePartnerDashboard();
+  const { updateClientInsuranceRegion } = usePartnerDashboard();
+  const clients = usePracticeScopedClients();
   const { claims: allClaims } = useClaims();
   const contextClient = id ? clients.find((c) => c.id === id) : undefined;
   const [activeTab, setActiveTab] = useState<"insurance" | "claims">("insurance");

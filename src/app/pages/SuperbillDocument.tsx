@@ -7,7 +7,9 @@ import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function SuperbillDocument() {
   const navigate = useNavigate();
+  const { claimId } = useParams();
   const { clients, providers, currentProviderId, currentPracticeId, isCurrentUserSuperAdmin } = usePartnerDashboard();
+  const { claims } = useClaims();
 
   const rawClaim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
   const claim =

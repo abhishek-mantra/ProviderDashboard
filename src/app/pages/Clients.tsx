@@ -631,16 +631,21 @@ export function Clients() {
                     >
                       <td className="px-4 md:px-6 py-3 md:py-4 relative">
                         <div className="flex items-center gap-4">
-                          <AvatarWithFallback
-                            src={client.avatar}
-                            alt={client.name}
-                            className="size-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
-                          />
+                          <Link to={`/clients/${client.id}`} className="shrink-0 group/avatar">
+                            <AvatarWithFallback
+                              src={client.avatar}
+                              alt={client.name}
+                              className="size-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700 group-hover/avatar:ring-2 group-hover/avatar:ring-[#00c0ff] transition-all"
+                            />
+                          </Link>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-1">
-                              <span className="text-gray-900 dark:text-white font-semibold text-sm truncate">
+                            <div className="flex items-center gap-2.5 mb-0.5">
+                              <Link
+                                to={`/clients/${client.id}`}
+                                className="text-gray-900 dark:text-white hover:text-[#00c0ff] dark:hover:text-[#00c0ff] font-bold text-sm truncate hover:underline transition-colors"
+                              >
                                 {client.name}
-                              </span>
+                              </Link>
                               {client.favorite && (
                                 <motion.div
                                   initial={{ scale: 0 }}
@@ -657,6 +662,7 @@ export function Clients() {
                                 </motion.div>
                               )}
                             </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{client.email}</p>
                           </div>
                         </div>
                       </td>

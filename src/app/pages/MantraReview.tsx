@@ -22,6 +22,10 @@ export function MantraReview() {
   const diagnosisCodes = (location.state as any)?.diagnosisCodes as string[] | undefined;
   const serviceLines = (location.state as any)?.serviceLines as ServiceLine[] | undefined;
   const payer = (location.state as any)?.payer as { id: string; name: string; intermediaryName: string } | undefined;
+  const insurerMemberRef = (location.state as any)?.insurerMemberRef as string | undefined;
+  const gpReferralRef = (location.state as any)?.gpReferralRef as string | undefined;
+  const excessAmount = (location.state as any)?.excessAmount as number | undefined;
+  const practitionerName = (location.state as any)?.practitionerName as string | undefined;
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -183,6 +187,32 @@ export function MantraReview() {
                 <span>Total</span>
                 <span>{symbol}{totalAmount.toFixed(2)}</span>
               </div>
+
+              {region === "UK" && (
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+                  <p className="font-semibold text-gray-900 dark:text-white mb-2">UK Details</p>
+                  {practitionerName && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Practitioner: {practitionerName}
+                    </p>
+                  )}
+                  {insurerMemberRef && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Insurer Member Ref: {insurerMemberRef}
+                    </p>
+                  )}
+                  {gpReferralRef && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      GP Referral Ref: {gpReferralRef}
+                    </p>
+                  )}
+                  {excessAmount !== undefined && excessAmount > 0 && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Excess Amount: {symbol}{excessAmount.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

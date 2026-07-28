@@ -136,7 +136,7 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
 
 export const INTERMEDIARY_NAMES: Record<ClaimRegion, string[]> = {
   US: ["Claim.MD"],
-  UK: ["Direct to Bupa", "Direct to AXA Health", "Direct to Vitality", "Direct to Aviva", "Direct to WPA"],
+  UK: ["Healthcode"],
   CA: ["TELUS Health eClaims"],
   AE: ["eClaimLink (DHA)"],
 };
@@ -147,10 +147,10 @@ export const MOCK_PAYERS: Payer[] = [
   { id: "us-3", name: "Aetna", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
   { id: "us-4", name: "Blue Cross Blue Shield", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
   { id: "us-5", name: "Oscar Health", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "uk-1", name: "Bupa", region: "UK", intermediaryType: "insurer_direct", intermediaryName: "Direct to Bupa" },
-  { id: "uk-2", name: "AXA Health", region: "UK", intermediaryType: "insurer_direct", intermediaryName: "Direct to AXA Health" },
-  { id: "uk-3", name: "Vitality", region: "UK", intermediaryType: "insurer_direct", intermediaryName: "Direct to Vitality" },
-  { id: "uk-4", name: "Aviva", region: "UK", intermediaryType: "insurer_direct", intermediaryName: "Direct to Aviva" },
+  { id: "uk-1", name: "Bupa", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
+  { id: "uk-2", name: "AXA Health", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
+  { id: "uk-3", name: "Vitality", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
+  { id: "uk-4", name: "Aviva", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
   { id: "ca-1", name: "Sun Life", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
   { id: "ca-2", name: "Manulife", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
   { id: "ca-3", name: "Canada Life", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
@@ -182,6 +182,19 @@ export function generateClaimNumber(): string {
     .toString()
     .padStart(3, "0");
   return `CLM-2026-${num}`;
+}
+
+export function findPayerForClient(client: { insuranceRegion?: ClaimRegion; insuranceCompany?: string }): Payer | undefined {
+  if (!client.insuranceRegion || !client.insuranceCompany) {
+    if (client.insuranceRegion) {
+      return MOCK_PAYERS.find((p) => p.region === client.insuranceRegion);
+    }
+    return undefined;
+  }
+  const match = MOCK_PAYERS.find(
+    (p) => p.region === client.insuranceRegion && p.name.toLowerCase() === client.insuranceCompany!.toLowerCase()
+  );
+  return match || MOCK_PAYERS.find((p) => p.region === client.insuranceRegion);
 }
 
 export function getMockSessions(clientId: string, clientName: string): ClaimSession[] {

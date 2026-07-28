@@ -9,17 +9,22 @@ export function MantraDetails() {
   const navigate = useNavigate();
   const { clientId } = useParams();
   const location = useLocation();
-  const { clients } = usePartnerDashboard();
+  const { clients, currentProviderId, providers } = usePartnerDashboard();
 
   const client = clients.find((c) => c.id === clientId);
   const clientName = client?.name || "Client";
   const region = client?.insuranceRegion || "US";
+  const currentProvider = providers.find((p) => p.id === currentProviderId);
+  const practitionerName = currentProvider?.name || "";
 
   const selectedSessions = (location.state as any)?.selectedSessions as ClaimSession[] | undefined;
   const sessionIds = (location.state as any)?.sessionIds as string[] | undefined;
   const payer = (location.state as any)?.payer;
   const [diagnosisCodes, setDiagnosisCodes] = useState<string[]>([""]);
   const [serviceLines, setServiceLines] = useState<ServiceLine[]>([]);
+  const [insurerMemberRef, setInsurerMemberRef] = useState("");
+  const [gpReferralRef, setGpReferralRef] = useState("");
+  const [excessAmount, setExcessAmount] = useState(0);
 
   const isCA = region === "CA";
 
@@ -50,6 +55,10 @@ export function MantraDetails() {
         diagnosisCodes: validDiagnosis,
         serviceLines: serviceLines.filter((sl) => sl.serviceCode.trim().length > 0),
         payer: payer || null,
+        insurerMemberRef,
+        gpReferralRef,
+        excessAmount,
+        practitionerName,
       },
     });
   };
@@ -81,6 +90,13 @@ export function MantraDetails() {
         serviceLines={serviceLines}
         onDiagnosisChange={setDiagnosisCodes}
         onServiceLinesChange={setServiceLines}
+        practitionerName={practitionerName}
+        insurerMemberRef={insurerMemberRef}
+        onInsurerMemberRefChange={setInsurerMemberRef}
+        gpReferralRef={gpReferralRef}
+        onGpReferralRefChange={setGpReferralRef}
+        excessAmount={excessAmount}
+        onExcessAmountChange={setExcessAmount}
       />
 
       <div className="flex flex-col items-end gap-2">

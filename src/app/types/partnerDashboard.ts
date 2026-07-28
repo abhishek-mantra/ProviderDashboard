@@ -175,6 +175,7 @@ export interface MockClient {
   practiceId: string;
   treatingProviderId: string;
   insuranceRegion?: ClaimRegion;
+  insuranceCompany?: string;
   referredFromClientId?: string;
 }
 

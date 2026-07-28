@@ -11,6 +11,13 @@ interface ClaimDetailsFormProps {
   onServiceLinesChange: (lines: ServiceLine[]) => void;
   authorizationCode?: string | null;
   payerName?: string | null;
+  practitionerName?: string;
+  insurerMemberRef?: string;
+  onInsurerMemberRefChange?: (val: string) => void;
+  gpReferralRef?: string;
+  onGpReferralRefChange?: (val: string) => void;
+  excessAmount?: number;
+  onExcessAmountChange?: (val: number) => void;
 }
 
 const US_FIELDS = {
@@ -25,10 +32,10 @@ const US_FIELDS = {
 };
 
 const UK_FIELDS = {
-  diagnosisLabel: "Diagnosis (ICD-10 or Presenting Complaint)",
-  diagnosisPlaceholder: "e.g. F41.1 or free text",
+  diagnosisLabel: "Diagnosis Code",
+  diagnosisPlaceholder: "e.g. F41.1",
   maxDiagnosis: 12,
-  serviceCodeLabel: "Insurer Procedure Code",
+  serviceCodeLabel: "CCSD Procedure Code",
   serviceCodePlaceholder: "e.g. MH001",
   showModifiers: false as const,
   showNPI: false as const,
@@ -73,6 +80,13 @@ export function ClaimDetailsForm({
   onServiceLinesChange,
   authorizationCode,
   payerName,
+  practitionerName,
+  insurerMemberRef = "",
+  onInsurerMemberRefChange,
+  gpReferralRef = "",
+  onGpReferralRefChange,
+  excessAmount = 0,
+  onExcessAmountChange,
 }: ClaimDetailsFormProps) {
   const config = FIELD_CONFIGS[region];
 
@@ -284,6 +298,65 @@ export function ClaimDetailsForm({
             </button>
           </div>
         </div>
+
+        {region === "UK" && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              UK-Specific Details
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Practitioner Name
+                </label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {practitionerName || "—"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Insurer Member Reference Number
+                </label>
+                <input
+                  type="text"
+                  value={insurerMemberRef}
+                  onChange={(e) => onInsurerMemberRefChange?.(e.target.value)}
+                  placeholder="e.g. MEM-REF-12345"
+                  className="w-full px-2.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  GP Referral Reference
+                </label>
+                <input
+                  type="text"
+                  value={gpReferralRef}
+                  onChange={(e) => onGpReferralRefChange?.(e.target.value)}
+                  placeholder="e.g. REF-98765"
+                  className="w-full px-2.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Excess Amount
+                </label>
+                <input
+                  type="number"
+                  value={excessAmount}
+                  onChange={(e) => onExcessAmountChange?.(parseFloat(e.target.value) || 0)}
+                  min={0}
+                  step={0.01}
+                  className="w-full px-2.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

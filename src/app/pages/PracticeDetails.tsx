@@ -2346,26 +2346,38 @@ export function PracticeDetails() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Location/Landmark <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex gap-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                    <div className="space-y-3">
                       <input
                         type="text"
                         value={formData.streetAddress}
                         onChange={(e) => setFormData({ ...formData, streetAddress: e.target.value })}
-                        className="flex-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
-                        placeholder="29 Nicolas str, New York, NY 10007, USA"
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                        placeholder="Street address"
                       />
-                      <button
-                        type="button"
-                        onClick={() => alert("Current location feature - would use browser geolocation API")}
-                        className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <Navigation className="w-5 h-5 text-[#00c0ff]" />
-                        <span className="text-sm font-medium text-[#043570] dark:text-[#00c0ff] whitespace-nowrap">Current Location</span>
-                        <MapPin className="w-5 h-5 text-gray-400" />
-                      </button>
+                      <div className="grid grid-cols-3 gap-3">
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="City"
+                        />
+                        <input
+                          type="text"
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="State"
+                        />
+                        <input
+                          type="text"
+                          value={formData.pinCode}
+                          onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="Pincode"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

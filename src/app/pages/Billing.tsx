@@ -1,29 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { DollarSign, FileText, Plus, User, ChevronDown, Building2, Shield } from "lucide-react";
 import { useLocation, Link, useNavigate } from "react-router";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
 import { Earnings } from "./Earnings";
 import { Invoices } from "./Invoices";
 import { BankInfo } from "./BankInfo";
 import { TaxInfo } from "./TaxInfo";
 import { InsurancePage } from "./InsurancePage";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
-import { usePlanMode } from "../contexts/PlanModeContext";
-import { PLAN_TIER_PRICING, PLAN_TIER_EXTRA_COST, PLAN_TIER_LIMITS } from "../types/partnerDashboard";
 
 export function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getCurrentEstablishment, getCurrentPractice, isCurrentUserAdmin, providers, practiceMembers, clients, currentProviderId, clientTreatingProviders, practices, currentPracticeId } = usePartnerDashboard();
-  const { planMode } = usePlanMode();
+  const { providers, clients, practices } = usePartnerDashboard();
   const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "insurance" | "banktax">(
     (location.state as any)?.tab || "earnings"
   );
@@ -32,84 +20,10 @@ export function Billing() {
   const [showClientSelectModal, setShowClientSelectModal] = useState(false);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
-
-  const establishment = getCurrentEstablishment();
-
-  const establishmentMembers = establishment
-    ? practiceMembers.filter((m) => m.establishmentId === establishment.id && m.memberStatus === "active")
-    : [];
-  const establishmentProviders = establishmentMembers.map((m) => providers.find((p) => p.id === m.providerId)).filter(Boolean) as typeof providers;
-
-  // Current provider's personal earnings (from their own clients)
-  const currentProvider = providers.find((p) => p.id === currentProviderId);
-  const personalEarnings = {
-    earned: 4820,
-    received: 4200,
-    due: 620,
-  };
-
-  // Mantra clients assigned to the current provider (only if their planMode is "provider")
-  const myMantraClients = currentProvider?.planMode === "provider"
-    ? clients.filter((c) => clientTreatingProviders[c.id] === currentProviderId)
-    : [];
-  const mantraClientCount = myMantraClients.length;
-  const mantraRevenue = {
-    totalBilled: mantraClientCount * 320,
-    yourShare: Math.floor(mantraClientCount * 320 * 0.7),
-    paid: Math.floor(mantraClientCount * 320 * 0.7 * 0.85),
-    pending: Math.floor(mantraClientCount * 320 * 0.7 * 0.15),
-  };
-
-  // Aggregate mantra revenue across all providers in the establishment (for admin view)
-  const aggregateMantraRevenue = useMemo(() => {
-    const active = establishmentMembers.filter((m) => m.memberStatus === "active");
-    let totalBilled = 0, totalShare = 0, totalPaid = 0, totalPending = 0;
-    let providerCount = 0;
-    for (const member of active) {
-      const p = providers.find((pr) => pr.id === member.providerId);
-      if (p?.planMode !== "provider") continue;
-      const cnt = clients.filter((c) => clientTreatingProviders[c.id] === p.id).length;
-      if (cnt === 0) continue;
-      totalBilled += cnt * 320;
-      totalShare += Math.floor(cnt * 320 * 0.7);
-      totalPaid += Math.floor(cnt * 320 * 0.7 * 0.85);
-      totalPending += Math.floor(cnt * 320 * 0.7 * 0.15);
-      providerCount++;
-    }
-    return { totalBilled, yourShare: totalShare, paid: totalPaid, pending: totalPending, providerCount };
-  }, [establishmentMembers, providers, clients, clientTreatingProviders]);
-
-  // MantraCare Platform Billing - establishment level, from PLAN_TIER_PRICING
-  const planTier = establishment?.planTier as keyof typeof PLAN_TIER_PRICING || "GROWTH";
-  const monthlyPlatformFee = PLAN_TIER_PRICING[planTier] || 79;
-  const platformBilling = {
-    monthlyFee: monthlyPlatformFee,
-    // Mock paid/due based on months active
-    paid: monthlyPlatformFee * 6, // 6 months paid
-    due: monthlyPlatformFee * 2, // 2 months due
-    planTier,
-  };
-
-  // Per-provider revenue for Admin view only
-  const perProviderRevenue = useMemo(() =>
-    establishmentProviders.map((p) => ({
-      name: p.name,
-      revenue: Math.floor(Math.random() * 15000) + 5000,
-      received: Math.floor(Math.random() * 12000) + 4000,
-      due: Math.floor(Math.random() * 3000) + 500,
-    })),
-    [establishmentProviders]
-  );
-
-  // Earnings trend for the current provider (personal)
-  const earningsTrend = useMemo(() => [
-    { month: "Jan", earned: 3200, received: 2800 },
-    { month: "Feb", earned: 3800, received: 3400 },
-    { month: "Mar", earned: 3500, received: 3100 },
-    { month: "Apr", earned: 4200, received: 3800 },
-    { month: "May", earned: 4600, received: 4100 },
-    { month: "Jun", earned: 4820, received: 4200 },
-  ], []);
+  const [selectedPracticeFilter, setSelectedPracticeFilter] = useState<string>("all");
+  const [showPracticeDropdown, setShowPracticeDropdown] = useState(false);
+  const [selectedProviderFilter, setSelectedProviderFilter] = useState<string>("all");
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
 
   const clientNames = clients.map((c) => c.name);
 
@@ -368,213 +282,96 @@ export function Billing() {
           <>
             {earningsSubTab === "earnings" && (
               <>
-                {/* Billing Overview — Admin gets Platform + Personal + Mantra; Provider gets Personal + Mantra */}
-                {isCurrentUserAdmin && establishment ? (
-                  <>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                      <div className="lg:col-span-2 bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Building2 className="size-5 text-[#00c0ff]" />
-                          <h3 className="text-base md:text-lg font-semibold">MantraCare Platform Billing</h3>
-                        </div>
-                        <p className="text-3xl md:text-4xl font-bold">
-                          ${(PLAN_TIER_PRICING[establishment.planTier as keyof typeof PLAN_TIER_PRICING] || 0).toLocaleString()}<span className="text-xl font-normal text-white/70">/mo</span>
-                        </p>
-                        <p className="text-white/80 text-xs md:text-sm mt-1">
-                          {establishment.planTier} plan · {PLAN_TIER_LIMITS[establishment.planTier as keyof typeof PLAN_TIER_LIMITS] === null ? "Unlimited" : PLAN_TIER_LIMITS[establishment.planTier as keyof typeof PLAN_TIER_LIMITS]} provider seats
-                        </p>
-                        <div className="mt-4 grid grid-cols-3 gap-3">
-                          <div className="bg-white/10 rounded-xl p-3">
-                            <p className="text-xs text-white/70">Monthly Cost</p>
-                            <p className="text-base md:text-lg font-semibold">${(PLAN_TIER_PRICING[establishment.planTier as keyof typeof PLAN_TIER_PRICING] || 0).toLocaleString()}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-3">
-                            <p className="text-xs text-white/70">Seats Used</p>
-                            <p className="text-base md:text-lg font-semibold">{establishmentMembers.filter(m => m.memberStatus === 'active').length} / {PLAN_TIER_LIMITS[establishment.planTier as keyof typeof PLAN_TIER_LIMITS] === null ? '∞' : PLAN_TIER_LIMITS[establishment.planTier as keyof typeof PLAN_TIER_LIMITS]}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-3">
-                            <p className="text-xs text-white/70">Extra Seat Cost</p>
-                            <p className="text-base md:text-lg font-semibold">
-                              {PLAN_TIER_EXTRA_COST[establishment.planTier as keyof typeof PLAN_TIER_EXTRA_COST] ? `$${PLAN_TIER_EXTRA_COST[establishment.planTier as keyof typeof PLAN_TIER_EXTRA_COST]}/mo` : 'Included'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
-                        <div className="flex items-center gap-2 mb-3">
-                          <User className="size-5 text-green-500" />
-                          <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Personal Earnings</h3>
-                        </div>
-                        <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">${personalEarnings.earned.toLocaleString()}</p>
-                        <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">Your earnings from your clients this month</p>
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3">
-                            <p className="text-xs text-green-600 dark:text-green-400">Received</p>
-                            <p className="text-base md:text-lg font-semibold text-green-800 dark:text-green-300">${personalEarnings.received.toLocaleString()}</p>
-                          </div>
-                          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3">
-                            <p className="text-xs text-amber-600 dark:text-amber-400">Due</p>
-                            <p className="text-base md:text-lg font-semibold text-amber-800 dark:text-amber-300">${personalEarnings.due.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {aggregateMantraRevenue.yourShare > 0 && (
-                      <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white mb-6 md:mb-8">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Building2 className="size-5 text-[#00c0ff]" />
-                          <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
-                        </div>
-                        <p className="text-3xl md:text-4xl font-bold">${aggregateMantraRevenue.yourShare.toLocaleString()}</p>
-                        <p className="text-white/80 text-xs md:text-sm mt-1">Total share across {aggregateMantraRevenue.providerCount} Mantra provider{aggregateMantraRevenue.providerCount !== 1 ? "s" : ""} this month</p>
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Total Billed</p>
-                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.totalBilled.toLocaleString()}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Paid</p>
-                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.paid.toLocaleString()}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Pending</p>
-                            <p className="text-sm md:text-base font-semibold">${aggregateMantraRevenue.pending.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Per-Practice Breakdown */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm mb-6 md:mb-8">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Building2 className="size-5 text-[#043570] dark:text-[#00c0ff]" />
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Practice Breakdown</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {practices.map((p) => {
-                          const activeMembers = practiceMembers.filter(
-                            (m) => m.practiceId === p.id && m.memberStatus === "active"
-                          );
-                          const practiceClients = clients.filter((c) => c.practiceId === p.id);
-                          const memberNames = activeMembers
-                            .map((m) => providers.find((pr) => pr.id === m.providerId)?.name)
-                            .filter(Boolean);
-                          return (
-                            <div
+                {/* Filters: Practice + Provider */}
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                  {/* Practice Filter */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowPracticeDropdown(!showPracticeDropdown)}
+                      className="flex items-center gap-1.5 md:gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm whitespace-nowrap"
+                    >
+                      <Building2 className="size-3.5 md:size-4 flex-shrink-0" />
+                      <span>{selectedPracticeFilter === "all" ? "All Practices" : selectedPracticeFilter}</span>
+                      <ChevronDown className="size-3.5 md:size-4 flex-shrink-0" />
+                    </button>
+                    {showPracticeDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowPracticeDropdown(false)} />
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 py-2 max-h-64 overflow-y-auto">
+                          <button
+                            onClick={() => { setSelectedPracticeFilter("all"); setShowPracticeDropdown(false); }}
+                            className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm ${
+                              selectedPracticeFilter === "all"
+                                ? "text-[#043570] dark:text-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/20"
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            All Practices
+                          </button>
+                          <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                          {practices.map((p) => (
+                            <button
                               key={p.id}
-                              className={`p-4 rounded-xl border ${
-                                p.id === currentPracticeId
-                                  ? "border-[#043570] dark:border-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/10"
-                                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750"
+                              onClick={() => { setSelectedPracticeFilter(p.name); setShowPracticeDropdown(false); }}
+                              className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm ${
+                                selectedPracticeFilter === p.name
+                                  ? "text-[#043570] dark:text-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/20"
+                                  : "text-gray-700 dark:text-gray-300"
                               }`}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{p.name}</span>
-                                  {p.id === currentPracticeId && (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#043570] dark:bg-[#00c0ff] text-white dark:text-gray-900 font-bold">Current</span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-3 gap-3 text-sm">
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Active Members</span>
-                                  <p className="font-semibold text-gray-900 dark:text-white">{activeMembers.length}</p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Clients</span>
-                                  <p className="font-semibold text-gray-900 dark:text-white">{practiceClients.length}</p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400 text-xs">Est. Monthly Revenue</span>
-                                  <p className="font-semibold text-gray-900 dark:text-white">
-                                    ${(practiceClients.length * 320 * 0.7).toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-                              {memberNames.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {memberNames.map((name) => (
-                                    <span key={name} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                      {name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className={`grid grid-cols-1 ${planMode === "provider" ? "md:grid-cols-2" : ""} gap-4 md:gap-6 mb-6 md:mb-8`}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
-                      <div className="flex items-center gap-2 mb-3">
-                        <User className="size-5 text-green-500" />
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Personal Earnings</h3>
-                      </div>
-                      <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">${personalEarnings.earned.toLocaleString()}</p>
-                      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">From your private clients</p>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3">
-                          <p className="text-xs text-green-600 dark:text-green-400">Received</p>
-                          <p className="text-base md:text-lg font-semibold text-green-800 dark:text-green-300">${personalEarnings.received.toLocaleString()}</p>
+                              {p.name}
+                            </button>
+                          ))}
                         </div>
-                        <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3">
-                          <p className="text-xs text-amber-600 dark:text-amber-400">Due</p>
-                          <p className="text-base md:text-lg font-semibold text-amber-800 dark:text-amber-300">${personalEarnings.due.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                    {planMode === "provider" && (
-                      <div className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-5 md:p-6 shadow-sm text-white">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Building2 className="size-5 text-[#00c0ff]" />
-                          <h3 className="text-base md:text-lg font-semibold">Mantra Clients Revenue</h3>
-                        </div>
-                        <p className="text-3xl md:text-4xl font-bold">${mantraRevenue.yourShare.toLocaleString()}</p>
-                        <p className="text-white/80 text-xs md:text-sm mt-1">Your share from {mantraClientCount} Mantra client{mantraClientCount !== 1 ? "s" : ""} this month</p>
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Total Billed</p>
-                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.totalBilled.toLocaleString()}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Paid</p>
-                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.paid.toLocaleString()}</p>
-                          </div>
-                          <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-xs text-white/70">Pending</p>
-                            <p className="text-sm md:text-base font-semibold">${mantraRevenue.pending.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
-                )}
 
-                {/* Per-provider revenue chart — Admin only */}
-                {isCurrentUserAdmin && (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm mb-6 md:mb-8">
-                    <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Revenue by Provider
-                    </h3>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={perProviderRevenue}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-gray-500 dark:text-gray-400" />
-                          <YAxis tick={{ fontSize: 11 }} className="text-gray-500 dark:text-gray-400" />
-                          <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                          <Bar dataKey="revenue" fill="#043570" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                  {/* Provider Filter */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+                      className="flex items-center gap-1.5 md:gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm whitespace-nowrap"
+                    >
+                      <User className="size-3.5 md:size-4 flex-shrink-0" />
+                      <span>{selectedProviderFilter === "all" ? "All Providers" : selectedProviderFilter}</span>
+                      <ChevronDown className="size-3.5 md:size-4 flex-shrink-0" />
+                    </button>
+                    {showProviderDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowProviderDropdown(false)} />
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-20 py-2 max-h-64 overflow-y-auto">
+                          <button
+                            onClick={() => { setSelectedProviderFilter("all"); setShowProviderDropdown(false); }}
+                            className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm ${
+                              selectedProviderFilter === "all"
+                                ? "text-[#043570] dark:text-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/20"
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            All Providers
+                          </button>
+                          <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                          {providers.map((pr) => (
+                            <button
+                              key={pr.id}
+                              onClick={() => { setSelectedProviderFilter(pr.name); setShowProviderDropdown(false); }}
+                              className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm ${
+                                selectedProviderFilter === pr.name
+                                  ? "text-[#043570] dark:text-[#00c0ff] bg-[#f3faff] dark:bg-blue-900/20"
+                                  : "text-gray-700 dark:text-gray-300"
+                              }`}
+                            >
+                              {pr.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
+                </div>
 
-                <Earnings hideHeader clientFilter={selectedClientFilter} />
+                <Earnings hideHeader clientFilter={selectedClientFilter} practiceFilter={selectedPracticeFilter} providerFilter={selectedProviderFilter} />
               </>
             )}
             {earningsSubTab === "no-earnings" && (

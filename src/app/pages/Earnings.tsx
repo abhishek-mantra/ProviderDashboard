@@ -15,6 +15,8 @@ interface EarningSession {
   status: "Billed" | "Unbilled";
   rated: boolean;
   avatar?: string;
+  practiceName: string;
+  providerName: string;
 }
 
 interface PayoutHistory {
@@ -26,7 +28,7 @@ interface PayoutHistory {
   sessions: number;
 }
 
-export function Earnings({ hideHeader = false, clientFilter = "all", earningsSource = "personal" }: { hideHeader?: boolean; clientFilter?: string; earningsSource?: "personal" | "mantra" }) {
+export function Earnings({ hideHeader = false, clientFilter = "all", practiceFilter = "all", providerFilter = "all", earningsSource = "personal" }: { hideHeader?: boolean; clientFilter?: string; practiceFilter?: string; providerFilter?: string; earningsSource?: "personal" | "mantra" }) {
   const [activeTab, setActiveTab] = useState<"billed" | "unbilled" | "payout">("billed");
   const [selectedSession, setSelectedSession] = useState<EarningSession | null>(null);
   const [selectedPayout, setSelectedPayout] = useState<PayoutHistory | null>(null);
@@ -46,6 +48,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1583590019912-19cdc55ec80e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjB3b21hbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0fGVufDF8fHx8MTc3NDA2Nzc0MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Sunrise Wellness Clinic",
+      providerName: "Dr. Smith",
     },
     {
       id: "2",
@@ -58,6 +62,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: true,
       avatar: "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGhlYWRzaG90JTIwcG9ydHJhaXR8ZW58MXx8fHwxNzczOTg5MTA1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Sunrise Wellness Clinic",
+      providerName: "Dr. Smith",
     },
     {
       id: "3",
@@ -70,6 +76,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: true,
       avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMHByb2Zlc3Npb25hbCUyMHdvbWFuJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzc0MDIwMzEwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Holistic Care Center",
+      providerName: "Dr. Sarah",
     },
     {
       id: "4",
@@ -82,6 +90,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1761243892035-c3e13829115a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMHdvbWFuJTIwcHJvZmVzc2lvbmFsJTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0MDI4NjYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Holistic Care Center",
+      providerName: "Dr. Sarah",
     },
     {
       id: "5",
@@ -94,6 +104,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: true,
       avatar: "https://images.unsplash.com/photo-1758598306913-5cd682b9e53b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzc3dvbWFuJTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0MDY3NzQyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Sunrise Wellness Clinic",
+      providerName: "Dr. Emily",
     },
     {
       id: "6",
@@ -106,6 +118,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Billed",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1590563152569-bd0b2dae4418?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaXZlcnNlJTIwcHJvZmVzc2lvbmFsJTIwd29tYW4lMjBoZWFkc2hvdHxlbnwxfHx8fDE3NzQwNjc3NDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Sunrise Wellness Clinic",
+      providerName: "Dr. Emily",
     },
     {
       id: "7",
@@ -118,6 +132,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Unbilled",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1723537742563-15c3d351dbf2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdCUyMGJ1c2luZXNzfGVufDF8fHx8MTc3NDA2Nzc0MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Holistic Care Center",
+      providerName: "Dr. Mike",
     },
     {
       id: "8",
@@ -130,6 +146,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Unbilled",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1605298046196-e205d0d699d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHNtaWxlfGVufDF8fHx8MTc3NDA2Nzc0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Mindful Health Hub",
+      providerName: "Dr. Smith",
     },
     {
       id: "9",
@@ -142,6 +160,8 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
       status: "Unbilled",
       rated: false,
       avatar: "https://images.unsplash.com/photo-1706025090996-63717544be2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hbiUyMHByb2Zlc3Npb25hbCUyMGhlYWRzaG90fGVufDF8fHx8MTc3Mzk5MTYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      practiceName: "Mindful Health Hub",
+      providerName: "Dr. Sarah",
     },
   ];
 
@@ -176,14 +196,17 @@ export function Earnings({ hideHeader = false, clientFilter = "all", earningsSou
   const billedSessions = earningsSessions.filter(s => s.status === "Billed");
   const unbilledSessions = earningsSessions.filter(s => s.status === "Unbilled");
 
-  // Apply client filter from parent component
-  const filteredBilledSessions = clientFilter === "all"
-    ? billedSessions
-    : billedSessions.filter(s => s.clientName === clientFilter);
+  // Apply filters from parent component
+  const filterSessions = (sessions: EarningSession[]) =>
+    sessions.filter(s => {
+      if (clientFilter !== "all" && s.clientName !== clientFilter) return false;
+      if (practiceFilter !== "all" && s.practiceName !== practiceFilter) return false;
+      if (providerFilter !== "all" && s.providerName !== providerFilter) return false;
+      return true;
+    });
 
-  const filteredUnbilledSessions = clientFilter === "all"
-    ? unbilledSessions
-    : unbilledSessions.filter(s => s.clientName === clientFilter);
+  const filteredBilledSessions = filterSessions(billedSessions);
+  const filteredUnbilledSessions = filterSessions(unbilledSessions);
 
   // Calculate totals
   const earnedTotal = billedSessions.reduce((sum, s) => sum + s.earningAmount, 0);

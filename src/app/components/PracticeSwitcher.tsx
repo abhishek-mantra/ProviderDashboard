@@ -109,9 +109,6 @@ export function PracticeSwitcher({ collapsed }: { collapsed: boolean }) {
         {!collapsed && (
           <>
             <div className="flex-1 text-left min-w-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block truncate">
-                Practices
-              </span>
               <span className="text-xs font-bold text-gray-900 dark:text-white truncate block">
                 {currentPractice?.name || "Select Practice"}
               </span>
@@ -124,10 +121,6 @@ export function PracticeSwitcher({ collapsed }: { collapsed: boolean }) {
       {isOpen && !collapsed && (
         <div className="absolute left-3 right-3 mt-1.5 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="max-h-60 overflow-y-auto py-1">
-            <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Practices
-            </div>
-
             {establishmentPractices.map((p) => {
               const isSelected = p.id === currentPracticeId;
               const isMine = myPracticeIds.has(p.id);

@@ -442,53 +442,59 @@ export function TeamManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
                     <div className="space-y-2">
-                      {formData.useCustomRole ? (
-                        <div className="space-y-2">
-                          <select value={formData.customRoleId} onChange={(e) => setFormData({ ...formData, customRoleId: e.target.value })}
-                            className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white text-sm">
-                            <option value="">Select a custom role...</option>
-                            {customRoles.map((cr) => (
-                              <option key={cr.id} value={cr.id}>{cr.name}</option>
-                            ))}
-                          </select>
-                          <button onClick={() => setShowCustomRoleBuilder(true)}
-                            className="text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium">
-                            + Create Custom Role
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[...BASE_ROLES, "Supervisor + Clinician"].map((br) => (
-                              <label key={br} className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${formData.role === br || (br === "Supervisor + Clinician" && formData.role === "Clinician" && formData.isSupervisor) ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"}`}>
-                                <input type="radio" name="role" value={br} checked={formData.role === br || (br === "Supervisor + Clinician" && formData.role === "Clinician" && formData.isSupervisor)}
-                                  onChange={(e) => {
-                                    if (br === "Supervisor + Clinician") {
-                                      setFormData({ ...formData, role: "Clinician", isSupervisor: true });
-                                    } else {
-                                      setFormData({ ...formData, role: br, isSupervisor: false });
-                                    }
-                                  }}
-                                  className="mt-1 size-4 text-[#4169E1] focus:ring-[#4169E1]" />
-                                <div>
-                                  <p className="font-medium text-gray-900 dark:text-white text-sm">{br}</p>
-                                </div>
-                              </label>
-                            ))}
-                          </div>
-                        </>
-                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...BASE_ROLES, "Supervisor + Clinician"].map((br) => {
+                          const isClinician = br === "Clinician";
+                          const isStackSupervisor = br === "Supervisor + Clinician";
+                          const isSelected = !formData.useCustomRole && (isStackSupervisor
+                            ? formData.role === "Clinician" && formData.isSupervisor
+                            : formData.role === br && !(isClinician && formData.isSupervisor));
+                          return (
+                          <label key={br} className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${isSelected ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"}`}>
+                            <input type="radio" name="role" value={br} checked={isSelected}
+                              onChange={(e) => {
+                                if (isStackSupervisor) {
+                                  setFormData({ ...formData, role: "Clinician", isSupervisor: true, useCustomRole: false });
+                                } else {
+                                  setFormData({ ...formData, role: br, isSupervisor: false, useCustomRole: false });
+                                }
+                              }}
+                              className="mt-1 size-4 text-[#4169E1] focus:ring-[#4169E1]" />
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white text-sm">{br}</p>
+                            </div>
+                          </label>
+                          );
+                        })}
+                      </div>
 
-                      {/* Custom Role tile — below all standard roles */}
-                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${formData.useCustomRole ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"}`}>
-                        <input type="radio" name="role" value="custom"
-                          checked={formData.useCustomRole}
-                          onChange={(e) => setFormData({ ...formData, useCustomRole: e.target.checked, customRoleId: "" })}
-                          className="size-4 text-[#4169E1] focus:ring-[#4169E1]" />
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white text-sm">Custom Role</p>
-                        </div>
-                      </label>
+                      {/* Custom Role tile — full width below the grid */}
+                      <div className={`border-2 rounded-lg transition-all ${formData.useCustomRole ? "border-[#4169E1]" : "border-gray-200 dark:border-gray-600"}`}>
+                        <label className={`flex items-center gap-3 p-3 cursor-pointer transition-all ${formData.useCustomRole ? "bg-blue-50 dark:bg-blue-900/20 rounded-t-lg" : "rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750"}`}>
+                          <input type="radio" name="role" value="custom"
+                            checked={formData.useCustomRole}
+                            onChange={(e) => setFormData({ ...formData, useCustomRole: e.target.checked, customRoleId: "", role: "" })}
+                            className="size-4 text-[#4169E1] focus:ring-[#4169E1]" />
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white text-sm">Custom Role</p>
+                          </div>
+                        </label>
+                        {formData.useCustomRole && (
+                          <div className="p-3 pt-0 space-y-2">
+                            <select value={formData.customRoleId} onChange={(e) => setFormData({ ...formData, customRoleId: e.target.value })}
+                              className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white text-sm">
+                              <option value="">Select a custom role...</option>
+                              {customRoles.map((cr) => (
+                                <option key={cr.id} value={cr.id}>{cr.name}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => setShowCustomRoleBuilder(true)}
+                              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 border border-dashed border-[#00c0ff]/40 text-[#00c0ff] rounded-lg text-xs font-bold hover:bg-[#00c0ff]/5 transition-colors">
+                              + Create Custom Role
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

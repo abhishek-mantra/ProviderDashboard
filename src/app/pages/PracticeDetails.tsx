@@ -670,13 +670,14 @@ const mockEstablishments: Establishment[] = [
 ];
 
 export function PracticeDetails() {
-  const { isCurrentUserAdmin, currentEstablishmentId, practiceMembers, practices, setPractices, currentPracticeId, setCurrentPracticeId, updatePractice, createPractice, getCurrentEstablishment } = usePartnerDashboard();
+  const { isCurrentUserAdmin, currentEstablishmentId, practiceMembers, practices, setPractices, currentPracticeId, setCurrentPracticeId, updatePractice, createPractice, getCurrentEstablishment, establishments } = usePartnerDashboard();
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState(false);
   const [viewingPractice, setViewingPractice] = useState<Practice | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formModified, setFormModified] = useState(false);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
   
   useUnsavedChanges(formModified && showForm);
 
@@ -761,7 +762,7 @@ export function PracticeDetails() {
   ];
 
   const handleOpenForm = () => {
-    setShowForm(true);
+    setShowQuickCreate(true);
     setCurrentStep(1);
     setEditingId(null);
     setFormModified(false);
@@ -771,6 +772,7 @@ export function PracticeDetails() {
   const handleEditPractice = (practice: Practice) => {
     setEditingId(practice.id);
     setShowForm(true);
+    setShowQuickCreate(false);
     setViewMode(false);
     setCurrentStep(1);
     setFormData(formDataFromPractice(practice));
@@ -796,6 +798,7 @@ export function PracticeDetails() {
 
   const handleCloseForm = () => {
     setShowForm(false);
+    setShowQuickCreate(false);
     setCurrentStep(1);
     setEditingId(null);
     setFormModified(false);
@@ -811,6 +814,37 @@ export function PracticeDetails() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const handleQuickCreate = () => {
+    const newPractice: Practice = {
+      id: `practice-${Date.now()}`,
+      establishmentId: currentEstablishmentId || "",
+      type: "practice",
+      name: formData.name,
+      streetAddress: formData.streetAddress,
+      city: formData.city,
+      state: formData.state,
+      pinCode: formData.pinCode,
+      visitingHours: defaultFormData.visitingHours,
+      specialties: [],
+      specialtyServices: {},
+      fees: [],
+      slidingScaleAvailable: false,
+      paymentMethodsAccepted: [],
+      clientFocus: { ageGroups: [], participants: [] },
+      communitiesServed: [],
+      therapyModalities: [],
+      sessionFormat: "both" as const,
+      freeConsultation: { offered: false },
+      insurance: [],
+      coverPhoto: "",
+      photos: [],
+      status: "draft",
+    };
+    createPractice(newPractice);
+    setShowQuickCreate(false);
+    setFormModified(false);
   };
 
   const handlePublish = () => {
@@ -1052,10 +1086,10 @@ export function PracticeDetails() {
   };
 
   // If view mode is active, show establishment details
-  if (viewMode && viewingEstablishment) {
+  if (viewMode && viewingPractice) {
     return (
       <EstablishmentViewMode
-        establishment={viewingEstablishment}
+        establishment={viewingPractice}
         onClose={handleCloseView}
         onEdit={handleEditFromView}
         getEstablishmentIcon={getEstablishmentIcon}
@@ -1064,8 +1098,8 @@ export function PracticeDetails() {
     );
   }
 
-  // If form is shown, render the step wizard
-  if (showForm) {
+  // If editing with the full wizard
+  if (showForm && editingId) {
     return (
       <div>
         {/* Header with back button */}
@@ -1164,26 +1198,6 @@ export function PracticeDetails() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
                       placeholder="Enter establishment name"
-                    />
-                    <textarea
-                      value={formData.nameDescription}
-                      onChange={(e) => setFormData({ ...formData, nameDescription: e.target.value })}
-                      rows={2}
-                      className="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00c0ff]/50 resize-none"
-                      placeholder="Description for listing (will appear on your public profile)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      About the Establishment
-                    </label>
-                    <textarea
-                      value={formData.about}
-                      onChange={(e) => setFormData({ ...formData, about: e.target.value })}
-                      rows={3}
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white resize-none text-base"
-                      placeholder="Brief description of your establishment"
                     />
                   </div>
 
@@ -2139,35 +2153,26 @@ export function PracticeDetails() {
 
   return (
     <div className="space-y-6">
-      {/* Establishment Practices Hub Header */}
+      {/* Compact header */}
       {!showForm && (
-        <div className="bg-gradient-to-r from-[#043570] to-[#0a5ca8] rounded-2xl p-6 text-white shadow-md">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
-                <Building2 className="size-6 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-blue-200">Establishment Hub</span>
-                </div>
-                <h1 className="text-xl md:text-2xl font-bold">{getCurrentEstablishment()?.name || "MantraCare Health"}</h1>
-                <p className="text-xs text-blue-100 mt-0.5">
-                  {practices.length} practice location{practices.length !== 1 ? "s" : ""} registered under this establishment.
-                </p>
-              </div>
-            </div>
-
-            {isCurrentUserAdmin && (
-              <button
-                onClick={handleOpenForm}
-                className="px-4 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
-              >
-                <Plus className="size-4" />
-                Add New Practice Location
-              </button>
-            )}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+              Practice Locations
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {practices.length} location{practices.length !== 1 ? "s" : ""} registered
+            </p>
           </div>
+          {isCurrentUserAdmin && (
+            <button
+              onClick={handleOpenForm}
+              className="px-4 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 shrink-0"
+            >
+              <Plus className="size-4" />
+              Add
+            </button>
+          )}
         </div>
       )}
 
@@ -2215,13 +2220,24 @@ export function PracticeDetails() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => handleEditPractice(p)}
-                      className="p-2 text-gray-400 hover:text-[#00c0ff] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors shrink-0"
-                      title="Edit practice details"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {p.specialties.length === 0 && (
+                        <button
+                          onClick={() => handleEditPractice(p)}
+                          className="px-2.5 py-1.5 bg-[#00c0ff]/10 hover:bg-[#00c0ff]/20 text-[#00c0ff] rounded-lg text-xs font-bold transition-all"
+                          title="Add listing details"
+                        >
+                          + Listing Details
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEditPractice(p)}
+                        className="p-2 text-gray-400 hover:text-[#00c0ff] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors shrink-0"
+                        title="Edit practice details"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-gray-100 dark:border-gray-700 mb-4">
@@ -2240,15 +2256,7 @@ export function PracticeDetails() {
                       {p.specialties?.slice(0, 2).join(", ") || "General Practice"}
                     </span>
 
-                    {!isActivePractice ? (
-                      <button
-                        onClick={() => setCurrentPracticeId(p.id)}
-                        className="px-3.5 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#00c0ff] dark:bg-gray-700 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                      >
-                        <Check className="size-3.5 text-[#00c0ff]" />
-                        Switch to Active
-                      </button>
-                    ) : (
+                    {isActivePractice && (
                       <span className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
                         <CheckCircle2 className="size-3.5" />
                         Currently Active
@@ -2262,11 +2270,15 @@ export function PracticeDetails() {
         </div>
       )}
 
-      {/* Wizard form for creating/editing practice */}
-      {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {/* ... wizard form content ... */}
-          <p className="text-sm text-gray-500 p-6">Practice form wizard is active. Navigate through the steps above to configure practice details.</p>
+      {/* Listing details hint — always shown when there's a practice without listing data */}
+      {practices.some((p) => p.specialties.length === 0) && !showForm && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Info className="size-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Some practice locations have no listing details yet. Add specialties, insurance, and more to make them discoverable.
+            </p>
+          </div>
         </div>
       )}
 
@@ -2291,6 +2303,104 @@ export function PracticeDetails() {
           </button>
         </div>
       )}
+
+      {/* Create Organization modal */}
+      <AnimatePresence>
+        {showQuickCreate && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={handleCloseForm}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Organization</h2>
+                  <button onClick={handleCloseForm} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                    <X className="size-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Organization Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                      placeholder="e.g. MantraCare Health"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                    <textarea
+                      value={formData.about || ""}
+                      onChange={(e) => setFormData({ ...formData, about: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white resize-none text-base"
+                      placeholder="Brief description of your organization"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={formData.streetAddress}
+                        onChange={(e) => setFormData({ ...formData, streetAddress: e.target.value })}
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                        placeholder="Street address"
+                      />
+                      <div className="grid grid-cols-3 gap-3">
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="City"
+                        />
+                        <input
+                          type="text"
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="State"
+                        />
+                        <input
+                          type="text"
+                          value={formData.pinCode}
+                          onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
+                          className="col-span-1 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-base"
+                          placeholder="Pincode"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-750 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
+                <button
+                  onClick={handleCloseForm}
+                  className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleQuickCreate}
+                  disabled={!formData.name.trim()}
+                  className="px-6 py-2.5 bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create Organization
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

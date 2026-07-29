@@ -110,7 +110,7 @@ export function PracticeSwitcher({ collapsed }: { collapsed: boolean }) {
           <>
             <div className="flex-1 text-left min-w-0">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block truncate">
-                {establishment?.name || "Establishment"}
+                Practices
               </span>
               <span className="text-xs font-bold text-gray-900 dark:text-white truncate block">
                 {currentPractice?.name || "Select Practice"}
@@ -123,17 +123,9 @@ export function PracticeSwitcher({ collapsed }: { collapsed: boolean }) {
 
       {isOpen && !collapsed && (
         <div className="absolute left-3 right-3 mt-1.5 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="p-2.5 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Establishment</p>
-            <p className="text-xs font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5 mt-0.5">
-              <Building2 className="size-3.5 text-[#00c0ff]" />
-              {establishment?.name || "Main Establishment"}
-            </p>
-          </div>
-
           <div className="max-h-60 overflow-y-auto py-1">
             <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              {canAccessAll ? "Establishment Practices" : "Your Practices"}
+              Practices
             </div>
 
             {establishmentPractices.map((p) => {
@@ -166,7 +158,7 @@ export function PracticeSwitcher({ collapsed }: { collapsed: boolean }) {
             })}
           </div>
 
-          {canAccessAll && (
+          {(canAccessAll || otherPractices.length > 0) && (
             <div className="p-1.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750">
               <button
                 onClick={handleAddPractice}

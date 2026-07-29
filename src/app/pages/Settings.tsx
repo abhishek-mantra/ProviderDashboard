@@ -17,13 +17,18 @@ export function Settings() {
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
-  const navItems = [
+  const personalNavItems = [
     { path: "/settings/availability", label: "Availability", icon: Calendar },
-    { path: "/settings/practice-details", label: "Practice Details", icon: Building2 },
     { path: "/settings/notifications", label: "Notifications", icon: Bell },
     { path: "/settings/billing/plans", label: "Subscription", icon: CreditCard },
+  ];
+
+  const establishmentNavItems = [
+    { path: "/settings/practice-details", label: "Practice Details", icon: Building2 },
     ...(isCurrentUserAdmin ? [{ path: "/settings/team-management", label: "Manage Team", icon: Users }] : []),
   ];
+
+  const navItems = [...personalNavItems, ...establishmentNavItems];
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen p-6">
@@ -72,11 +77,35 @@ export function Settings() {
       <div className="hidden md:flex gap-6">
         {/* Left Sidebar */}
         <div style={{ width: "220px", flexShrink: 0 }} className="bg-white dark:bg-gray-800 rounded-xl border border-[#E5E7EB] dark:border-gray-700 shadow-sm p-2 h-fit">
-          {navItems.map((item) => {
+          {/* Personal Settings */}
+          {personalNavItems.map((item) => {
             const Icon = item.icon;
             const active = item.path === "/settings/billing/plans"
               ? isActive("/settings/billing")
               : isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`w-full flex items-center gap-2 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-[#EFF6FF] dark:bg-blue-900/20 text-[#1A73E8] dark:text-[#60A5FA] font-semibold border-l-[3px] border-[#1A73E8]"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-[#F1F5F9] dark:hover:bg-gray-700"
+                }`}
+              >
+                {Icon && <Icon className="size-4" />}
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Divider */}
+          <div className="my-2 mx-2 border-t border-gray-200 dark:border-gray-600" />
+
+          {/* Establishment Management */}
+          {establishmentNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
             return (
               <Link
                 key={item.path}

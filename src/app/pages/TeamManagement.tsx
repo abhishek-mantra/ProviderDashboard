@@ -70,6 +70,7 @@ export function TeamManagement() {
     isSupervisor: false,
     customRoleId: "",
     useCustomRole: false,
+    selectedPracticeId: currentPracticeId,
   });
 
   const establishment = getCurrentEstablishment();
@@ -154,7 +155,7 @@ export function TeamManagement() {
       : formData.role;
     const newMember: PracticeMember = {
       providerId,
-      practiceId: currentPracticeId,
+      practiceId: formData.selectedPracticeId || currentPracticeId,
       establishmentId: currentEstablishmentId,
       role: role as PracticeMember["role"],
       isSupervisorRole: formData.isSupervisor,
@@ -166,7 +167,7 @@ export function TeamManagement() {
     addPracticeMember(newMember);
     setShowAddMemberModal(false);
     setSendInvite(true);
-    setFormData({ firstName: "", lastName: "", email: "", role: "Clinician", isSupervisor: false, customRoleId: "", useCustomRole: false });
+    setFormData({ firstName: "", lastName: "", email: "", role: "Clinician", isSupervisor: false, customRoleId: "", useCustomRole: false, selectedPracticeId: currentPracticeId });
     toast.success(sendInvite ? "Team member invited" : "Team member added");
   };
 
@@ -393,6 +394,23 @@ export function TeamManagement() {
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
                 <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Practice *</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                      <select
+                        value={formData.selectedPracticeId}
+                        onChange={(e) => setFormData({ ...formData, selectedPracticeId: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white appearance-none"
+                      >
+                        {practices
+                          .filter((p) => p.establishmentId === currentEstablishmentId)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name *</label>
                     <div className="relative">

@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Download, ShieldCheck, Building2, FileCheck } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
-import { FIELD_CONFIGS } from "../components/claims/ClaimDetailsForm";
 import { getCurrencySymbol } from "../types/claims";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
@@ -22,7 +21,7 @@ export function ItemizedClaimSummary() {
     if (claim) {
       navigate(`/claims/${claim.id}`);
     } else {
-      navigate("/claims");
+      navigate("/insurance?tab=claims");
     }
   };
 
@@ -31,13 +30,19 @@ export function ItemizedClaimSummary() {
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Claim Not Found</h1>
-          <button onClick={() => navigate("/claims")} className="text-[#4169E1] hover:underline">Back to Claims</button>
+          <button onClick={() => navigate("/insurance?tab=claims")} className="text-[#043570] hover:underline font-bold">Back to Claims</button>
         </div>
       </div>
     );
   }
 
-  const config = FIELD_CONFIGS[claim.region];
+  const FIELD_CONFIGS_LOCAL: Record<string, { diagnosisLabel: string; serviceCodeLabel: string }> = {
+    US: { diagnosisLabel: "Diagnosis Codes (ICD-10)", serviceCodeLabel: "CPT/Procedure Code" },
+    UK: { diagnosisLabel: "Diagnosis Code", serviceCodeLabel: "CCSD Procedure Code" },
+    CA: { diagnosisLabel: "Diagnosis Code", serviceCodeLabel: "eClaims Service Code" },
+    AE: { diagnosisLabel: "Diagnosis Code (ICD-10-CM)", serviceCodeLabel: "CPT/Procedure Code" },
+  };
+  const config = FIELD_CONFIGS_LOCAL[claim.region] || FIELD_CONFIGS_LOCAL.US;
   const symbol = getCurrencySymbol(claim.currency);
   const clientObj = clients.find((c) => c.id === claim.clientId);
 

@@ -10,6 +10,7 @@ import { Sessions } from "./pages/Sessions";
 import { Clients } from "./pages/Clients";
 import { Earnings } from "./pages/Earnings";
 import { Billing } from "./pages/Billing";
+import { UnbilledSessions } from "./pages/UnbilledSessions";
 import { Profile } from "./pages/Profile";
 import { EditProfile } from "./pages/EditProfile";
 import { Verification } from "./pages/Verification";
@@ -82,18 +83,6 @@ import { MyForms } from "./pages/MyForms";
 import { FormBuilder } from "./pages/FormBuilder";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-// New claim flow pages
-import { FlowPicker } from "./pages/FlowPicker";
-import { MantraEligibility } from "./pages/MantraEligibility";
-import { MantraSessions } from "./pages/MantraSessions";
-import { MantraDetails } from "./pages/MantraDetails";
-import { MantraReview } from "./pages/MantraReview";
-import { ManualSessions } from "./pages/ManualSessions";
-import { ManualDetails } from "./pages/ManualDetails";
-import { ManualGenerate } from "./pages/ManualGenerate";
-import { SuperbillSessions } from "./pages/SuperbillSessions";
-import { SuperbillGenerate } from "./pages/SuperbillGenerate";
-
 export const router = createBrowserRouter([
   { path: "/get-started", element: <ErrorBoundary><GetStarted /></ErrorBoundary> },
   { path: "/verify", element: <ErrorBoundary><OTPVerify /></ErrorBoundary> },
@@ -143,6 +132,7 @@ export const router = createBrowserRouter([
       { path: "clients/:id/orders", element: <ClientOrders /> },
       { path: "earnings", element: <Earnings /> },
       { path: "billing", element: <Billing /> },
+      { path: "billing/unbilled", element: <UnbilledSessions /> },
       { path: "profile", element: <Profile /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "verification", element: <Verification /> },
@@ -155,18 +145,8 @@ export const router = createBrowserRouter([
       { path: "insurance", element: <InsurancePage /> },
       { path: "credential-status", element: <CredentialStatus /> },
 
-      // Unified Claims Routes (replacing old /claims/new/:clientId)
+      // Claims routes (old wizard scrapped — use /billing/unbilled as entry point)
       { path: "claims", element: <Claims /> },
-      { path: "claims/new/:clientId", element: <FlowPicker /> },
-      { path: "claims/new/:clientId/mantra/eligibility", element: <MantraEligibility /> },
-      { path: "claims/new/:clientId/mantra/sessions", element: <MantraSessions /> },
-      { path: "claims/new/:clientId/mantra/details", element: <MantraDetails /> },
-      { path: "claims/new/:clientId/mantra/review", element: <MantraReview /> },
-      { path: "claims/new/:clientId/manual/sessions", element: <ManualSessions /> },
-      { path: "claims/new/:clientId/manual/details", element: <ManualDetails /> },
-      { path: "claims/new/:clientId/manual/generate", element: <ManualGenerate /> },
-      { path: "claims/new/:clientId/superbill/sessions", element: <SuperbillSessions /> },
-      { path: "claims/new/:clientId/superbill/generate", element: <SuperbillGenerate /> },
       { path: "claims/:claimId/cms1500", element: <CMS1500Form /> },
       { path: "claims/:claimId/summary", element: <ItemizedClaimSummary /> },
       { path: "claims/:claimId/superbill", element: <SuperbillDocument /> },

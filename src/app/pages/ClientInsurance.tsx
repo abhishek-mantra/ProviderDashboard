@@ -4,13 +4,12 @@ import { ArrowLeft, ShieldCheck, Upload, Eye, Plus, Filter, Calendar, Edit2, Sea
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePracticeScopedClients } from "../hooks/usePracticeScopedData";
-import { REGION_LABELS, CLAIM_STATUS_LABELS } from "../types/claims";
-import type { ClaimRegion, ClaimStatus } from "../types/claims";
+import { CLAIM_STATUS_LABELS } from "../types/claims";
+import type { ClaimStatus } from "../types/claims";
 
 export function ClientInsurance() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { updateClientInsuranceRegion } = usePartnerDashboard();
   const clients = usePracticeScopedClients();
   const { claims: allClaims } = useClaims();
   const contextClient = id ? clients.find((c) => c.id === id) : undefined;
@@ -52,7 +51,7 @@ export function ClientInsurance() {
           </span>
         );
       case "denied":
-      case "rejected_by_intermediary":
+      case "rejected":
       case "eligibility_failed":
         return (
           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
@@ -373,37 +372,14 @@ export function ClientInsurance() {
               {/* Insurance Region */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 md:pt-6">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                  Insurance Region
+                  Insurance Market
                 </h3>
-                {contextClient ? (
-                  <div>
-                    <label className="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2">
-                      Region <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={contextClient.insuranceRegion || "US"}
-                      onChange={(e) => updateClientInsuranceRegion(id!, e.target.value as ClaimRegion)}
-                      className="w-full px-2.5 md:px-3.5 py-2 md:py-2.5 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white text-xs md:text-sm appearance-none max-w-xs"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "right 0.875rem center",
-                        backgroundSize: "16px",
-                      }}
-                    >
-                      {(Object.entries(REGION_LABELS) as [ClaimRegion, string][]).map(([value, label]) => (
-                        <option key={value} value={value}>{label} ({value})</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                      Affects which payers, fields, and claim templates are shown in the Insurance Claims module.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Insurance region isn't available for this client yet.
-                  </p>
-                )}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium">
+                  United States (US)
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                  All clients are billed under US insurance standards.
+                </p>
               </div>
 
               {/* Insurance Card (Front) */}
@@ -592,7 +568,7 @@ export function ClientInsurance() {
 
                   {/* New Claim Button */}
                   <button
-                    onClick={() => navigate(`/claims/new/${id}`)}
+                    onClick={() => navigate(`/billing/unbilled?clientId=${id}`)}
                     className="flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap"
                   >
                     <Plus className="size-3.5 md:size-4" />
@@ -615,7 +591,7 @@ export function ClientInsurance() {
                         className="w-full px-2.5 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] text-xs text-gray-900 dark:text-white"
                       >
                         <option value="all">All Status</option>
-                        {["draft","eligibility_pending","eligibility_confirmed","eligibility_failed","submitted","scrubbing","pending_with_payer","approved","paid","denied","rejected_by_intermediary","manual_generated","superbill_generated"].map((s) => (
+                        {["draft","eligibility_pending","eligibility_confirmed","eligibility_failed","submitted","scrubbing","pending_with_payer","approved","paid","denied","rejected","manual_generated","superbill_generated"].map((s) => (
                           <option key={s} value={s}>{CLAIM_STATUS_LABELS[s as ClaimStatus] || s}</option>
                         ))}
                       </select>

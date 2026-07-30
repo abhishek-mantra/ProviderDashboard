@@ -112,8 +112,8 @@ export function AddSessionNoteModal({ isOpen, onClose }: AddSessionNoteModalProp
                 <h2 className="text-white text-[20px] font-bold mb-1">
                   Add Session Notes
                 </h2>
-                <p className="text-white/60 text-[13px]">
-                  AI-powered documentation from your sessions
+                <p className="text-white/80 text-[13px]">
+                  {step === "clients" ? "Step 1 of 2: Select a client" : "Step 2 of 2: Select session"}
                 </p>
               </div>
 
@@ -139,7 +139,7 @@ export function AddSessionNoteModal({ isOpen, onClose }: AddSessionNoteModalProp
                     </div>
 
                     {/* Client Cards */}
-                    <div className="space-y-3">
+                    <div className="space-y-3 mb-4">
                       {filteredClients.length === 0 ? (
                         <div className="text-center py-12">
                           <Search className="size-12 text-gray-300 mx-auto mb-3" />
@@ -153,26 +153,14 @@ export function AddSessionNoteModal({ isOpen, onClose }: AddSessionNoteModalProp
                             className="w-full bg-white border-[1.5px] border-[#F1F5F9] rounded-2xl p-3.5 flex items-center gap-3.5 hover:border-[#00c0ff] hover:bg-[#F8FFFE] hover:shadow-[0_4px_16px_rgba(0,192,255,0.08)] transition-all group"
                           >
                             {/* Avatar */}
-                            <div className="size-12 rounded-full bg-gradient-to-br from-[#00c0ff] to-[#2563EB] flex items-center justify-center flex-shrink-0">
-                              <span className="text-white font-bold text-sm">{client.initials}</span>
+                            <div className="size-10 rounded-full bg-[#E2E8F0] dark:bg-gray-700 text-[#0F172A] dark:text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                              {client.initials}
                             </div>
 
                             {/* Client Info */}
                             <div className="flex-1 text-left min-w-0">
                               <div className="font-semibold text-[15px] text-gray-900 mb-0.5">
                                 {client.name}
-                              </div>
-                              <div className="text-[13px] text-gray-500">
-                                Last session: {client.lastSession}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                  client.transcriptCount > 0
-                                    ? "bg-[#EFF6FF] text-[#2563EB]"
-                                    : "bg-[#FEF3C7] text-[#D97706]"
-                                }`}>
-                                  {client.transcriptCount > 0 ? `${client.transcriptCount} transcripts` : "No transcripts"}
-                                </span>
                               </div>
                             </div>
 
@@ -181,6 +169,19 @@ export function AddSessionNoteModal({ isOpen, onClose }: AddSessionNoteModalProp
                           </button>
                         ))
                       )}
+                    </div>
+
+                    {/* Add Client Button */}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          onClose();
+                          navigate("/clients");
+                        }}
+                        className="w-full h-12 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-bold text-[14px] transition-all flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        + Add Client
+                      </button>
                     </div>
                   </motion.div>
                 )}

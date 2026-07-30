@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router";
 import { FileText, Plus, Search, Eye, Filter, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
 import { CLAIM_STATUS_LABELS } from "../types/claims";
-import type { ClaimFlowType, ClaimRegion, ClaimStatus } from "../types/claims";
+import type { ClaimFlowType, ClaimStatus } from "../types/claims";
 
 interface Client {
   id: string;
@@ -21,13 +21,6 @@ const FLOW_TYPE_BADGES: Record<ClaimFlowType, { label: string; color: string }> 
   mantra: { label: "Mantra", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400" },
   manual: { label: "Manual", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   superbill: { label: "Superbill", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-};
-
-const REGION_BADGES: Record<ClaimRegion, string> = {
-  US: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-  UK: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-  CA: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-  AE: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
 };
 
 export function Claims({
@@ -84,7 +77,7 @@ export function Claims({
           </span>
         );
       case "denied":
-      case "rejected_by_intermediary":
+      case "rejected":
       case "eligibility_failed":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
@@ -94,6 +87,7 @@ export function Claims({
       case "submitted":
       case "scrubbing":
       case "pending_with_payer":
+      case "pended":
       case "eligibility_pending":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
@@ -119,8 +113,35 @@ export function Claims({
   const handleClientSelect = (client: Client) => {
     setShowClientSelectModal(false);
     setSearchQuery("");
-    navigate(`/claims/new/${client.id}`, { state: { client } });
+    navigate(`/billing/unbilled?clientId=${client.id}`);
   };
+
+  const [phaseFilter, setPhaseFilter] = useState<"all" | "action_needed" | "in_progress" | "settled">("all");
+
+  const financialStats = useMemo(() => {
+    let pendingAmount = 0;
+    let attentionAmount = 0;
+    let paidAmount = 0;
+
+    claims.forEach((claim) => {
+      if (!practiceClientIds.has(claim.clientId)) return;
+      const claimTotal = claim.serviceLines.reduce((acc, sl) => acc + (sl.chargeAmount || 0), 0);
+      if (["submitted", "scrubbing", "pending_with_payer", "pended"].includes(claim.status)) {
+        pendingAmount += claimTotal;
+      } else if (["denied", "rejected", "eligibility_failed"].includes(claim.status)) {
+        attentionAmount += claimTotal;
+      } else if (["paid", "approved"].includes(claim.status)) {
+        paidAmount += claimTotal;
+      }
+    });
+
+    return {
+      unbilledAmount: 1240,
+      pendingAmount,
+      attentionAmount,
+      paidAmount,
+    };
+  }, [claims, practiceClientIds]);
 
   const filteredClaims = claims.filter((claim) => {
     const inPractice = practiceClientIds.has(claim.clientId);
@@ -129,9 +150,19 @@ export function Claims({
       claim.clientName.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||
       claim.claimNumber.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||
       (claim.payerName || "").toLowerCase().includes(claimSearchQuery.toLowerCase());
+    
+    let matchesPhase = true;
+    if (phaseFilter === "action_needed") {
+      matchesPhase = ["denied", "rejected", "eligibility_failed", "draft"].includes(claim.status);
+    } else if (phaseFilter === "in_progress") {
+      matchesPhase = ["submitted", "scrubbing", "pending_with_payer", "pended"].includes(claim.status);
+    } else if (phaseFilter === "settled") {
+      matchesPhase = ["paid", "approved", "manual_generated", "superbill_generated"].includes(claim.status);
+    }
+
     const matchesStatus = statusFilter === "all" || claim.status === statusFilter;
     const matchesFlow = flowFilter === "all" || claim.flowType === flowFilter;
-    return matchesSearch && matchesStatus && matchesFlow;
+    return matchesSearch && matchesPhase && matchesStatus && matchesFlow;
   });
 
   const getClientInfo = (clientName: string) => {
@@ -152,7 +183,7 @@ export function Claims({
           </div>
           <button
             onClick={() => setShowClientSelectModal(true)}
-            className="flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg md:rounded-xl text-sm md:text-base font-medium transition-colors shadow-sm hover:shadow-md flex-shrink-0 w-full md:w-auto"
+            className="flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-lg md:rounded-xl text-sm md:text-base font-medium transition-colors shadow-sm hover:shadow-md flex-shrink-0 w-full md:w-auto"
           >
             <Plus className="size-4 md:size-5" />
             <span>New Claim</span>
@@ -160,8 +191,75 @@ export function Claims({
         </div>
       )}
 
+      {/* Financial Pipeline Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💰 Unbilled Revenue</p>
+          <p className="text-lg md:text-2xl font-extrabold text-gray-900 dark:text-white mt-1">${financialStats.unbilledAmount.toFixed(2)}</p>
+          <p className="text-[11px] text-[#2563EB] font-semibold mt-1">Ready for submission</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">⏳ Pending Payers</p>
+          <p className="text-lg md:text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">${financialStats.pendingAmount.toFixed(2)}</p>
+          <p className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold mt-1">Awaiting adjudication</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">⚠️ Action Needed</p>
+          <p className="text-lg md:text-2xl font-extrabold text-red-600 dark:text-red-400 mt-1">${financialStats.attentionAmount.toFixed(2)}</p>
+          <p className="text-[11px] text-red-600 dark:text-red-400 font-semibold mt-1">Denied / Rejected claims</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">✅ Settled / Paid</p>
+          <p className="text-lg md:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">${financialStats.paidAmount.toFixed(2)}</p>
+          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">Approved reimbursement</p>
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="p-3 md:p-6">
+          {/* Lifecycle Phase Tabs */}
+          <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 mb-4 overflow-x-auto">
+            <button
+              onClick={() => setPhaseFilter("all")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                phaseFilter === "all"
+                  ? "bg-[#043570] text-white shadow-sm"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              All Claims
+            </button>
+            <button
+              onClick={() => setPhaseFilter("action_needed")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                phaseFilter === "action_needed"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100"
+              }`}
+            >
+              ⚠️ Action Needed
+            </button>
+            <button
+              onClick={() => setPhaseFilter("in_progress")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                phaseFilter === "in_progress"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100"
+              }`}
+            >
+              ⏳ In Progress
+            </button>
+            <button
+              onClick={() => setPhaseFilter("settled")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                phaseFilter === "settled"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100"
+              }`}
+            >
+              ✅ Settled / Paid
+            </button>
+          </div>
           <div className="flex flex-col gap-2 mb-4 md:mb-6">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -337,13 +435,7 @@ export function Claims({
 
                       <div className="flex items-center gap-4 flex-shrink-0">
                         <div className="text-xl font-semibold text-gray-900 dark:text-white">
-                          {claim.currency === "USD"
-                            ? `$${claim.totalAmount.toFixed(2)}`
-                            : claim.currency === "GBP"
-                            ? `£${claim.totalAmount.toFixed(2)}`
-                            : claim.currency === "CAD"
-                            ? `C$${claim.totalAmount.toFixed(2)}`
-                            : `AED ${claim.totalAmount.toFixed(2)}`}
+                          ${claim.totalAmount.toFixed(2)}
                         </div>
                         <button
                           onClick={(e) => {

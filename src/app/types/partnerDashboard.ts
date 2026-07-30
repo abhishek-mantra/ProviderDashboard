@@ -166,16 +166,14 @@ export interface CareTeamMembership {
   addedAt: string;
 }
 
-import type { ClaimRegion } from "./claims";
-
 export interface MockClient {
   id: string;
   name: string;
   email: string;
   practiceId: string;
   treatingProviderId: string;
-  insuranceRegion?: ClaimRegion;
   insuranceCompany?: string;
+  diagnosisCode: string | null;
   referredFromClientId?: string;
 }
 

@@ -1,5 +1,6 @@
-export type ClaimRegion = "US" | "UK" | "CA" | "AE";
 export type ClaimFlowType = "mantra" | "manual" | "superbill";
+
+import { mockClients } from "../data/mockPartnerData";
 
 export type ClaimStatus =
   | "draft"
@@ -8,13 +9,16 @@ export type ClaimStatus =
   | "eligibility_failed"
   | "submitted"
   | "scrubbing"
-  | "rejected_by_intermediary"
+  | "rejected"
   | "pending_with_payer"
   | "approved"
   | "denied"
+  | "pended"
   | "paid"
   | "manual_generated"
   | "superbill_generated";
+
+export type NotesStatus = "locked" | "draft" | "unsigned";
 
 export interface ServiceLine {
   id: string;
@@ -47,7 +51,6 @@ export interface Claim {
   id: string;
   claimNumber: string;
   flowType: ClaimFlowType;
-  region: ClaimRegion;
   status: ClaimStatus;
   clientId: string;
   clientName: string;
@@ -55,6 +58,7 @@ export interface Claim {
   providerId: string;
   payerId: string | null;
   payerName: string | null;
+  region: string;
   sessionIds: string[];
   diagnosisCodes: string[];
   serviceLines: ServiceLine[];
@@ -63,16 +67,52 @@ export interface Claim {
   submittedDate: string | null;
   statusHistory: ClaimStatusEvent[];
   totalAmount: number;
-  currency: "USD" | "GBP" | "CAD" | "AED";
+  currency: "USD";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FeeScheduleEntry {
+  cptCode: string;
+  description: string;
+  providerRate: number;
+}
+
+export const MOCK_FEE_SCHEDULE: FeeScheduleEntry[] = [
+  { cptCode: "90834", description: "Individual Therapy, 50 min", providerRate: 150 },
+  { cptCode: "90791", description: "Psychiatric Diagnostic Evaluation", providerRate: 200 },
+  { cptCode: "90847", description: "Family Therapy, 50 min", providerRate: 175 },
+  { cptCode: "90837", description: "Individual Therapy, 60 min", providerRate: 185 },
+  { cptCode: "99213", description: "Established Patient Visit, 30 min", providerRate: 100 },
+];
+
+export function getFeeForService(cptCode: string): number {
+  const entry = MOCK_FEE_SCHEDULE.find((e) => e.cptCode === cptCode);
+  return entry?.providerRate ?? 150;
+}
+
+export interface UnbilledSession {
+  id: string;
+  clientId: string;
+  clientName: string;
+  dateOfService: string;
+  payerId: string;
+  payerName: string;
+  serviceType: string;
+  duration: string;
+  notesStatus: NotesStatus;
+  notesId: string | null;
+  cptCode: string;
+  diagnosisCode: string;
+  amount: number;
+  daysSinceService: number;
+  selected: boolean;
 }
 
 export interface Payer {
   id: string;
   name: string;
-  region: ClaimRegion;
-  intermediaryType: "clearinghouse" | "insurer_direct" | "eclaims" | "eclaimlink";
+  intermediaryType: "clearinghouse" | "insurer_direct";
   intermediaryName: string;
 }
 
@@ -88,29 +128,8 @@ export interface ClaimSession {
   selected: boolean;
 }
 
-export const REGION_LABELS: Record<ClaimRegion, string> = {
-  US: "United States",
-  UK: "United Kingdom",
-  CA: "Canada",
-  AE: "United Arab Emirates",
-};
-
-export const REGION_CURRENCIES: Record<ClaimRegion, "USD" | "GBP" | "CAD" | "AED"> = {
-  US: "USD",
-  UK: "GBP",
-  CA: "CAD",
-  AE: "AED",
-};
-
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
-  GBP: "£",
-  CAD: "C$",
-  AED: "AED ",
-  US: "$",
-  UK: "£",
-  CA: "C$",
-  AE: "AED ",
 };
 
 export function getCurrencySymbol(key?: string): string {
@@ -125,38 +144,22 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   eligibility_failed: "Eligibility Failed",
   submitted: "Submitted",
   scrubbing: "Scrubbing",
-  rejected_by_intermediary: "Rejected by Intermediary",
+  rejected: "Rejected",
   pending_with_payer: "Pending with Payer",
   approved: "Approved",
   denied: "Denied",
+  pended: "Pended",
   paid: "Paid",
   manual_generated: "Manual Claim Generated",
   superbill_generated: "Superbill Generated",
 };
 
-export const INTERMEDIARY_NAMES: Record<ClaimRegion, string[]> = {
-  US: ["Claim.MD"],
-  UK: ["Healthcode"],
-  CA: ["TELUS Health eClaims"],
-  AE: ["eClaimLink (DHA)"],
-};
-
 export const MOCK_PAYERS: Payer[] = [
-  { id: "us-1", name: "UnitedHealthcare", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "us-2", name: "Cigna", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "us-3", name: "Aetna", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "us-4", name: "Blue Cross Blue Shield", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "us-5", name: "Oscar Health", region: "US", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
-  { id: "uk-1", name: "Bupa", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
-  { id: "uk-2", name: "AXA Health", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
-  { id: "uk-3", name: "Vitality", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
-  { id: "uk-4", name: "Aviva", region: "UK", intermediaryType: "clearinghouse", intermediaryName: "Healthcode" },
-  { id: "ca-1", name: "Sun Life", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
-  { id: "ca-2", name: "Manulife", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
-  { id: "ca-3", name: "Canada Life", region: "CA", intermediaryType: "eclaims", intermediaryName: "TELUS Health eClaims" },
-  { id: "ae-1", name: "NextCare", region: "AE", intermediaryType: "eclaimlink", intermediaryName: "eClaimLink (DHA)" },
-  { id: "ae-2", name: "NAS", region: "AE", intermediaryType: "eclaimlink", intermediaryName: "eClaimLink (DHA)" },
-  { id: "ae-3", name: "MedNet", region: "AE", intermediaryType: "eclaimlink", intermediaryName: "eClaimLink (DHA)" },
+  { id: "us-1", name: "UnitedHealthcare", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
+  { id: "us-2", name: "Cigna", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
+  { id: "us-3", name: "Aetna", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
+  { id: "us-4", name: "Blue Cross Blue Shield", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
+  { id: "us-5", name: "Oscar Health", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
 ];
 
 export const MOCK_CREDENTIAL_STATUS: Record<string, "credentialed" | "not_credentialed" | "pending"> = {
@@ -165,16 +168,6 @@ export const MOCK_CREDENTIAL_STATUS: Record<string, "credentialed" | "not_creden
   "us-3": "pending",
   "us-4": "credentialed",
   "us-5": "not_credentialed",
-  "uk-1": "credentialed",
-  "uk-2": "credentialed",
-  "uk-3": "not_credentialed",
-  "uk-4": "pending",
-  "ca-1": "credentialed",
-  "ca-2": "not_credentialed",
-  "ca-3": "pending",
-  "ae-1": "credentialed",
-  "ae-2": "not_credentialed",
-  "ae-3": "pending",
 };
 
 export function generateClaimNumber(): string {
@@ -184,17 +177,11 @@ export function generateClaimNumber(): string {
   return `CLM-2026-${num}`;
 }
 
-export function findPayerForClient(client: { insuranceRegion?: ClaimRegion; insuranceCompany?: string }): Payer | undefined {
-  if (!client.insuranceRegion || !client.insuranceCompany) {
-    if (client.insuranceRegion) {
-      return MOCK_PAYERS.find((p) => p.region === client.insuranceRegion);
-    }
-    return undefined;
-  }
-  const match = MOCK_PAYERS.find(
-    (p) => p.region === client.insuranceRegion && p.name.toLowerCase() === client.insuranceCompany!.toLowerCase()
+export function findPayerForClient(client: { insuranceCompany?: string }): Payer | undefined {
+  if (!client.insuranceCompany) return undefined;
+  return MOCK_PAYERS.find(
+    (p) => p.name.toLowerCase() === client.insuranceCompany!.toLowerCase()
   );
-  return match || MOCK_PAYERS.find((p) => p.region === client.insuranceRegion);
 }
 
 export function getMockSessions(clientId: string, clientName: string): ClaimSession[] {
@@ -214,4 +201,50 @@ export function getMockSessions(clientId: string, clientName: string): ClaimSess
       selected: false,
     };
   });
+}
+
+export function getMockUnbilledSessions(): UnbilledSession[] {
+  const now = new Date();
+  const baseClients = [
+    { clientId: "1", clientName: "Sarah Johnson", payerId: "us-1", payerName: "UnitedHealthcare" },
+    { clientId: "5", clientName: "Olivia Brown", payerId: "us-2", payerName: "Cigna" },
+    { clientId: "8", clientName: "Aisha Patel", payerId: "us-4", payerName: "Blue Cross Blue Shield" },
+  ];
+  const diagnosisForClient = (clientId: string): string =>
+    mockClients.find((c) => c.id === clientId)?.diagnosisCode ?? "Z03.89";
+  const serviceTypes = [
+    { serviceType: "Individual Therapy, 50 min", duration: "50 min", cptCode: "90834" },
+    { serviceType: "Individual Therapy, 45 min", duration: "45 min", cptCode: "90834" },
+    { serviceType: "Psychiatric Diagnostic Evaluation", duration: "60 min", cptCode: "90791" },
+    { serviceType: "Family Therapy, 50 min", duration: "50 min", cptCode: "90847" },
+  ];
+  const sessions: UnbilledSession[] = [];
+  let idCounter = 0;
+  baseClients.forEach((client) => {
+    for (let i = 0; i < 3; i++) {
+      idCounter++;
+      const d = new Date(now);
+      d.setDate(d.getDate() - (idCounter * 5 + i * 2));
+      const st = serviceTypes[(idCounter + i) % serviceTypes.length];
+      const hasNotes = i !== 1;
+      sessions.push({
+        id: `unbilled-${idCounter}`,
+        clientId: client.clientId,
+        clientName: client.clientName,
+        dateOfService: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        payerId: client.payerId,
+        payerName: client.payerName,
+        serviceType: st.serviceType,
+        duration: st.duration,
+        notesStatus: hasNotes ? "locked" : "draft",
+        notesId: hasNotes ? `note-${idCounter}` : null,
+        cptCode: st.cptCode,
+        diagnosisCode: diagnosisForClient(client.clientId),
+        amount: getFeeForService(st.cptCode),
+        daysSinceService: Math.floor((now.getTime() - d.getTime()) / 86400000),
+        selected: false,
+      });
+    }
+  });
+  return sessions;
 }

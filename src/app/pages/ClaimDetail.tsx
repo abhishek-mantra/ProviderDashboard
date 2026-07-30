@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import {
   ArrowLeft,
   FileText,
@@ -17,7 +17,7 @@ import { useState } from "react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { CLAIM_STATUS_LABELS, getCurrencySymbol } from "../types/claims";
-import type { ClaimStatus, ClaimFlowType } from "../types/claims";
+import type { ClaimStatus, ClaimFlowType, UnbilledSession } from "../types/claims";
 
 const FLOW_ICONS: Record<ClaimFlowType, typeof Shield> = {
   mantra: Zap,
@@ -27,8 +27,9 @@ const FLOW_ICONS: Record<ClaimFlowType, typeof Shield> = {
 
 export function ClaimDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { claimId } = useParams();
-  const { getClaim, updateClaimStatus, updateClaim, claims } = useClaims();
+  const { getClaim, updateClaimStatus, updateClaim, claims, unmarkSessionsBilled } = useClaims();
   const { currentPracticeId, isCurrentUserSuperAdmin } = usePartnerDashboard();
   const [simulating, setSimulating] = useState(false);
 
@@ -41,12 +42,22 @@ export function ClaimDetail() {
       ? rawClaim
       : undefined;
 
+  const handleBack = () => {
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else if (claim?.clientId && window.location.pathname.includes("/clients/")) {
+      navigate(`/clients/${claim.clientId}/insurance`);
+    } else {
+      navigate("/insurance?tab=claims");
+    }
+  };
+
   if (!claim) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 pb-4">
           <button
-            onClick={() => navigate("/claims")}
+            onClick={handleBack}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <ArrowLeft className="size-6 text-gray-600 dark:text-gray-400" />
@@ -58,8 +69,8 @@ export function ClaimDetail() {
             This claim does not exist or has been removed.
           </p>
           <button
-            onClick={() => navigate("/claims")}
-            className="mt-4 px-4 py-2 bg-[#4169E1] text-white rounded-lg"
+            onClick={handleBack}
+            className="mt-4 px-4 py-2 bg-[#043570] text-white rounded-lg"
           >
             Back to Claims
           </button>
@@ -77,12 +88,13 @@ export function ClaimDetail() {
       case "eligibility_confirmed":
         return "green";
       case "denied":
-      case "rejected_by_intermediary":
+      case "rejected":
       case "eligibility_failed":
         return "red";
       case "submitted":
       case "scrubbing":
       case "pending_with_payer":
+      case "pended":
       case "eligibility_pending":
         return "yellow";
       case "manual_generated":
@@ -109,8 +121,27 @@ export function ClaimDetail() {
   };
 
   const handleCorrectAndResubmit = () => {
-    updateClaimStatus(claim.id, "draft");
-    navigate(`/claims/new/${claim.clientId}/mantra/details`);
+    const restoredSessions: UnbilledSession[] = claim.serviceLines.map((sl) => ({
+      id: sl.sessionId,
+      clientId: claim.clientId,
+      clientName: claim.clientName,
+      dateOfService: sl.dateOfService,
+      payerId: claim.payerId || "",
+      payerName: claim.payerName || "",
+      serviceType: "Therapy",
+      duration: "50 min",
+      notesStatus: "locked",
+      notesId: null,
+      cptCode: sl.serviceCode,
+      diagnosisCode: claim.diagnosisCodes[0] || "",
+      amount: sl.chargeAmount,
+      daysSinceService: 0,
+      selected: false,
+    }));
+    unmarkSessionsBilled(restoredSessions);
+    updateClaimStatus(claim.id, "draft", "Claim returned to draft for correction & resubmission.");
+    updateClaim(claim.id, { status: "draft" });
+    navigate(`/billing/unbilled?clientId=${claim.clientId}&resubmitClaimId=${claim.id}`);
   };
 
   const formatDate = (dateStr: string) => {
@@ -132,7 +163,7 @@ export function ClaimDetail() {
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/claims")}
+            onClick={handleBack}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <ArrowLeft className="size-6 text-gray-600 dark:text-gray-400" />
@@ -162,26 +193,72 @@ export function ClaimDetail() {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <FlowIcon className="size-5 text-[#4169E1]" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Claim Details
-                </h2>
-                <span
-                  className={`ml-2 inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                    claim.flowType === "mantra"
-                      ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400"
-                      : claim.flowType === "manual"
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                  }`}
-                >
-                  {claim.flowType.charAt(0).toUpperCase() + claim.flowType.slice(1)}
-                </span>
-                <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                  {claim.region}
-                </span>
+              {/* Visual Claim Lifecycle Stepper */}
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-2xl">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Claim Progress Timeline</p>
+                <div className="flex items-center justify-between text-xs font-semibold relative">
+                  {/* Stepper Steps */}
+                  {[
+                    { key: "draft", label: "Draft" },
+                    { key: "scrubbing", label: "Scrubbing" },
+                    { key: "submitted", label: "Submitted" },
+                    { key: "pending_with_payer", label: "Payer Review" },
+                    { key: "approved", label: "Paid / Settled" },
+                  ].map((step, idx, arr) => {
+                    const stepOrder = ["draft", "scrubbing", "submitted", "pending_with_payer", "approved", "paid"];
+                    const currentIdx = stepOrder.indexOf(claim.status);
+                    const isDone = currentIdx >= idx;
+                    const isCurrent = claim.status === step.key;
+                    const isDenied = (claim.status === "denied" || claim.status === "rejected") && idx === arr.length - 1;
+
+                    return (
+                      <div key={step.key} className="flex-1 flex flex-col items-center relative text-center">
+                        <div
+                          className={`size-7 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10 ${
+                            isDenied
+                              ? "bg-red-600 text-white shadow-md ring-4 ring-red-100 dark:ring-red-900/50"
+                              : isDone
+                              ? "bg-emerald-600 text-white"
+                              : isCurrent
+                              ? "bg-[#043570] text-white ring-4 ring-blue-100 dark:ring-blue-900/50"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                          }`}
+                        >
+                          {isDenied ? "✕" : isDone ? "✓" : idx + 1}
+                        </div>
+                        <span className={`mt-1 text-[11px] ${isDenied ? "text-red-600 font-bold" : isDone || isCurrent ? "text-gray-900 dark:text-white font-bold" : "text-gray-400"}`}>
+                          {isDenied ? "Denied" : step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Actionable Denial Fix Assistant */}
+              {(claim.status === "denied" || claim.status === "rejected") && (
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-5 mb-6 space-y-3">
+                  <div className="flex items-center gap-2.5 text-red-700 dark:text-red-300 font-bold text-base">
+                    <XCircle className="size-5 text-red-600 shrink-0" />
+                    <span>Action Required: Claim Denied / Rejected</span>
+                  </div>
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    <strong>Denial Reason:</strong> {claim.statusHistory[claim.statusHistory.length - 1]?.note || "Service not covered under current plan benefits or code modification required."}
+                  </p>
+                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-red-200 dark:border-red-800/50">
+                    <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+                      💡 <strong>Suggested Fix:</strong> Click <strong>Fix & Resubmit Claim</strong> to update diagnosis/CPT codes or re-verify client insurance details.
+                    </p>
+                    <button
+                      onClick={handleCorrectAndResubmit}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      <RefreshCw className="size-3.5" />
+                      Fix & Resubmit Claim
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                 <div>
@@ -322,14 +399,14 @@ export function ClaimDetail() {
                       className={`size-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
                         event.status === "paid" || event.status === "approved"
                           ? "bg-green-100 dark:bg-green-900/30"
-                          : event.status === "denied" || event.status === "rejected_by_intermediary"
+                          : event.status === "denied" || event.status === "rejected"
                           ? "bg-red-100 dark:bg-red-900/30"
                           : "bg-gray-100 dark:bg-gray-700"
                       }`}
                     >
                       {event.status === "paid" || event.status === "approved" ? (
                         <CheckCircle className="size-3.5 text-green-600 dark:text-green-400" />
-                      ) : event.status === "denied" || event.status === "rejected_by_intermediary" ? (
+                      ) : event.status === "denied" || event.status === "rejected" ? (
                         <XCircle className="size-3.5 text-red-600 dark:text-red-400" />
                       ) : (
                         <div className="size-2 rounded-full bg-gray-400 dark:bg-gray-500" />
@@ -363,7 +440,7 @@ export function ClaimDetail() {
                 View the CMS-1500 claim form for this claim.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/cms1500`)}
+                onClick={() => navigate(`/claims/${claim.id}/cms1500`, { state: { from: location.state?.from || "/billing?tab=insurance&subtab=claims" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Printer className="size-4" />
@@ -381,7 +458,7 @@ export function ClaimDetail() {
                 View the itemized claim summary for submission to your insurer.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/summary`)}
+                onClick={() => navigate(`/claims/${claim.id}/summary`, { state: { from: location.state?.from || "/billing?tab=insurance&subtab=claims" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <FileText className="size-4" />
@@ -418,13 +495,13 @@ export function ClaimDetail() {
             </div>
           )}
 
-          {claim.flowType === "mantra" && claim.status === "denied" && (
+          {claim.flowType === "mantra" && ["denied", "rejected", "pended"].includes(claim.status) && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                Claim Denied
+                Claim {claim.status === "denied" ? "Denied" : claim.status === "rejected" ? "Rejected" : "Pended"}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Correct the issues and resubmit this claim.
+                Correct the issues and resubmit this claim. Your existing data will be preloaded.
               </p>
               <button
                 onClick={handleCorrectAndResubmit}

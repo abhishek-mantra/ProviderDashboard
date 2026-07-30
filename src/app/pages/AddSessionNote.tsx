@@ -1,8 +1,9 @@
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranscriberPrefill, demoNoteData, demoTranscript } from "../hooks/useTranscriberPrefill";
-import { ArrowLeft, FileText, ChevronDown, Sparkles, Loader2, Save, Zap, Check, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, FileText, ChevronDown, Sparkles, Loader2, Save, Zap, Check, User, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useClaims } from "../contexts/ClaimContext";
 
 interface TemplateOption {
   id: string;
@@ -171,28 +172,68 @@ Client demonstrates strong engagement and willingness to implement new coping st
 
 export function AddSessionNote() {
   const navigate = useNavigate();
-  const { id, sessionId } = useParams();
+  const { id: paramClientId, sessionId: paramSessionId } = useParams();
   const { canViewClientClinicalContent } = usePartnerDashboard();
   const [searchParams] = useSearchParams();
   const { isFromTranscriber: isFromTranscriberHook } = useTranscriberPrefill();
 
+  const searchSessionId = searchParams.get("sessionId");
+  const searchClientId = searchParams.get("clientId");
+  const effectiveSessionId = paramSessionId || searchSessionId;
+
   const isFromTranscriber = searchParams.get("source") === "transcriber" || isFromTranscriberHook;
-  const hasTranscriptContext = !!sessionId || isFromTranscriber;
+  const hasTranscriptContext = !!effectiveSessionId || isFromTranscriber;
 
   const [selectedTemplate, setSelectedTemplate] = useState("SOAP Template");
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [isFillingWithAI, setIsFillingWithAI] = useState(false);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<"transcript" | "noteworthy">("transcript");
   const [selectedSessionId, setSelectedSessionId] = useState("1");
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [diagnosisCodeAtSigning, setDiagnosisCodeAtSigning] = useState("");
+  const [selectedCptCode, setSelectedCptCode] = useState("");
+  const [isNoteLocked, setIsNoteLocked] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+
+  const { clients } = usePartnerDashboard();
+  const { feeSchedule, unbilledSessions, signAndLockSession } = useClaims();
+
+  const currentSession = useMemo(() => {
+    if (effectiveSessionId) {
+      return unbilledSessions.find((s) => s.id === effectiveSessionId);
+    }
+    return undefined;
+  }, [unbilledSessions, effectiveSessionId]);
+
+  const effectiveClientId = paramClientId || searchClientId || currentSession?.clientId;
+  const clientRecord = clients.find((c) => c.id === effectiveClientId);
+
+  const feeScheduleOptions = useMemo(() => feeSchedule, [feeSchedule]);
+
+  useEffect(() => {
+    if (currentSession) {
+      if (currentSession.diagnosisCode && !diagnosisCodeAtSigning) {
+        setDiagnosisCodeAtSigning(currentSession.diagnosisCode);
+      }
+      if (currentSession.cptCode && !selectedCptCode) {
+        setSelectedCptCode(currentSession.cptCode);
+      }
+      if (currentSession.notesStatus === "locked") {
+        setIsNoteLocked(true);
+      }
+    } else if (clientRecord?.diagnosisCode && !diagnosisCodeAtSigning) {
+      setDiagnosisCodeAtSigning(clientRecord.diagnosisCode);
+    }
+  }, [currentSession, clientRecord]);
 
   // Reset field values when template changes
   useEffect(() => {
     setFieldValues({});
   }, [selectedTemplate]);
 
-  if (id && !canViewClientClinicalContent(id)) {
+  if (effectiveClientId && !canViewClientClinicalContent(effectiveClientId)) {
     return <div className="p-8 text-center text-gray-600 dark:text-gray-300">You do not have access to this client’s clinical notes.</div>;
   }
 
@@ -235,82 +276,253 @@ export function AddSessionNote() {
           </button>
 
           {/* Header Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700 mb-4 md:mb-6">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-4 md:mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-3 md:gap-4">
-                <div className="size-10 md:size-14 bg-gradient-to-br from-[#00c0ff] to-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
-                  <FileText className="size-5 md:size-7 text-white" />
+                <div className="size-10 md:size-12 bg-gradient-to-br from-[#00c0ff] to-blue-600 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                  <FileText className="size-5 md:size-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 md:mb-1">
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-0.5">
                     Session Note
                   </h1>
-                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-                    Document your session using AI assistance
+                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                    Configure your session note
                   </p>
                 </div>
               </div>
 
-              {/* Template Selector */}
-              <div className="relative w-full md:w-72">
-                <button
-                  onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
-                  className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl text-left flex items-center justify-between hover:border-[#00c0ff] dark:hover:border-[#00c0ff] transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg md:text-xl">{templates.find(t => t.name === selectedTemplate)?.icon}</span>
-                    <span className="text-gray-900 dark:text-white text-xs md:text-sm font-semibold truncate">
-                      {selectedTemplate}
-                    </span>
-                  </div>
-                  <ChevronDown className={`size-3.5 md:size-4 text-gray-400 transition-transform flex-shrink-0 ${showTemplateDropdown ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {showTemplateDropdown && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowTemplateDropdown(false)}
-                    />
-                    <div className="absolute z-20 top-full right-0 left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden">
-                      {templates.map((template) => (
-                        <button
-                          key={template.id}
-                          onClick={() => {
-                            setSelectedTemplate(template.name);
-                            setShowTemplateDropdown(false);
-                          }}
-                          className={`w-full px-3 md:px-4 py-3 md:py-3.5 text-left hover:bg-[#f3faff] dark:hover:bg-blue-900/20 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                            selectedTemplate === template.name ? "bg-[#f3faff] dark:bg-blue-900/20" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 md:gap-3">
-                            <span className="text-xl md:text-2xl flex-shrink-0">{template.icon}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs md:text-sm font-bold text-gray-900 dark:text-white truncate">
-                                {template.name}
-                              </div>
-                              <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 truncate">
-                                {template.description}
-                              </div>
-                            </div>
-                            {selectedTemplate === template.name && (
-                              <Check className="size-3.5 md:size-4 text-[#00c0ff] flex-shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
+              {/* Selectors Row */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                {/* Template Selector */}
+                <div className="relative w-full sm:w-56">
+                  <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    Template
+                  </label>
+                  <button
+                    onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                    className="w-full px-3 py-2 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-left flex items-center justify-between hover:border-[#00c0ff] dark:hover:border-[#00c0ff] transition-all shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-base">{templates.find(t => t.name === selectedTemplate)?.icon}</span>
+                      <span className="text-gray-900 dark:text-white text-xs font-semibold truncate">
+                        {selectedTemplate}
+                      </span>
                     </div>
-                  </>
-                )}
+                    <ChevronDown className={`size-3.5 text-gray-400 transition-transform flex-shrink-0 ${showTemplateDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showTemplateDropdown && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowTemplateDropdown(false)}
+                      />
+                      <div className="absolute z-20 top-full right-0 left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden min-w-[220px]">
+                        {templates.map((template) => (
+                          <button
+                            key={template.id}
+                            onClick={() => {
+                              setSelectedTemplate(template.name);
+                              setShowTemplateDropdown(false);
+                            }}
+                            className={`w-full px-3 py-2.5 text-left hover:bg-[#f3faff] dark:hover:bg-blue-900/20 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                              selectedTemplate === template.name ? "bg-[#f3faff] dark:bg-blue-900/20" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg flex-shrink-0">{template.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                  {template.name}
+                                </div>
+                              </div>
+                              {selectedTemplate === template.name && (
+                                <Check className="size-3.5 text-[#00c0ff] flex-shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Language Selector */}
+                <div className="w-full sm:w-36">
+                  <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    Language
+                  </label>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="w-full px-3 py-2 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-semibold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                  >
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Hindi">Hindi</option>
+                  </select>
+                </div>
               </div>
             </div>
-
           </div>
 
           {/* Form Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700 mb-6">
+            <div className="pb-4 mb-6 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                Template Content
+              </h2>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                Fill in the template fields to create your session note
+              </p>
+            </div>
+
             <div className="space-y-4 md:space-y-6">
+              {selectedTemplate === "Basic Template" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Cognitive Functioning
+                    </label>
+                    <select
+                      value={fieldValues["Cognitive Functioning"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Cognitive Functioning": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="Intact">Intact / Within normal limits</option>
+                      <option value="Mild Impairment">Mild cognitive impairment</option>
+                      <option value="Moderate Impairment">Moderate impairment</option>
+                      <option value="Severe Impairment">Severe impairment</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Affect
+                    </label>
+                    <select
+                      value={fieldValues["Affect"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Affect": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="Euthymic">Euthymic / Appropriate</option>
+                      <option value="Anxious">Anxious / Restless</option>
+                      <option value="Depressed">Depressed / Flat</option>
+                      <option value="Labile">Labile / Irritable</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Functioning Status, Symptoms or Impairments
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter required details"
+                      value={fieldValues["Functioning Status"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Functioning Status": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Risk Factors
+                    </label>
+                    <select
+                      value={fieldValues["Risk Factors"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Risk Factors": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="None Reported">None Reported / Low Risk</option>
+                      <option value="Suicidal Ideation Without Intent">Suicidal ideation without intent</option>
+                      <option value="Self-Harm History">History of self-harm</option>
+                      <option value="Substance Use">Substance use risk</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Medications
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Enter current medications and adherence notes..."
+                      value={fieldValues["Medications"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Medications": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff] resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Interventions
+                    </label>
+                    <select
+                      value={fieldValues["Interventions"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Interventions": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="CBT Cognitive Restructuring">CBT Cognitive Restructuring</option>
+                      <option value="Mindfulness & Grounding">Mindfulness & Grounding Techniques</option>
+                      <option value="Progressive Muscle Relaxation">Progressive Muscle Relaxation</option>
+                      <option value="Psychoeducation">Psychoeducation & Coping Strategy</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Treatment Plan
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Enter treatment plan objectives..."
+                      value={fieldValues["Treatment Plan"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Treatment Plan": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff] resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Supporting Documents / Attachments
+                    </label>
+                    <div className="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl p-6 text-center hover:border-[#00c0ff] transition-colors cursor-pointer bg-gray-50/50 dark:bg-gray-800/50">
+                      <p className="text-xs text-blue-600 font-semibold mb-1">
+                        Select File <span className="text-gray-500 font-normal">OR Drag n Drop</span>
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        Allowed file types: PDF, Excel, CSV, Word, JPG, PNG (Max 10MB)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                      Recommendation
+                    </label>
+                    <select
+                      value={fieldValues["Recommendation"] || ""}
+                      onChange={(e) => setFieldValues({ ...fieldValues, "Recommendation": e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="Continue Weekly Therapy">Continue weekly therapy sessions</option>
+                      <option value="Bi-weekly Maintenance">Bi-weekly maintenance sessions</option>
+                      <option value="Psychiatric Evaluation Referral">Refer for psychiatric evaluation</option>
+                      <option value="Discharge Complete">Treatment goals met / Discharge</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
               {selectedTemplate === "SOAP Template" && (
                 <>
                   <div>
@@ -500,21 +712,124 @@ export function AddSessionNote() {
                 </>
               )}
 
+              {/* Diagnosis & CPT Codes for Sign & Lock */}
+              {!isNoteLocked && (
+                <div className="pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sign & Lock Note (for billing)</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCptCode("90834");
+                        if (!diagnosisCodeAtSigning) setDiagnosisCodeAtSigning("F41.1");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 transition-all border border-indigo-200 dark:border-indigo-800"
+                    >
+                      <Sparkles className="size-3 text-indigo-500" />
+                      <span>✨ AI Suggest: 90834 (50m)</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                      Diagnosis Code (ICD-10) *
+                    </label>
+                    <input
+                      type="text"
+                      value={diagnosisCodeAtSigning}
+                      onChange={(e) => setDiagnosisCodeAtSigning(e.target.value)}
+                      placeholder="e.g. F41.1"
+                      className="w-full px-3 py-2.5 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] focus:border-transparent text-sm text-gray-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-gray-900 dark:text-white">
+                        CPT/Service Code *
+                      </label>
+                      {selectedCptCode && (
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          Est. Provider Fee: ${feeScheduleOptions.find(f => f.cptCode === selectedCptCode)?.providerRate || 150}
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={selectedCptCode}
+                      onChange={(e) => setSelectedCptCode(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] focus:border-transparent text-sm text-gray-900 dark:text-white appearance-none"
+                    >
+                      <option value="">Select a CPT code...</option>
+                      {feeScheduleOptions.map((entry) => (
+                        <option key={entry.cptCode} value={entry.cptCode}>
+                          {entry.cptCode} — {entry.description} (${entry.providerRate})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {isNoteLocked && (
+                <div className="pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-3">
+                    <Lock className="size-5 text-green-600 dark:text-green-400" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-700 dark:text-green-400">Note Signed & Locked</p>
+                      <p className="text-xs text-green-600 dark:text-green-300">Diagnosis: {diagnosisCodeAtSigning} | CPT: {selectedCptCode}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 md:gap-3 pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => navigate(-1)}
                   className="px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl text-sm md:text-base text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold order-2 sm:order-1"
                 >
-                  Cancel
+                  {isNoteLocked ? "Back" : "Cancel"}
                 </button>
-                <button
-                  onClick={() => navigate(`/clients/${id}/notes`)}
-                  className="flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-[#043570] hover:bg-[#032554] text-white rounded-lg md:rounded-xl transition-all font-bold shadow-sm hover:shadow-md text-sm md:text-base order-1 sm:order-2"
-                >
-                  <Save className="size-4" />
-                  Save Note
-                </button>
+                <div className="flex items-stretch sm:items-center gap-2 order-1 sm:order-2">
+                  <button
+                    onClick={() => navigate(effectiveClientId ? `/clients/${effectiveClientId}/notes` : -1)}
+                    className="flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-[#043570] hover:bg-[#032554] text-white rounded-lg md:rounded-xl transition-all font-bold shadow-sm hover:shadow-md text-sm md:text-base"
+                  >
+                    <Save className="size-4" />
+                    Save Note
+                  </button>
+                  {!isNoteLocked && (
+                    <button
+                      onClick={() => {
+                        if (!diagnosisCodeAtSigning.trim() || !selectedCptCode) return;
+                        setIsSigning(true);
+                        setTimeout(() => {
+                          const targetSessionId = effectiveSessionId || unbilledSessions.find(
+                            (s) => s.clientId === effectiveClientId && s.notesStatus !== "locked"
+                          )?.id;
+                          if (targetSessionId) {
+                            signAndLockSession(targetSessionId, diagnosisCodeAtSigning.trim(), selectedCptCode);
+                          }
+                          setIsNoteLocked(true);
+                          setIsSigning(false);
+                        }, 800);
+                      }}
+                      disabled={!diagnosisCodeAtSigning.trim() || !selectedCptCode || isSigning}
+                      className={`flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-lg md:rounded-xl transition-all font-bold shadow-sm hover:shadow-md text-sm md:text-base ${
+                        isSigning
+                          ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      }`}
+                    >
+                      {isSigning ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Lock className="size-4" />
+                      )}
+                      Sign & Lock
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

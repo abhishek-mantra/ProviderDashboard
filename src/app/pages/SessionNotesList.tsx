@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { Search, Filter, Plus, Eye, Edit2, Calendar, User, FileText, Clock, ChevronDown, Users, Sparkles, Zap } from "lucide-react";
+import { Search, Filter, Plus, Eye, Edit2, Calendar, User, FileText, Clock, ChevronDown, ChevronRight, Users, Sparkles, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { FreeTrialBanner } from "../components/monetization/FreeTrialBanner";
@@ -366,19 +366,32 @@ export function SessionNotesList() {
                   </div>
 
                   {/* Right Side - Actions */}
-                  <div className="flex items-center gap-2 ml-0 md:ml-0">
+                  <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
                     <button
                       onClick={() => navigate(`/clients/${note.clientId}/notes`)}
-                      className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-[#f3faff] dark:bg-blue-900/20 hover:bg-[#00c0ff]/10 dark:hover:bg-blue-900/30 text-[#043570] dark:text-[#00c0ff] rounded-lg transition-all font-semibold text-xs md:text-sm border border-transparent hover:border-[#00c0ff]/20"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition-all font-semibold text-xs border border-gray-200 dark:border-gray-600 shadow-sm"
                     >
-                      <Eye className="size-3.5 md:size-4" />
+                      <ChevronRight className="size-3.5 text-gray-500" />
+                      <span>Session details</span>
+                    </button>
+                    <button
+                      onClick={() => navigate(`/clients/${note.clientId}/notes/view/${note.id}`)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-all font-semibold text-xs border border-blue-100 dark:border-blue-800"
+                    >
+                      <Eye className="size-3.5" />
                       <span>View</span>
                     </button>
                     <button
-                      className="size-8 md:size-9 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center transition-all shadow-sm hover:shadow flex-shrink-0"
-                      title="Edit"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete session note for ${note.clientName}?`)) {
+                          alert("Note deleted.");
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition-all font-semibold text-xs border border-red-100 dark:border-red-800"
+                      title="Delete Note"
                     >
-                      <Edit2 className="size-3.5 md:size-4 text-gray-700 dark:text-gray-300" />
+                      <span className="text-xs">🗑</span>
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>

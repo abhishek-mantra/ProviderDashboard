@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
 import { DollarSign, FileText, Plus, User, ChevronDown, Building2, Shield } from "lucide-react";
-import { useLocation, Link, useNavigate } from "react-router";
+import { useLocation, Link, useNavigate, useSearchParams } from "react-router";
 import { Earnings } from "./Earnings";
 import { Invoices } from "./Invoices";
 import { BankInfo } from "./BankInfo";
 import { TaxInfo } from "./TaxInfo";
 import { InsurancePage } from "./InsurancePage";
+import { UnbilledSessions } from "./UnbilledSessions";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 export function Billing() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { providers, clients, practices } = usePartnerDashboard();
-  const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "insurance" | "banktax">(
-    (location.state as any)?.tab || "earnings"
+
+  const urlTab = searchParams.get("tab") as "earnings" | "invoices" | "unbilled" | "insurance" | "banktax";
+  const [activeTab, setActiveTab] = useState<"earnings" | "invoices" | "unbilled" | "insurance" | "banktax">(
+    urlTab || (location.state as any)?.tab || "earnings"
   );
   const [earningsSubTab, setEarningsSubTab] = useState<"earnings" | "no-earnings">("earnings");
   const [bankTaxSubTab, setBankTaxSubTab] = useState<"bank" | "tax">("bank");
@@ -28,13 +32,21 @@ export function Billing() {
   const clientNames = clients.map((c) => c.name);
 
   useEffect(() => {
-    if ((location.state as any)?.tab) {
+    const tabFromUrl = searchParams.get("tab") as any;
+    if (tabFromUrl && ["earnings", "invoices", "unbilled", "insurance", "banktax"].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else if ((location.state as any)?.tab) {
       setActiveTab((location.state as any).tab);
     }
     if ((location.state as any)?.clientFilter) {
       setSelectedClientFilter((location.state as any).clientFilter);
     }
-  }, [location.state]);
+  }, [searchParams, location.state]);
+
+  const handleTabChange = (tab: "earnings" | "invoices" | "unbilled" | "insurance" | "banktax") => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen px-0 py-0 md:p-6">
@@ -59,7 +71,7 @@ export function Billing() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-6 gap-3 md:gap-0 mt-[10px] md:mt-0">
         <div className="flex items-center gap-1 md:gap-2 bg-white dark:bg-gray-800 p-1 md:p-1.5 rounded-xl w-full md:w-fit border border-gray-200 dark:border-gray-700 overflow-x-auto">
           <button
-            onClick={() => setActiveTab("earnings")}
+            onClick={() => handleTabChange("earnings")}
             className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-medium transition-all text-xs md:text-sm whitespace-nowrap flex-1 md:flex-initial ${
               activeTab === "earnings"
                 ? "bg-[#043570] text-white shadow-sm"
@@ -71,7 +83,7 @@ export function Billing() {
           </button>
 
           <button
-            onClick={() => setActiveTab("invoices")}
+            onClick={() => handleTabChange("invoices")}
             className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-medium transition-all text-xs md:text-sm whitespace-nowrap flex-1 md:flex-initial ${
               activeTab === "invoices"
                 ? "bg-[#043570] text-white shadow-sm"
@@ -83,19 +95,19 @@ export function Billing() {
           </button>
 
           <button
-            onClick={() => setActiveTab("insurance")}
+            onClick={() => handleTabChange("insurance")}
             className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-medium transition-all text-xs md:text-sm whitespace-nowrap flex-1 md:flex-initial ${
-              activeTab === "insurance"
+              activeTab === "insurance" || activeTab === "unbilled"
                 ? "bg-[#043570] text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             <Shield className="size-3.5 md:size-4" />
-            <span>Insurance</span>
+            <span>Insurance & Claims</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("banktax")}
+            onClick={() => handleTabChange("banktax")}
             className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-medium transition-all text-xs md:text-sm whitespace-nowrap flex-1 md:flex-initial ${
               activeTab === "banktax"
                 ? "bg-[#043570] text-white shadow-sm"
@@ -507,8 +519,8 @@ export function Billing() {
           </div>
         )}
 
-        {activeTab === "insurance" && (
-          <InsurancePage />
+        {(activeTab === "insurance" || activeTab === "unbilled") && (
+          <InsurancePage defaultTab={activeTab === "unbilled" ? "unbilled" : undefined} />
         )}
 
         {activeTab === "banktax" && (

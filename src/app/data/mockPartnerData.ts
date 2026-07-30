@@ -757,13 +757,13 @@ export const mockCareTeamMemberships: CareTeamMembership[] = [
 ];
 
 export const mockClients: MockClient[] = [
-  { id: "1", name: "Sarah Johnson", email: "sarah.j@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceRegion: "US", insuranceCompany: "UnitedHealthcare" },
-  { id: "2", name: "Michael Chen", email: "m.chen@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceRegion: "UK", insuranceCompany: "Bupa" },
-  { id: "3", name: "Emma Thompson", email: "emma.t@example.com", practiceId: "practice-1", treatingProviderId: "prov-3", insuranceRegion: "CA", insuranceCompany: "Sun Life" },
-  { id: "4", name: "David Martinez", email: "d.martinez@example.com", practiceId: "practice-1", treatingProviderId: "prov-admin", insuranceRegion: "AE", insuranceCompany: "NextCare" },
-  { id: "5", name: "Olivia Brown", email: "olivia.b@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceRegion: "US", insuranceCompany: "Cigna" },
-  { id: "6", name: "Liam Garcia", email: "liam.g@example.com", practiceId: "practice-1", treatingProviderId: "prov-3", insuranceRegion: "UK", insuranceCompany: "AXA Health" },
-  { id: "7", name: "Sophia Miller", email: "sophia.m@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceRegion: "CA", insuranceCompany: "Manulife" },
-  { id: "8", name: "Aisha Patel", email: "aisha.p@example.com", practiceId: "practice-2", treatingProviderId: "prov-5", insuranceRegion: "US", insuranceCompany: "Blue Cross Blue Shield" },
-  { id: "9", name: "Robert Kim", email: "robert.k@example.com", practiceId: "practice-2", treatingProviderId: "prov-5", insuranceRegion: "UK", insuranceCompany: "Vitality" },
+  { id: "1", name: "Sarah Johnson", email: "sarah.j@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceCompany: "UnitedHealthcare", diagnosisCode: "F41.1" },
+  { id: "2", name: "Michael Chen", email: "m.chen@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceCompany: "Bupa", diagnosisCode: "F32.9" },
+  { id: "3", name: "Emma Thompson", email: "emma.t@example.com", practiceId: "practice-1", treatingProviderId: "prov-3", insuranceCompany: "Sun Life", diagnosisCode: "F43.22" },
+  { id: "4", name: "David Martinez", email: "d.martinez@example.com", practiceId: "practice-1", treatingProviderId: "prov-admin", insuranceCompany: "NextCare", diagnosisCode: "F43.22" },
+  { id: "5", name: "Olivia Brown", email: "olivia.b@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceCompany: "Cigna", diagnosisCode: "F41.9" },
+  { id: "6", name: "Liam Garcia", email: "liam.g@example.com", practiceId: "practice-1", treatingProviderId: "prov-3", insuranceCompany: "AXA Health", diagnosisCode: "F32.1" },
+  { id: "7", name: "Sophia Miller", email: "sophia.m@example.com", practiceId: "practice-1", treatingProviderId: "prov-1", insuranceCompany: "Manulife", diagnosisCode: "F40.10" },
+  { id: "8", name: "Aisha Patel", email: "aisha.p@example.com", practiceId: "practice-2", treatingProviderId: "prov-5", insuranceCompany: "Blue Cross Blue Shield", diagnosisCode: "F41.1" },
+  { id: "9", name: "Robert Kim", email: "robert.k@example.com", practiceId: "practice-2", treatingProviderId: "prov-5", insuranceCompany: "Vitality", diagnosisCode: "F33.1" },
 ];

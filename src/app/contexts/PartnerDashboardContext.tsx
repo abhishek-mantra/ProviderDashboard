@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, ReactNode } 
 import type { Provider, Practice, PracticeMember, EstablishmentSuperAdmin, CustomRole, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse, PermissionSet } from "../types/partnerDashboard";
 import { ROLE_PERMISSION_DEFAULTS, BASE_ROLES } from "../types/partnerDashboard";
 import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses, mockPractices, mockPracticeMembers, mockSuperAdmins, mockCustomRoles } from "../data/mockPartnerData";
-import type { ClaimRegion } from "../types/claims";
+
 
 interface PartnerDashboardContextType {
   establishments: Establishment[];
@@ -43,7 +43,6 @@ interface PartnerDashboardContextType {
   removeCareTeamMembership: (clientId: string, providerId: string) => void;
   clientTreatingProviders: Record<string, string>;
   reassignClient: (clientId: string, providerId: string) => void;
-  updateClientInsuranceRegion: (clientId: string, region: ClaimRegion) => void;
   canViewClientClinicalContent: (clientId: string) => boolean;
   canViewIntakeResponse: (form: IntakeForm, clientId: string, viewerId?: string) => boolean;
   addClient: (client: Omit<MockClient, "id">) => MockClient;
@@ -296,6 +295,9 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     );
     if (!hasPracticeScope && !isCurrentUserSuperAdmin) return false;
 
+    // SuperAdmin or Practice Admin has access to practice clients
+    if (isCurrentUserSuperAdmin || isCurrentUserAdmin) return true;
+
     // Check if the user is treating provider
     if (clientTreatingProviders[clientId] === currentProviderId) return true;
 
@@ -313,7 +315,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     if (supervisorMemberships.some((sm) => sm.supervises.includes(treatingProviderId))) return true;
 
     return false;
-  }, [currentProviderId, practiceMembers, careTeamMemberships, clientTreatingProviders, clients, isCurrentUserSuperAdmin]);
+  }, [currentProviderId, practiceMembers, careTeamMemberships, clientTreatingProviders, clients, isCurrentUserSuperAdmin, isCurrentUserAdmin]);
 
   const canViewIntakeResponse = useCallback((form: IntakeForm, clientId: string, viewerId?: string) => {
     const pid = viewerId ?? currentProviderId;
@@ -373,15 +375,6 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     return newClient;
   }, []);
 
-  const updateClientInsuranceRegion = useCallback(
-    (clientId: string, region: ClaimRegion) => {
-      setClients((prev) =>
-        prev.map((c) => (c.id === clientId ? { ...c, insuranceRegion: region } : c))
-      );
-    },
-    []
-  );
-
   const referClient = useCallback((clientId: string, toPracticeId: string, targetProviderId?: string): string => {
     const sourceClient = clients.find((c) => c.id === clientId);
     if (!sourceClient) throw new Error(`Client ${clientId} not found`);
@@ -395,7 +388,6 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
       email: sourceClient.email,
       practiceId: toPracticeId,
       treatingProviderId: targetProviderId || "",
-      insuranceRegion: sourceClient.insuranceRegion,
       referredFromClientId: clientId,
     };
     setClients((prev) => [...prev, newClient]);
@@ -461,7 +453,6 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         canViewIntakeResponse,
         clientTreatingProviders,
         reassignClient,
-        updateClientInsuranceRegion,
         addClient,
         setClients,
         referClient,

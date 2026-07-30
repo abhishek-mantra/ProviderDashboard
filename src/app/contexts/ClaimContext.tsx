@@ -1,16 +1,19 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import type { Claim, ClaimStatus, ClaimStatusEvent, ClaimRegion, ClaimFlowType, ServiceLine, EligibilityCheck } from "../types/claims";
-import { generateClaimNumber } from "../types/claims";
+import type { Claim, ClaimStatus, ClaimStatusEvent, ClaimFlowType, ServiceLine, UnbilledSession, FeeScheduleEntry } from "../types/claims";
+import { generateClaimNumber, getMockUnbilledSessions, MOCK_FEE_SCHEDULE, getFeeForService } from "../types/claims";
 
 interface ClaimContextType {
   claims: Claim[];
+  unbilledSessions: UnbilledSession[];
   addClaim: (claim: Claim) => void;
   updateClaimStatus: (claimId: string, status: ClaimStatus, note?: string) => void;
   updateClaim: (claimId: string, updates: Partial<Claim>) => void;
   getClaim: (claimId: string) => Claim | undefined;
+  markSessionsBilled: (sessionIds: string[]) => void;
+  unmarkSessionsBilled: (sessions: UnbilledSession[]) => void;
+  signAndLockSession: (sessionId: string, diagnosisCode: string, cptCode: string) => void;
   createNewClaim: (params: {
     flowType: ClaimFlowType;
-    region: ClaimRegion;
     clientId: string;
     clientName: string;
     providerId: string;
@@ -20,6 +23,9 @@ interface ClaimContextType {
     serviceLines?: ServiceLine[];
     diagnosisCodes?: string[];
   }) => Claim;
+  feeSchedule: FeeScheduleEntry[];
+  updateFeeSchedule: (entry: FeeScheduleEntry) => void;
+  getFeeForService: (cptCode: string) => number;
 }
 
 const ClaimContext = createContext<ClaimContextType | undefined>(undefined);
@@ -30,7 +36,6 @@ function createInitialClaims(): Claim[] {
       id: "seed-1",
       claimNumber: "CLM-2026-001",
       flowType: "mantra",
-      region: "US",
       status: "approved",
       clientId: "1",
       clientName: "Sarah Johnson",
@@ -38,6 +43,7 @@ function createInitialClaims(): Claim[] {
       providerId: "prov-1",
       payerId: "us-1",
       payerName: "UnitedHealthcare",
+      region: "US",
       sessionIds: ["sess-1-1", "sess-1-2"],
       diagnosisCodes: ["F41.1"],
       serviceLines: [
@@ -73,7 +79,6 @@ function createInitialClaims(): Claim[] {
       id: "seed-2",
       claimNumber: "CLM-2026-002",
       flowType: "mantra",
-      region: "US",
       status: "pending_with_payer",
       clientId: "2",
       clientName: "Michael Chen",
@@ -81,6 +86,7 @@ function createInitialClaims(): Claim[] {
       providerId: "prov-1",
       payerId: "us-2",
       payerName: "Cigna",
+      region: "US",
       sessionIds: ["sess-2-1"],
       diagnosisCodes: ["F32.9"],
       serviceLines: [
@@ -114,7 +120,6 @@ function createInitialClaims(): Claim[] {
       id: "seed-3",
       claimNumber: "CLM-2026-003",
       flowType: "mantra",
-      region: "US",
       status: "denied",
       clientId: "5",
       clientName: "Olivia Brown",
@@ -122,6 +127,7 @@ function createInitialClaims(): Claim[] {
       providerId: "prov-1",
       payerId: "us-4",
       payerName: "Blue Cross Blue Shield",
+      region: "US",
       sessionIds: ["sess-5-1"],
       diagnosisCodes: ["F41.9"],
       serviceLines: [
@@ -155,7 +161,6 @@ function createInitialClaims(): Claim[] {
       id: "seed-4",
       claimNumber: "CLM-2026-047",
       flowType: "manual",
-      region: "US",
       status: "manual_generated",
       clientId: "4",
       clientName: "David Martinez",
@@ -163,6 +168,7 @@ function createInitialClaims(): Claim[] {
       providerId: "prov-admin",
       payerId: null,
       payerName: null,
+      region: "US",
       sessionIds: ["sess-4-1"],
       diagnosisCodes: ["F43.22"],
       serviceLines: [
@@ -184,7 +190,6 @@ function createInitialClaims(): Claim[] {
       id: "seed-5",
       claimNumber: "CLM-2026-099",
       flowType: "mantra",
-      region: "US",
       status: "approved",
       clientId: "8",
       clientName: "Aisha Patel",
@@ -192,6 +197,7 @@ function createInitialClaims(): Claim[] {
       providerId: "prov-5",
       payerId: "us-1",
       payerName: "UnitedHealthcare",
+      region: "US",
       sessionIds: ["sess-8-1"],
       diagnosisCodes: ["F41.1"],
       serviceLines: [
@@ -224,6 +230,8 @@ function createInitialClaims(): Claim[] {
 
 export function ClaimProvider({ children }: { children: ReactNode }) {
   const [claims, setClaims] = useState<Claim[]>(createInitialClaims);
+  const [unbilledSessions, setUnbilledSessions] = useState<UnbilledSession[]>(getMockUnbilledSessions);
+  const [feeSchedule, setFeeSchedule] = useState<FeeScheduleEntry[]>(MOCK_FEE_SCHEDULE);
 
   const addClaim = useCallback((claim: Claim) => {
     setClaims((prev) => [...prev, claim]);
@@ -257,14 +265,38 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getClaim = useCallback(
-    (claimId: string) => claims.find((c) => c.id === claimId),
+    (claimId: string) => claims.find((c) => c.id === claimId || c.claimNumber === claimId),
     [claims]
   );
+
+  const markSessionsBilled = useCallback((sessionIds: string[]) => {
+    setUnbilledSessions((prev) =>
+      prev.filter((s) => !sessionIds.includes(s.id))
+    );
+  }, []);
+
+  const unmarkSessionsBilled = useCallback((sessions: UnbilledSession[]) => {
+    setUnbilledSessions((prev) => {
+      const existingIds = new Set(prev.map((s) => s.id));
+      const toAdd = sessions.filter((s) => !existingIds.has(s.id));
+      if (toAdd.length === 0) return prev;
+      return [...prev, ...toAdd];
+    });
+  }, []);
+
+  const signAndLockSession = useCallback((sessionId: string, diagnosisCode: string, cptCode: string) => {
+    setUnbilledSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, notesStatus: "locked" as const, diagnosisCode, cptCode }
+          : s
+      )
+    );
+  }, []);
 
   const createNewClaim = useCallback(
     (params: {
       flowType: ClaimFlowType;
-      region: ClaimRegion;
       clientId: string;
       clientName: string;
       practiceId?: string;
@@ -276,19 +308,6 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
       diagnosisCodes?: string[];
     }) => {
       const now = new Date().toISOString();
-      const currencyMap: Record<ClaimRegion, "USD" | "GBP" | "CAD" | "AED"> = {
-        US: "USD",
-        UK: "GBP",
-        CA: "CAD",
-        AE: "AED",
-      };
-      const defaultServiceCodes: Record<ClaimRegion, string> = {
-        US: "90834",
-        UK: "MH001",
-        CA: "1.xx.12",
-        AE: "90834",
-      };
-
       const finalServiceLines: ServiceLine[] =
         params.serviceLines && params.serviceLines.length > 0
           ? params.serviceLines
@@ -296,20 +315,18 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
               id: `sl-${Date.now()}-${idx}`,
               sessionId,
               dateOfService: new Date().toISOString().split("T")[0],
-              serviceCode: defaultServiceCodes[params.region] || "90834",
+              serviceCode: "90834",
               units: 1,
               chargeAmount: 100,
             }));
 
       const totalAmount = finalServiceLines.reduce((sum, sl) => sum + sl.chargeAmount, 0);
-
       const targetPracticeId = params.practiceId || "practice-1";
 
       const newClaim: Claim = {
         id: `claim-${Date.now()}`,
         claimNumber: generateClaimNumber(),
         flowType: params.flowType,
-        region: params.region,
         status: "draft",
         clientId: params.clientId,
         clientName: params.clientName,
@@ -317,6 +334,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         providerId: params.providerId,
         payerId: params.payerId || null,
         payerName: params.payerName || null,
+        region: "US",
         sessionIds: params.sessionIds || [],
         diagnosisCodes: params.diagnosisCodes || [],
         serviceLines: finalServiceLines,
@@ -325,7 +343,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         submittedDate: null,
         statusHistory: [{ status: "draft", timestamp: now }],
         totalAmount,
-        currency: currencyMap[params.region],
+        currency: "USD",
         createdAt: now,
         updatedAt: now,
       };
@@ -335,9 +353,21 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
     [addClaim]
   );
 
+  const updateFeeScheduleEntry = useCallback((entry: FeeScheduleEntry) => {
+    setFeeSchedule((prev) => {
+      const idx = prev.findIndex((e) => e.cptCode === entry.cptCode);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = entry;
+        return next;
+      }
+      return [...prev, entry];
+    });
+  }, []);
+
   return (
     <ClaimContext.Provider
-      value={{ claims, addClaim, updateClaimStatus, updateClaim, getClaim, createNewClaim }}
+      value={{ claims, unbilledSessions, addClaim, updateClaimStatus, updateClaim, getClaim, markSessionsBilled, unmarkSessionsBilled, signAndLockSession, createNewClaim, feeSchedule, updateFeeSchedule: updateFeeScheduleEntry, getFeeForService }}
     >
       {children}
     </ClaimContext.Provider>

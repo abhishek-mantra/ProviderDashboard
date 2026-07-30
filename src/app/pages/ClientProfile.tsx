@@ -63,8 +63,10 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const [showReferModal, setShowReferModal] = useState(false);
   const [targetPracticeId, setTargetPracticeId] = useState("");
   const [targetProviderId, setTargetProviderId] = useState("");
+  const [editingDiagnosis, setEditingDiagnosis] = useState(false);
+  const [diagnosisDraft, setDiagnosisDraft] = useState("");
   const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, practiceMembers, currentPracticeId, referClient, getLinkedClientRecords } = usePartnerDashboard();
+  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, practiceMembers, currentPracticeId, referClient, getLinkedClientRecords, setClients } = usePartnerDashboard();
 
   const clientRecord = clients.find((item) => item.id === id) || clients[0];
   const linkedRecords = getLinkedClientRecords(id || "");
@@ -94,6 +96,15 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
       language: "English",
       location: "United Kingdom"
     }
+  };
+
+  const handleSaveDiagnosis = (code: string) => {
+    if (id) {
+      setClients((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, diagnosisCode: code || null } : c))
+      );
+    }
+    setEditingDiagnosis(false);
   };
 
   const actionButtons: ActionButton[] = [
@@ -158,6 +169,11 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
       icon: ClipboardList,
       label: "Intake Forms",
       onClick: () => navigate(`/intake-forms?tab=entries&search=${encodeURIComponent(client?.name || "")}`)
+    },
+    {
+      icon: ShieldCheck,
+      label: "New Claim",
+      onClick: () => navigate(`/billing/unbilled?clientId=${id}`)
     }
   ];
 
@@ -363,6 +379,17 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                   )}
                 </div>
               )}
+
+              {/* Real-Time Insurance Eligibility Badge */}
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm">
+                  <ShieldCheck className="size-3.5 text-emerald-600" />
+                  <span>🟢 Active Coverage • BlueCross BlueShield</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  $25 Copay • $500 Deductible
+                </span>
+              </div>
               {/* Additional info for InactiveOnboarded clients */}
               {client.type === "InactiveOnboarded" && (
                 <div className="space-y-2 mt-2">
@@ -661,6 +688,53 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                   <span className="text-xs md:text-sm text-[#043570] dark:text-[#00c0ff] font-semibold">{client.summary.location}</span>
                 </div>
               </div>
+
+              {/* Diagnosis Code */}
+              <div className="pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold text-gray-900 dark:text-white">Diagnosis Code:</span>
+                  </span>
+                  {editingDiagnosis ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={diagnosisDraft}
+                        onChange={(e) => setDiagnosisDraft(e.target.value)}
+                        className="w-32 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="e.g. F41.1"
+                      />
+                      <button
+                        onClick={() => handleSaveDiagnosis(diagnosisDraft)}
+                        className="px-2 py-1 text-xs font-medium text-white bg-[#00c0ff] rounded hover:bg-[#00a0d0]"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingDiagnosis(false)}
+                        className="px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs md:text-sm font-mono text-[#043570] dark:text-[#00c0ff] font-semibold">
+                        {clientRecord.diagnosisCode || "—"}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setDiagnosisDraft(clientRecord.diagnosisCode || "");
+                          setEditingDiagnosis(true);
+                        }}
+                        className="text-xs text-[#00c0ff] hover:text-[#043570] dark:hover:text-white transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div> : (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300">
@@ -698,7 +772,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                   const iconColors = [
                     'text-blue-600', 'text-amber-600', 'text-pink-600', 'text-green-600',
                     'text-orange-600', 'text-cyan-600', 'text-purple-600', 'text-blue-600',
-                    'text-green-600', 'text-blue-500', 'text-emerald-600',
+                    'text-green-600', 'text-blue-500', 'text-emerald-600', 'text-cyan-600',
                   ];
                   const hoverColors = [
                     'hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
@@ -712,6 +786,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                     'hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20',
                     'hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20',
                     'hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
+                    'hover:border-cyan-300 dark:hover:border-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/20',
                   ];
                   return (
                     <button

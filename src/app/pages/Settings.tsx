@@ -5,6 +5,7 @@ import {
   CreditCard,
   Bell,
   Building2,
+  Tag,
   Settings as SettingsIcon
 } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
@@ -21,6 +22,7 @@ export function Settings() {
     { path: "/settings/availability", label: "Availability", icon: Calendar },
     { path: "/settings/notifications", label: "Notifications", icon: Bell },
     { path: "/settings/billing/plans", label: "Subscription", icon: CreditCard },
+    { path: "/settings/fee-schedule", label: "Fee Schedule", icon: Tag },
   ];
 
   const establishmentNavItems = [

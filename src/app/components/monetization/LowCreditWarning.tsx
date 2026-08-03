@@ -14,8 +14,7 @@ export function LowCreditWarning({ creditsRemaining, sessionsRemaining }: LowCre
         <div className="text-[11px] text-[#633806] leading-relaxed">
           You have {creditsRemaining} credits left — enough for {sessionsRemaining} more session{sessionsRemaining !== 1 ? 's' : ''}.{" "}
           <Link
-            to="/billing"
-            state={{ tab: "credits" }}
+            to="/settings/billing"
             className="text-[#1EAAE7] underline hover:text-[#1899d6]"
           >
             Top up

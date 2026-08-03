@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { X, ChevronLeft, Plus, Video, MessageSquare, MapPin, Monitor, Search, ChevronDown, Clock, ThumbsUp, Calendar, AlertCircle, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, Plus, Video, MessageSquare, MapPin, Monitor, Search, ChevronDown, Clock, ThumbsUp, Calendar, AlertCircle, ChevronRight, Stethoscope, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
+import { useClaims } from "../contexts/ClaimContext";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
 interface Client {
   id: string;
@@ -24,6 +26,8 @@ interface AddAppointmentModalProps {
     time: string;
     sessionType: "video" | "chat" | "in-person";
     location: string;
+    cptCode?: string;
+    fee?: number;
   }) => void;
   preselectedClient?: {
     id: string;
@@ -54,6 +58,12 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
   const [getReminderCall, setGetReminderCall] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [addAITranscriber, setAddAITranscriber] = useState(true);
+
+  // Fix 5 — billing intent captured at scheduling time (CPT + fee + insurance nudge)
+  const { feeSchedule } = useClaims();
+  const { clients: partnerClients } = usePartnerDashboard();
+  const [selectedCptCode, setSelectedCptCode] = useState("");
+  const [selectedFee, setSelectedFee] = useState<number>(0);
 
   // New client form
   const [newClientFirstName, setNewClientFirstName] = useState("");
@@ -135,6 +145,10 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
     client.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const selectedClientInsurance = selectedClient
+    ? partnerClients.find((c) => c.id === selectedClient.id)?.insuranceCompany
+    : undefined;
+
   // Auto-navigate to schedule step if client is preselected
   useEffect(() => {
     if (preselectedClient && isOpen) {
@@ -163,6 +177,12 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
     } else {
       setAddAITranscriber(true);
     }
+  };
+
+  const handleCptCodeSelect = (cptCode: string) => {
+    setSelectedCptCode(cptCode);
+    const entry = feeSchedule.find((f) => f.cptCode === cptCode);
+    setSelectedFee(entry?.providerRate ?? 0);
   };
 
   const handleContinueFromClient = () => {
@@ -238,6 +258,8 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
         time: selectedTime,
         sessionType,
         location: location === "enterAddress" ? customAddress : location,
+        cptCode: selectedCptCode || undefined,
+        fee: selectedFee || undefined,
       });
       setStep("success");
     }
@@ -257,6 +279,8 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
     setNewClientEmail("");
     setGetReminderCall(false);
     setAddAITranscriber(false);
+    setSelectedCptCode("");
+    setSelectedFee(0);
     onClose();
   };
 
@@ -630,7 +654,10 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSessionType("video")}
+                        onClick={() => {
+                          setSessionType("video");
+                          setLocation("online");
+                        }}
                         className={`py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
                           sessionType === "video"
                             ? "bg-[#00c0ff] text-white shadow-sm"
@@ -643,7 +670,10 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSessionType("chat")}
+                        onClick={() => {
+                          setSessionType("chat");
+                          setLocation("online");
+                        }}
                         className={`py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
                           sessionType === "chat"
                             ? "bg-[#00c0ff] text-white shadow-sm"
@@ -679,29 +709,170 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, presele
                     <label className="block text-gray-900 dark:text-white font-medium mb-4">
                       Location
                     </label>
-                    <select
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white"
-                    >
-                      <option value="online">Online</option>
-                      <option value="Practice Address A/10 Paschim Vihar">Practice Address A/10 Paschim Vihar</option>
-                      <option value="Practice Address B/20 Noida">Practice Address B/20 Noida</option>
-                      <option value="enterAddress">Enter Address</option>
-                    </select>
-                    {location === "enterAddress" && (
-                      <motion.input
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        type="text"
-                        value={customAddress}
-                        onChange={(e) => setCustomAddress(e.target.value)}
-                        placeholder="Enter location"
-                        className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white placeholder-gray-400 mt-2"
-                      />
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {sessionType === "in-person" ? (
+                        <motion.div
+                          key="location-select"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <select
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white"
+                          >
+                            <option value="online">Online</option>
+                            <option value="Practice Address A/10 Paschim Vihar">Practice Address A/10 Paschim Vihar</option>
+                            <option value="Practice Address B/20 Noida">Practice Address B/20 Noida</option>
+                            <option value="enterAddress">Enter Address</option>
+                          </select>
+                          <AnimatePresence>
+                            {location === "enterAddress" && (
+                              <motion.input
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                type="text"
+                                value={customAddress}
+                                onChange={(e) => setCustomAddress(e.target.value)}
+                                placeholder="Enter location"
+                                className="w-full px-4 py-3 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white placeholder-gray-400 mt-2"
+                              />
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="location-online"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg">
+                            <Monitor className="size-4 text-gray-400" />
+                            <span className="text-gray-700 dark:text-gray-300">
+                              {sessionType === "video" ? "Video session — online" : "Chat session — online"}
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
+
+                  {/* Services — CPT + Fee (defaults from Fee Schedule) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.26 }}
+                    className="mb-6"
+                  >
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Stethoscope className="size-4 text-[#00c0ff]" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Services
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            CPT Code
+                          </label>
+                          <select
+                            value={selectedCptCode}
+                            onChange={(e) => handleCptCodeSelect(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-sm"
+                          >
+                            <option value="">Select CPT code…</option>
+                            {feeSchedule.map((entry) => (
+                              <option key={entry.cptCode} value={entry.cptCode}>
+                                {entry.cptCode} — {entry.description}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Fee ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={selectedFee || ""}
+                            onChange={(e) => setSelectedFee(Number(e.target.value))}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] dark:text-white text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Billing — insurance status */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.27 }}
+                    className="mb-6"
+                  >
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CreditCard className="size-4 text-[#00c0ff]" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Billing
+                        </label>
+                      </div>
+                      {selectedClientInsurance ? (
+                        <div className="flex items-center gap-2.5 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                          <CreditCard className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+                            Client has <span className="font-bold">{selectedClientInsurance}</span> on file —
+                            billing can be routed to insurance at Sign &amp; Lock.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl">
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-800 dark:text-amber-200">
+                              Client does not have insurance info — update their profile after creating this session.
+                            </p>
+                          </div>
+                          <Link
+                            to={`/clients/${selectedClient?.id}`}
+                            onClick={onClose}
+                            className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline"
+                          >
+                            Update profile <ChevronRight className="size-3.5" />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* Appointment total */}
+                  {selectedFee > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.28 }}
+                      className="mb-6"
+                    >
+                      <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
+                        <div className="flex items-center justify-between p-4 bg-[#043570] dark:bg-[#043570] rounded-xl">
+                          <span className="text-sm font-semibold text-white">Appointment total</span>
+                          <span className="text-lg font-bold text-white tabular-nums">
+                            ${selectedFee.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* AI Transcriber Checkbox */}
                   {sessionType !== "in-person" && (

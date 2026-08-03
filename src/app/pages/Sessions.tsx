@@ -6,6 +6,9 @@ import { MissedSessionModal } from "../components/MissedSessionModal";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast, Toaster } from "sonner";
+import { useClaims } from "../contexts/ClaimContext";
+import { findPayerForClient } from "../types/claims";
+import { mockClients } from "../data/mockPartnerData";
 
 interface Session {
   id: string;
@@ -25,6 +28,8 @@ interface Session {
   aiNotetakerEnabled?: boolean;
   requestedDateFull?: string;
   credits?: number;
+  cptCode?: string;
+  fee?: number;
 }
 
 interface TranscriptEntry {
@@ -37,6 +42,7 @@ export function Sessions() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clientParam = searchParams.get("client");
+  const { addUnbilledSession } = useClaims();
   
   const [activeTab, setActiveTab] = useState<"upcoming" | "done" | "pending" | "all">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,6 +116,8 @@ export function Sessions() {
     time: string;
     sessionType: "video" | "chat" | "in-person";
     location: "online" | "offline";
+    cptCode?: string;
+    fee?: number;
   }) => {
     // Get avatar from client name
     const avatar = appointment.clientName
@@ -128,7 +136,30 @@ export function Sessions() {
       status: "upcoming",
       avatar: avatar,
       platform: appointment.location === "online" ? "Online" : "Offline",
+      cptCode: appointment.cptCode,
+      fee: appointment.fee,
     };
+
+    // Register into ClaimContext so the CPT/fee captured here reaches Sign & Lock.
+    const clientRecord = mockClients.find((c) => c.id === appointment.clientId);
+    const appointmentPayer = findPayerForClient(clientRecord || undefined);
+    addUnbilledSession({
+      id: newSession.id,
+      clientId: appointment.clientId,
+      clientName: appointment.clientName,
+      dateOfService: appointment.date,
+      payerId: appointmentPayer?.id || "self-pay",
+      payerName: appointmentPayer?.name || clientRecord?.insuranceCompany || "Self-Pay",
+      serviceType: appointment.service,
+      duration: "45 min",
+      notesStatus: "draft",
+      notesId: null,
+      cptCode: appointment.cptCode || "",
+      diagnosisCode: "",
+      amount: appointment.fee || 0,
+      daysSinceService: 0,
+      selected: false,
+    });
 
     // Add to sessions list
     setSessions([newSession, ...sessions]);
@@ -144,8 +175,10 @@ export function Sessions() {
     date: string;
     startTime: string;
     endTime: string;
-    sessionType: "video" | "chat";
+    sessionType: "video" | "chat" | "in-person";
     location: string;
+    cptCode?: string;
+    fee?: number;
   }) => {
     // Get avatar from client name
     const avatar = session.clientName
@@ -167,7 +200,30 @@ export function Sessions() {
       status: "done",
       avatar: avatar,
       platform: session.location,
+      cptCode: session.cptCode,
+      fee: session.fee,
     };
+
+    // Register into ClaimContext so the CPT/fee captured here reaches Sign & Lock.
+    const clientRecord = mockClients.find((c) => c.id === session.clientId);
+    const pastPayer = findPayerForClient(clientRecord || undefined);
+    addUnbilledSession({
+      id: newSession.id,
+      clientId: session.clientId,
+      clientName: session.clientName,
+      dateOfService: session.date,
+      payerId: pastPayer?.id || "self-pay",
+      payerName: pastPayer?.name || clientRecord?.insuranceCompany || "Self-Pay",
+      serviceType: session.service,
+      duration: duration,
+      notesStatus: "draft",
+      notesId: null,
+      cptCode: session.cptCode || "",
+      diagnosisCode: "",
+      amount: session.fee || 0,
+      daysSinceService: 0,
+      selected: false,
+    });
 
     // Add to sessions list
     setSessions([newSession, ...sessions]);

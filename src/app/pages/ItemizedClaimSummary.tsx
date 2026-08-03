@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Download, ShieldCheck, Building2, FileCheck } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
+import { useGoBack } from "../utils/useGoBack";
 import { getCurrencySymbol } from "../types/claims";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 
@@ -17,20 +18,14 @@ export function ItemizedClaimSummary() {
       : undefined;
   const currentProvider = providers.find((p) => p.id === currentProviderId) || providers[0];
 
-  const handleBack = () => {
-    if (claim) {
-      navigate(`/claims/${claim.id}`);
-    } else {
-      navigate("/insurance?tab=claims");
-    }
-  };
+  const handleBack = useGoBack(claim ? `/claims/${claim.id}` : "/billing/bills");
 
   if (!claim) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Claim Not Found</h1>
-          <button onClick={() => navigate("/insurance?tab=claims")} className="text-[#043570] hover:underline font-bold">Back to Claims</button>
+          <button onClick={() => navigate("/billing/bills")} className="text-[#043570] hover:underline font-bold">Back to Claims</button>
         </div>
       </div>
     );

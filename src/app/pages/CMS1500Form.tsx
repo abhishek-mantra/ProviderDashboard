@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { useParams } from "react-router";
 import { ArrowLeft, Download } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useGoBack } from "../utils/useGoBack";
 
 interface CMS1500Data {
   payerId: string;
@@ -174,7 +175,6 @@ function createEmptyData(): CMS1500Data {
 }
 
 export function CMS1500Form() {
-  const navigate = useNavigate();
   const { claimId } = useParams();
   const { providers, clients, currentProviderId } = usePartnerDashboard();
   const { claims, updateClaim } = useClaims();
@@ -260,15 +260,27 @@ export function CMS1500Form() {
     window.print();
   };
 
-  const location = useLocation();
-
-  const handleBack = () => {
-    if (rawClaim) {
-      navigate(`/claims/${rawClaim.id}`, { state: { from: location.state?.from } });
-    } else {
-      navigate("/billing?tab=insurance&subtab=claims");
-    }
+  // Persist edits back to the claim so corrections made on the CMS-1500 are not lost.
+  const handleSaveEdits = () => {
+    if (!rawClaim) return;
+    updateClaim(rawClaim.id, {
+      diagnosisCodes: [
+        data.diagnosisA, data.diagnosisB, data.diagnosisC, data.diagnosisD,
+        data.diagnosisE, data.diagnosisF, data.diagnosisG, data.diagnosisH,
+      ].filter(Boolean),
+      authorizationCode: data.priorAuthNumber || undefined,
+      serviceLines: rawClaim.serviceLines.map((sl, i) => ({
+        ...sl,
+        dateOfService: data.serviceLines[i]?.dateFrom || sl.dateOfService,
+        serviceCode: data.serviceLines[i]?.cpt || sl.serviceCode,
+        modifiers: data.serviceLines[i]?.modifier ? (data.serviceLines[i].modifier?.split(",").filter(Boolean) as typeof sl.modifiers) : sl.modifiers,
+        units: Number(data.serviceLines[i]?.daysUnits) || sl.units,
+        chargeAmount: parseFloat(data.serviceLines[i]?.charges?.replace("$", "") || String(sl.chargeAmount)),
+      })),
+    });
   };
+
+  const handleBack = useGoBack(rawClaim ? `/claims/${rawClaim.id}` : "/billing/bills");
 
   const inputClass = "w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#4169E1]";
   const cellClass = "text-[9px] font-semibold text-[#0a0a0a] dark:text-gray-200 mb-0.5";
@@ -771,6 +783,9 @@ export function CMS1500Form() {
                 Back to Claim Details
               </button>
               <div className="flex items-center gap-3">
+                <button onClick={handleSaveEdits} className="flex items-center gap-2 px-6 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-medium transition-colors">
+                  Save Changes
+                </button>
                 <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl font-medium transition-colors">
                   <Download className="size-4" />
                   Print / Download PDF

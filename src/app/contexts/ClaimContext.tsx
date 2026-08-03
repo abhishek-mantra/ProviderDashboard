@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { Claim, ClaimStatus, ClaimStatusEvent, ClaimFlowType, ServiceLine, UnbilledSession, FeeScheduleEntry } from "../types/claims";
-import { generateClaimNumber, getMockUnbilledSessions, MOCK_FEE_SCHEDULE, getFeeForService } from "../types/claims";
+import { generateClaimNumber, generatePatientControlNumber, generatePccn, computeClaimFrequencyCode, getMockUnbilledSessions, MOCK_FEE_SCHEDULE, getFeeForService } from "../types/claims";
+import { generateId } from "../utils/id";
 
 interface ClaimContextType {
   claims: Claim[];
@@ -11,6 +12,7 @@ interface ClaimContextType {
   getClaim: (claimId: string) => Claim | undefined;
   markSessionsBilled: (sessionIds: string[]) => void;
   unmarkSessionsBilled: (sessions: UnbilledSession[]) => void;
+  addUnbilledSession: (session: UnbilledSession) => void;
   signAndLockSession: (sessionId: string, diagnosisCode: string, cptCode: string) => void;
   createNewClaim: (params: {
     flowType: ClaimFlowType;
@@ -23,6 +25,12 @@ interface ClaimContextType {
     serviceLines?: ServiceLine[];
     diagnosisCodes?: string[];
   }) => Claim;
+  // Part 4a — real clearinghouse submission & adjudication simulation.
+  simulateClearinghouseSubmission: (claimId: string) => void;
+  simulatePayerAdjudication: (claimId: string) => void;
+  reopenForResubmission: (claimId: string) => void;
+  // Part 4i — mock eligibility response with distinct failure modes.
+  runEligibilityCheck: (claimId: string, outcome: "confirmed" | "transient_outage" | "data_mismatch" | "no_coverage") => void;
   feeSchedule: FeeScheduleEntry[];
   updateFeeSchedule: (entry: FeeScheduleEntry) => void;
   getFeeForService: (cptCode: string) => number;
@@ -59,6 +67,13 @@ function createInitialClaims(): Claim[] {
         deductibleRemaining: 500,
         authorizationRequired: false,
         rawNote: "[MOCK] Coverage active. Copay: $30. Deductible remaining: $500.",
+        benefitEstimate: {
+          copayAmount: 30,
+          coinsuranceRate: null,
+          deductibleRemaining: 500,
+          behavioralHealthCarveoutNote:
+            "This plan may carve out behavioral health to a separate administrator (e.g., BCBS → Magellan). Pre-visit estimate is best-available signal, not a guarantee.",
+        },
       },
       authorizationCode: null,
       submittedDate: "2026-02-25T10:00:00Z",
@@ -72,6 +87,11 @@ function createInitialClaims(): Claim[] {
       ],
       totalAmount: 300,
       currency: "USD",
+      pccn: "PCCN-1000001",
+      claimFrequencyCode: "7",
+      patientControlNumber: "PCN-SEED1A2B3C4D5E6F7",
+      isMedicare: false,
+      payment: null,
       createdAt: "2026-02-10T09:00:00Z",
       updatedAt: "2026-03-01T14:00:00Z",
     },
@@ -101,6 +121,11 @@ function createInitialClaims(): Claim[] {
         deductibleRemaining: 200,
         authorizationRequired: false,
         rawNote: "[MOCK] Coverage active. Copay: $25.",
+        benefitEstimate: {
+          copayAmount: 25,
+          coinsuranceRate: 20,
+          deductibleRemaining: 200,
+        },
       },
       authorizationCode: null,
       submittedDate: "2026-03-12T10:00:00Z",
@@ -113,6 +138,11 @@ function createInitialClaims(): Claim[] {
       ],
       totalAmount: 120,
       currency: "USD",
+      pccn: null,
+      claimFrequencyCode: "1",
+      patientControlNumber: "PCN-SEED2F3G4H5I6J7K8L",
+      isMedicare: false,
+      payment: null,
       createdAt: "2026-03-08T09:00:00Z",
       updatedAt: "2026-03-12T10:05:00Z",
     },
@@ -142,6 +172,11 @@ function createInitialClaims(): Claim[] {
         deductibleRemaining: 100,
         authorizationRequired: false,
         rawNote: "[MOCK] Coverage active. Copay: $20.",
+        benefitEstimate: {
+          copayAmount: 20,
+          coinsuranceRate: 10,
+          deductibleRemaining: 100,
+        },
       },
       authorizationCode: null,
       submittedDate: "2026-03-05T10:00:00Z",
@@ -154,6 +189,11 @@ function createInitialClaims(): Claim[] {
       ],
       totalAmount: 85,
       currency: "USD",
+      pccn: "PCCN-1000003",
+      claimFrequencyCode: "7",
+      patientControlNumber: "PCN-SEED3L4M5N6O7P8Q9R",
+      isMedicare: false,
+      payment: null,
       createdAt: "2026-03-01T09:00:00Z",
       updatedAt: "2026-03-10T14:00:00Z",
     },
@@ -174,7 +214,17 @@ function createInitialClaims(): Claim[] {
       serviceLines: [
         { id: "sl-5", sessionId: "sess-4-1", dateOfService: "Feb 26, 2026", serviceCode: "90834", units: 1, chargeAmount: 110 },
       ],
-      eligibilityCheck: null,
+      eligibilityCheck: {
+        requestedAt: "2026-02-27T10:00:00Z",
+        status: "failed",
+        responseAt: "2026-02-27T10:03:00Z",
+        coverageActive: null,
+        copayAmount: null,
+        deductibleRemaining: null,
+        authorizationRequired: false,
+        failureMode: "data_mismatch",
+        rawNote: "[MOCK] Subscriber name/DOB do not match payer record (Sarah J vs Sarah Jane). Correct the flagged field and retry.",
+      },
       authorizationCode: null,
       submittedDate: "2026-02-28T10:00:00Z",
       statusHistory: [
@@ -183,6 +233,11 @@ function createInitialClaims(): Claim[] {
       ],
       totalAmount: 110,
       currency: "USD",
+      pccn: null,
+      claimFrequencyCode: "1",
+      patientControlNumber: "PCN-SEED4R5S6T7U8V9W0X",
+      isMedicare: false,
+      payment: null,
       createdAt: "2026-02-26T09:00:00Z",
       updatedAt: "2026-02-28T10:00:00Z",
     },
@@ -222,6 +277,11 @@ function createInitialClaims(): Claim[] {
       ],
       totalAmount: 180,
       currency: "USD",
+      pccn: "PCCN-1000005",
+      claimFrequencyCode: "7",
+      patientControlNumber: "PCN-SEED5X6Y7Z8A9B0C1D",
+      isMedicare: false,
+      payment: null,
       createdAt: "2026-03-14T09:00:00Z",
       updatedAt: "2026-03-20T14:00:00Z",
     },
@@ -284,6 +344,12 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addUnbilledSession = useCallback((session: UnbilledSession) => {
+    setUnbilledSessions((prev) =>
+      prev.some((s) => s.id === session.id) ? prev : [...prev, session]
+    );
+  }, []);
+
   const signAndLockSession = useCallback((sessionId: string, diagnosisCode: string, cptCode: string) => {
     setUnbilledSessions((prev) =>
       prev.map((s) =>
@@ -312,7 +378,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         params.serviceLines && params.serviceLines.length > 0
           ? params.serviceLines
           : (params.sessionIds || []).map((sessionId, idx) => ({
-              id: `sl-${Date.now()}-${idx}`,
+              id: generateId("sl"),
               sessionId,
               dateOfService: new Date().toISOString().split("T")[0],
               serviceCode: "90834",
@@ -324,7 +390,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
       const targetPracticeId = params.practiceId || "practice-1";
 
       const newClaim: Claim = {
-        id: `claim-${Date.now()}`,
+        id: generateId("claim"),
         claimNumber: generateClaimNumber(),
         flowType: params.flowType,
         status: "draft",
@@ -344,6 +410,11 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         statusHistory: [{ status: "draft", timestamp: now }],
         totalAmount,
         currency: "USD",
+        pccn: null,
+        claimFrequencyCode: "1",
+        patientControlNumber: generatePatientControlNumber(),
+        isMedicare: false,
+        payment: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -351,6 +422,282 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
       return newClaim;
     },
     [addClaim]
+  );
+
+  // Part 4a — real clearinghouse flow. submission → awaiting_ack → Stedi edit
+  // validation → (stedi_rejected | sent_to_payer → payer_rejected |
+  // in_adjudication with PCCN). Timed to feel like real async processing.
+  const simulateClearinghouseSubmission = useCallback((claimId: string) => {
+    const stage = (c: Claim, status: ClaimStatus, note?: string, extra: Partial<Claim> = {}) => {
+      setClaims((prev) =>
+        prev.map((x) => {
+          if (x.id !== c.id) return x;
+          const event: ClaimStatusEvent = {
+            status,
+            timestamp: new Date().toISOString(),
+            ...(note ? { note } : {}),
+          };
+          return { ...x, ...extra, status, statusHistory: [...x.statusHistory, event], updatedAt: new Date().toISOString() };
+        })
+      );
+    };
+
+    // Pull the latest claim state at each step so staging is accurate.
+    const current = () => claims.find((c) => c.id === claimId);
+
+    updateClaimStatus(claimId, "submitted", "[MOCK] Claim accepted by clearinghouse.");
+    setTimeout(() => {
+      updateClaimStatus(claimId, "awaiting_ack", "[MOCK] 0-3 days: awaiting payer acknowledgment. Status checks disabled.");
+    }, 900);
+    setTimeout(() => {
+      updateClaimStatus(claimId, "stedi_validating", "[MOCK] Running Stedi edit validation (SNIP Level 3-5)...");
+    }, 2400);
+    setTimeout(() => {
+      const c = current();
+      if (!c) return;
+      // ~15% of submissions fail edit validation and never reach the payer.
+      if (Math.random() < 0.15) {
+        stage(c, "stedi_rejected", "[MOCK] Edit failure: unbalanced totals / invalid code — never reached the payer.");
+        return;
+      }
+      stage(c, "sent_to_payer", "[MOCK] Claim passed edits; transmitted to payer.");
+    }, 4200);
+    setTimeout(() => {
+      const c = current();
+      if (!c || c.status !== "sent_to_payer") return;
+      if (Math.random() < 0.15) {
+        stage(c, "payer_rejected", "[MOCK] Pre-adjudication rejection: payer could not accept claim.");
+        return;
+      }
+      // The real pivot point — PCCN assigned once the payer opens adjudication.
+      stage(c, "in_adjudication", "[MOCK] Payer assigned PCCN; claim in adjudication.", {
+        pccn: generatePccn(),
+        claimFrequencyCode: computeClaimFrequencyCode(null, c.isMedicare),
+      });
+    }, 6000);
+  }, [claims, updateClaimStatus]);
+
+  // Part 4a/4d — post-adjudication result via a mocked 835 equivalent.
+  const simulatePayerAdjudication = useCallback((claimId: string) => {
+    setClaims((prev) =>
+      prev.map((c) => {
+        if (c.id !== claimId) return c;
+        const roll = Math.random();
+        const billed = c.totalAmount;
+        let nextStatus: ClaimStatus;
+        let note: string | undefined;
+        let payment: Claim["payment"] = c.payment;
+        if (roll < 0.6) {
+          // Paid — allowed is usually LESS than billed (real adjustment).
+          nextStatus = "paid";
+          const allowed = Math.round(billed * (0.7 + Math.random() * 0.25) * 100) / 100;
+          const paid = Math.round(allowed * (0.6 + Math.random() * 0.35) * 100) / 100;
+          const patientResponsibility = Math.round((allowed - paid) * 100) / 100;
+          payment = {
+            billedAmount: billed,
+            allowedAmount: allowed,
+            paidAmount: paid,
+            patientResponsibility,
+            adjustmentReason: "Contractual adjustment",
+            remittanceDate: new Date().toISOString(),
+            remarkCode: "CO45",
+          };
+          note = "[MOCK] 835 posted. Contractual adjustment applied.";
+        } else if (roll < 0.85) {
+          nextStatus = "denied";
+          note = "[MOCK] Denial reason: Service not covered under current plan benefits.";
+        } else {
+          nextStatus = "adjusted";
+          const allowed = Math.round(billed * (0.5 + Math.random() * 0.2) * 100) / 100;
+          payment = {
+            billedAmount: billed,
+            allowedAmount: allowed,
+            paidAmount: 0,
+            patientResponsibility: Math.round(allowed * 100) / 100,
+            adjustmentReason: "Payer-adjustment (multiple procedure)",
+            remittanceDate: new Date().toISOString(),
+            remarkCode: "CO59",
+          };
+          note = "[MOCK] Claim adjusted; partial payment issued.";
+        }
+        const event: ClaimStatusEvent = {
+          status: nextStatus,
+          timestamp: new Date().toISOString(),
+          ...(note ? { note } : {}),
+        };
+        return {
+          ...c,
+          status: nextStatus,
+          payment,
+          statusHistory: [...c.statusHistory, event],
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  }, []);
+
+  // Part 4b — Correct & Resubmit with real CFC/PCCN/PCN rules.
+  const reopenForResubmission = useCallback((claimId: string) => {
+    setClaims((prev) =>
+      prev.map((c) => {
+        if (c.id !== claimId) return c;
+        const replacementPcn = computeClaimFrequencyCode(c.pccn, c.isMedicare) === "7"
+          ? generatePatientControlNumber()
+          : c.patientControlNumber;
+        const event: ClaimStatusEvent = {
+          status: "draft",
+          timestamp: new Date().toISOString(),
+          note: `[MOCK] Returned to draft for resubmission. CFC ${computeClaimFrequencyCode(c.pccn, c.isMedicare)}, new PCN ${c.pccn && !c.isMedicare ? "generated" : "reused"}.`,
+        };
+        return {
+          ...c,
+          status: "draft",
+          claimFrequencyCode: computeClaimFrequencyCode(c.pccn, c.isMedicare),
+          patientControlNumber: replacementPcn,
+          payment: null,
+          statusHistory: [...c.statusHistory, event],
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  }, []);
+
+  // Part 4i — mock eligibility response generator with distinct failure modes.
+  const runEligibilityCheck = useCallback(
+    (claimId: string, outcome: "confirmed" | "transient_outage" | "data_mismatch" | "no_coverage") => {
+      const now = new Date().toISOString();
+      setClaims((prev) =>
+        prev.map((c) => {
+          if (c.id !== claimId) return c;
+          if (outcome === "confirmed") {
+            const event: ClaimStatusEvent = {
+              status: "eligibility_confirmed",
+              timestamp: now,
+              note: "[MOCK] Coverage active.",
+            };
+            return {
+              ...c,
+              status: "eligibility_confirmed",
+              eligibilityCheck: {
+                requestedAt: now,
+                status: "confirmed",
+                responseAt: now,
+                coverageActive: true,
+                copayAmount: 20,
+                deductibleRemaining: 300,
+                authorizationRequired: false,
+                failureMode: null,
+                rawNote: "[MOCK] Coverage active. Copay: $20. Deductible remaining: $300.",
+                benefitEstimate: {
+                  copayAmount: 20,
+                  coinsuranceRate: 20,
+                  deductibleRemaining: 300,
+                },
+              },
+              statusHistory: [...c.statusHistory, event],
+              updatedAt: now,
+            };
+          }
+          if (outcome === "transient_outage") {
+            const event: ClaimStatusEvent = {
+              status: "eligibility_pending",
+              timestamp: now,
+              note: "[MOCK] Transient payer outage — auto-retrying.",
+            };
+            setTimeout(() => {
+              setClaims((p) =>
+                p.map((pc) =>
+                  pc.id !== claimId
+                    ? pc
+                    : {
+                        ...pc,
+                        status: "eligibility_confirmed",
+                        eligibilityCheck: {
+                          ...pc.eligibilityCheck!,
+                          status: "confirmed",
+                          coverageActive: true,
+                          failureMode: null,
+                          responseAt: new Date().toISOString(),
+                          rawNote: "[MOCK] Retry succeeded — coverage active after transient outage.",
+                        },
+                        statusHistory: [
+                          ...pc.statusHistory,
+                          { status: "eligibility_confirmed", timestamp: new Date().toISOString(), note: "[MOCK] Auto-retry succeeded." },
+                        ],
+                        updatedAt: new Date().toISOString(),
+                      }
+                )
+              );
+            }, 2500);
+            return {
+              ...c,
+              status: "eligibility_pending",
+              eligibilityCheck: {
+                requestedAt: now,
+                status: "pending",
+                responseAt: null,
+                coverageActive: null,
+                copayAmount: null,
+                deductibleRemaining: null,
+                authorizationRequired: false,
+                failureMode: "transient_outage",
+                rawNote: "[MOCK] Transient payer outage. Retrying automatically — no action needed.",
+              },
+              statusHistory: [...c.statusHistory, event],
+              updatedAt: now,
+            };
+          }
+          if (outcome === "data_mismatch") {
+            const event: ClaimStatusEvent = {
+              status: "eligibility_failed",
+              timestamp: now,
+              note: "[MOCK] Subscriber data mismatch.",
+            };
+            return {
+              ...c,
+              status: "eligibility_failed",
+              eligibilityCheck: {
+                requestedAt: now,
+                status: "failed",
+                responseAt: now,
+                coverageActive: null,
+                copayAmount: null,
+                deductibleRemaining: null,
+                authorizationRequired: false,
+                failureMode: "data_mismatch",
+                rawNote: "[MOCK] Subscriber name/DOB do not match payer record. Correct the flagged field and retry.",
+              },
+              statusHistory: [...c.statusHistory, event],
+              updatedAt: now,
+            };
+          }
+          // no_coverage
+          const event: ClaimStatusEvent = {
+            status: "eligibility_failed",
+            timestamp: now,
+            note: "[MOCK] No coverage on file for this member.",
+          };
+          return {
+            ...c,
+            status: "eligibility_failed",
+            eligibilityCheck: {
+              requestedAt: now,
+              status: "failed",
+              responseAt: now,
+              coverageActive: false,
+              copayAmount: null,
+              deductibleRemaining: null,
+              authorizationRequired: false,
+              failureMode: "no_coverage",
+              rawNote: "[MOCK] No active coverage found for this member ID.",
+            },
+            statusHistory: [...c.statusHistory, event],
+            updatedAt: now,
+          };
+        })
+      );
+    },
+    []
   );
 
   const updateFeeScheduleEntry = useCallback((entry: FeeScheduleEntry) => {
@@ -367,7 +714,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
 
   return (
     <ClaimContext.Provider
-      value={{ claims, unbilledSessions, addClaim, updateClaimStatus, updateClaim, getClaim, markSessionsBilled, unmarkSessionsBilled, signAndLockSession, createNewClaim, feeSchedule, updateFeeSchedule: updateFeeScheduleEntry, getFeeForService }}
+      value={{ claims, unbilledSessions, addClaim, updateClaimStatus, updateClaim, getClaim, markSessionsBilled, unmarkSessionsBilled, addUnbilledSession, signAndLockSession, createNewClaim, simulateClearinghouseSubmission, simulatePayerAdjudication, reopenForResubmission, runEligibilityCheck, feeSchedule, updateFeeSchedule: updateFeeScheduleEntry, getFeeForService }}
     >
       {children}
     </ClaimContext.Provider>

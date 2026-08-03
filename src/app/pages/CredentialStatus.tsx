@@ -263,10 +263,10 @@ export function CredentialStatus({ hideHeader = false }: { hideHeader?: boolean 
                     </div>
                     <div className="pt-0.5">
                       <p className="text-[14px] font-semibold text-gray-900 dark:text-white mb-0.5">
-                        You're in-network — start seeing insured patients
+                        You're enrolled — start submitting claims
                       </p>
                       <p className="text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                        Once approved, eligible patients can book with you using their insurance. Mantra also handles claims submission and follow-ups.
+                        Once your payer enrollment is approved, you can submit claims and follow-ups electronically. Enrollment is our best available signal of network readiness — per-plan in-network status can still vary, so confirm each plan directly when it matters.
                       </p>
                     </div>
                   </div>

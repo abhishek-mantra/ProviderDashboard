@@ -1,23 +1,82 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import { ArrowLeft, Download, Printer } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useGoBack } from "../utils/useGoBack";
 
 export function SuperbillDocument() {
-  const navigate = useNavigate();
-  const { claimId } = useParams();
+  const { claimId, billId } = useParams();
+  const [searchParams] = useSearchParams();
   const { claims } = useClaims();
-  const { currentProviderId, providers } = usePartnerDashboard();
+  const { bills, currentProviderId, providers } = usePartnerDashboard();
 
-  const claim = claims.find((c) => c.id === claimId || c.claimNumber === claimId);
-  const provider = providers.find((p) => p.id === (claim?.providerId || currentProviderId)) || providers[0];
+  const claim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
 
-  if (!claim) {
+  // Batch superbill: one or more bill IDs passed via ?billIds=a,b,c
+  // (single-bill links keep the legacy :billId route).
+  const batchBillIds = (searchParams.get("billIds") || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const batchBills = batchBillIds
+    .map((id) => bills.find((b) => b.id === id || b.billNumber === id))
+    .filter((b): b is NonNullable<typeof b> => Boolean(b));
+  const singleBill = billId
+    ? bills.find((b) => b.id === billId || b.billNumber === billId)
+    : undefined;
+
+  // A bill-based superbill (from the Bill hub) is rendered from a synthetic claim
+  // so the printable layout is shared with claim superbills.
+  let sourceClaim = claim;
+  if (!sourceClaim && batchBills.length > 0) {
+    sourceClaim = {
+      id: batchBills.map((b) => b.id).join(","),
+      claimNumber: batchBills.length === 1 ? batchBills[0].billNumber : `BATCH-${batchBills.length}`,
+      clientName: batchBills[0].clientName,
+      providerId: batchBills[0].providerId,
+      diagnosisCodes: batchBills[0].diagnosisCodes,
+      totalAmount: batchBills.reduce((acc, b) => acc + b.amount, 0),
+      serviceLines: batchBills.map((b) => ({
+        id: `sl-${b.id}`,
+        sessionId: b.sessionId,
+        dateOfService: b.dateOfService,
+        serviceCode: b.cptCode,
+        units: 1,
+        chargeAmount: b.amount,
+      })),
+    };
+  }
+  if (!sourceClaim && singleBill) {
+    sourceClaim = {
+      id: singleBill.id,
+      claimNumber: singleBill.billNumber,
+      clientName: singleBill.clientName,
+      providerId: singleBill.providerId,
+      diagnosisCodes: singleBill.diagnosisCodes,
+      totalAmount: singleBill.amount,
+      serviceLines: [{
+        id: `sl-${singleBill.id}`,
+        sessionId: singleBill.sessionId,
+        dateOfService: singleBill.dateOfService,
+        serviceCode: singleBill.cptCode,
+        units: 1,
+        chargeAmount: singleBill.amount,
+      }],
+    };
+  }
+
+  const provider = providers.find((p) => p.id === (sourceClaim?.providerId || currentProviderId)) || providers[0];
+
+  const handleBack = useGoBack(
+    claim ? `/claims/${claim.id}` : billId ? `/billing/bills/${billId}` : "/billing/bills"
+  );
+
+  if (!sourceClaim) {
     return (
       <div className="space-y-6">
-        <button onClick={() => navigate("/insurance?tab=claims")} className="p-1 hover:bg-gray-100 rounded-lg"><ArrowLeft className="size-6" /></button>
+        <button onClick={handleBack} className="p-1 hover:bg-gray-100 rounded-lg"><ArrowLeft className="size-6" /></button>
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center">
-          <p className="text-gray-500">Claim not found.</p>
+          <p className="text-gray-500">Superbill source not found.</p>
         </div>
       </div>
     );
@@ -28,7 +87,7 @@ export function SuperbillDocument() {
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-4">
         <div className="max-w-[1280px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(`/claims/${claim.id}`)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button onClick={handleBack} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <ArrowLeft className="size-6 text-gray-600 dark:text-gray-400" />
             </button>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Superbill</h1>
@@ -58,7 +117,7 @@ export function SuperbillDocument() {
             </div>
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Patient</h3>
-              <p className="font-medium text-gray-900 dark:text-white">{claim.clientName}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{sourceClaim.clientName}</p>
               <p className="text-sm text-gray-600">DOB: —</p>
             </div>
           </div>
@@ -74,12 +133,12 @@ export function SuperbillDocument() {
               </tr>
             </thead>
             <tbody>
-              {claim.serviceLines.map((sl, i) => (
+              {sourceClaim.serviceLines.map((sl, i) => (
                 <tr key={sl.id} className="border-b border-gray-200 dark:border-gray-700">
                   <td className="py-2 text-gray-900 dark:text-white">{sl.dateOfService}</td>
                   <td className="py-2 text-gray-600">Individual Therapy</td>
                   <td className="py-2 text-gray-900 dark:text-white">{sl.serviceCode}</td>
-                  <td className="py-2 text-gray-900 dark:text-white">{claim.diagnosisCodes[i] || claim.diagnosisCodes[0] || ""}</td>
+                  <td className="py-2 text-gray-900 dark:text-white">{sourceClaim.diagnosisCodes[i] || sourceClaim.diagnosisCodes[0] || ""}</td>
                   <td className="py-2 text-right text-gray-900 dark:text-white">${sl.chargeAmount.toFixed(2)}</td>
                 </tr>
               ))}
@@ -87,7 +146,7 @@ export function SuperbillDocument() {
             <tfoot>
               <tr>
                 <td colSpan={4} className="text-right py-3 font-semibold text-gray-900 dark:text-white">Total Charged:</td>
-                <td className="text-right py-3 font-semibold text-gray-900 dark:text-white">${claim.totalAmount.toFixed(2)}</td>
+                <td className="text-right py-3 font-semibold text-gray-900 dark:text-white">${sourceClaim.totalAmount.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>

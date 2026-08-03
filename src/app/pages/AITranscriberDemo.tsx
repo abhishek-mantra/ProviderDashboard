@@ -100,7 +100,7 @@ export function AITranscriberDemo() {
                 </div>
                 <div className="text-[11px] text-[#0F6E56]">
                   Record this session at no cost. After your free session, each recording uses 10 credits (~₹12).{" "}
-                  <Link to="/billing" state={{ tab: "credits" }} className="underline hover:text-[#085041]">
+                  <Link to="/settings/billing" className="underline hover:text-[#085041]">
                     See pricing
                   </Link>
                 </div>

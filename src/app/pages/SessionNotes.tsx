@@ -50,7 +50,7 @@ export function SessionNotes() {
   const navigate = useNavigate();
   const { id, sessionId } = useParams();
   const { isTrialActive, activateTrial } = useTrial();
-  const { canViewClientClinicalContent } = usePartnerDashboard();
+  const { canViewClientClinicalContent, clients } = usePartnerDashboard();
   const requestedClientId = id || "1";
   const canViewNotes = canViewClientClinicalContent(requestedClientId);
   const [showTranscriptTrialPopup, setShowTranscriptTrialPopup] = useState(false);
@@ -153,9 +153,11 @@ export function SessionNotes() {
     }
   };
 
-  // Mock session data
+  // Mock session data — derived from the actual client so notes render under the
+  // right name/service on every client's file (not a shared hardcoded client).
+  const client = clients.find((c) => c.id === requestedClientId);
   const session = {
-    clientName: "Rachit Dubey",
+    clientName: client?.name || "Rachit Dubey",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyNDAzMTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
     date: "Mar 12",
     time: "10:00 AM",

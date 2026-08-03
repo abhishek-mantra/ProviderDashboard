@@ -12,10 +12,13 @@ import {
   Zap,
   Receipt,
   Printer,
+  Ban,
 } from "lucide-react";
 import { useState } from "react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useGoBack } from "../utils/useGoBack";
+import { WRITE_OFF_REASON_LABELS } from "../types/partnerDashboard";
 import { CLAIM_STATUS_LABELS, getCurrencySymbol } from "../types/claims";
 import type { ClaimStatus, ClaimFlowType, UnbilledSession } from "../types/claims";
 
@@ -29,8 +32,21 @@ export function ClaimDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { claimId } = useParams();
-  const { getClaim, updateClaimStatus, updateClaim, claims, unmarkSessionsBilled } = useClaims();
-  const { currentPracticeId, isCurrentUserSuperAdmin } = usePartnerDashboard();
+  const {
+    getClaim,
+    updateClaimStatus,
+    updateClaim,
+    claims,
+    unmarkSessionsBilled,
+    simulatePayerAdjudication,
+    reopenForResubmission,
+  } = useClaims();
+  const {
+    currentPracticeId,
+    isCurrentUserSuperAdmin,
+    remittanceRecords,
+    bills,
+  } = usePartnerDashboard();
   const [simulating, setSimulating] = useState(false);
 
   const rawClaim = claimId
@@ -42,15 +58,7 @@ export function ClaimDetail() {
       ? rawClaim
       : undefined;
 
-  const handleBack = () => {
-    if (location.state?.from) {
-      navigate(location.state.from);
-    } else if (claim?.clientId && window.location.pathname.includes("/clients/")) {
-      navigate(`/clients/${claim.clientId}/insurance`);
-    } else {
-      navigate("/insurance?tab=claims");
-    }
-  };
+  const handleBack = useGoBack("/billing/bills");
 
   if (!claim) {
     return (
@@ -85,17 +93,26 @@ export function ClaimDetail() {
     switch (status) {
       case "paid":
       case "approved":
+      case "adjusted":
       case "eligibility_confirmed":
         return "green";
       case "denied":
       case "rejected":
+      case "stedi_rejected":
+      case "payer_rejected":
       case "eligibility_failed":
         return "red";
+      case "in_adjudication":
+        return "blue";
       case "submitted":
       case "scrubbing":
       case "pending_with_payer":
       case "pended":
       case "eligibility_pending":
+      case "awaiting_ack":
+      case "no_response_investigate":
+      case "stedi_validating":
+      case "sent_to_payer":
         return "yellow";
       case "manual_generated":
       case "superbill_generated":
@@ -110,12 +127,7 @@ export function ClaimDetail() {
   const handleSimulatePayerResponse = () => {
     setSimulating(true);
     setTimeout(() => {
-      const nextStatus: ClaimStatus = Math.random() > 0.4 ? "approved" : "denied";
-      const note =
-        nextStatus === "denied"
-          ? "[MOCK] Denial reason: Service not covered under current plan benefits."
-          : undefined;
-      updateClaimStatus(claim.id, nextStatus, note);
+      simulatePayerAdjudication(claim.id);
       setSimulating(false);
     }, 2000);
   };
@@ -139,10 +151,16 @@ export function ClaimDetail() {
       selected: false,
     }));
     unmarkSessionsBilled(restoredSessions);
-    updateClaimStatus(claim.id, "draft", "Claim returned to draft for correction & resubmission.");
+    // Part 4b — recompute CFC/PCN from the real PCCN/Medicare rules.
+    reopenForResubmission(claim.id);
     updateClaim(claim.id, { status: "draft" });
-    navigate(`/billing/unbilled?clientId=${claim.clientId}&resubmitClaimId=${claim.id}`);
+    navigate(`/billing/bills?clientId=${claim.clientId}&resubmitClaimId=${claim.id}`);
   };
+
+  const claimRemittance = remittanceRecords.find(
+    (r) => r.claimId === claim?.id || r.claimId === claim?.claimNumber
+  );
+  const claimBill = bills.find((b) => b.claimId === claim?.id || b.claimId === claim?.claimNumber);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -180,6 +198,8 @@ export function ClaimDetail() {
               ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
               : statusColor === "yellow"
               ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+              : statusColor === "blue"
+              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
               : statusColor === "purple"
               ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
               : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -193,29 +213,41 @@ export function ClaimDetail() {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6">
-              {/* Visual Claim Lifecycle Stepper */}
+              {/* Visual Claim Lifecycle Stepper (real clearinghouse model) */}
               <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-2xl">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Claim Progress Timeline</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Claim Progress — Clearinghouse Model {claim.pccn ? "· PCCN " + claim.pccn : ""}
+                </p>
                 <div className="flex items-center justify-between text-xs font-semibold relative">
                   {/* Stepper Steps */}
                   {[
                     { key: "draft", label: "Draft" },
-                    { key: "scrubbing", label: "Scrubbing" },
                     { key: "submitted", label: "Submitted" },
-                    { key: "pending_with_payer", label: "Payer Review" },
-                    { key: "approved", label: "Paid / Settled" },
-                  ].map((step, idx, arr) => {
-                    const stepOrder = ["draft", "scrubbing", "submitted", "pending_with_payer", "approved", "paid"];
-                    const currentIdx = stepOrder.indexOf(claim.status);
-                    const isDone = currentIdx >= idx;
-                    const isCurrent = claim.status === step.key;
-                    const isDenied = (claim.status === "denied" || claim.status === "rejected") && idx === arr.length - 1;
+                    { key: "stedi_validating", label: "Clearinghouse Validate" },
+                    { key: "sent_to_payer", label: "Sent to Payer" },
+                    { key: "in_adjudication", label: "Adjudication" },
+                    { key: "terminal", label: "Paid / Denied" },
+                  ].map((step, idx) => {
+                    const STATUS_TO_STEP: Record<string, number> = {
+                      draft: 0,
+                      submitted: 1, awaiting_ack: 1, no_response_investigate: 1,
+                      stedi_validating: 2, scrubbing: 2,
+                      sent_to_payer: 3, pending_with_payer: 3,
+                      in_adjudication: 4, pended: 4,
+                      paid: 5, denied: 5, adjusted: 5, approved: 5, rejected: 5, stedi_rejected: 5, payer_rejected: 5,
+                    };
+                    const currentIdx = STATUS_TO_STEP[claim.status] ?? 0;
+                    const isDone = currentIdx > idx;
+                    const isCurrent = currentIdx === idx;
+                    const isTerminalFailure =
+                      ["denied", "rejected", "stedi_rejected", "payer_rejected"].includes(claim.status) &&
+                      idx === 5;
 
                     return (
                       <div key={step.key} className="flex-1 flex flex-col items-center relative text-center">
                         <div
                           className={`size-7 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10 ${
-                            isDenied
+                            isTerminalFailure
                               ? "bg-red-600 text-white shadow-md ring-4 ring-red-100 dark:ring-red-900/50"
                               : isDone
                               ? "bg-emerald-600 text-white"
@@ -224,10 +256,10 @@ export function ClaimDetail() {
                               : "bg-gray-200 dark:bg-gray-700 text-gray-500"
                           }`}
                         >
-                          {isDenied ? "✕" : isDone ? "✓" : idx + 1}
+                          {isTerminalFailure ? "✕" : isDone ? "✓" : idx + 1}
                         </div>
-                        <span className={`mt-1 text-[11px] ${isDenied ? "text-red-600 font-bold" : isDone || isCurrent ? "text-gray-900 dark:text-white font-bold" : "text-gray-400"}`}>
-                          {isDenied ? "Denied" : step.label}
+                        <span className={`mt-1 text-[11px] ${isTerminalFailure ? "text-red-600 font-bold" : isDone || isCurrent ? "text-gray-900 dark:text-white font-bold" : "text-gray-400"}`}>
+                          {isTerminalFailure ? "Denied/Rejected" : step.label}
                         </span>
                       </div>
                     );
@@ -236,7 +268,7 @@ export function ClaimDetail() {
               </div>
 
               {/* Actionable Denial Fix Assistant */}
-              {(claim.status === "denied" || claim.status === "rejected") && (
+              {["denied", "rejected", "stedi_rejected", "payer_rejected"].includes(claim.status) && (
                 <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-5 mb-6 space-y-3">
                   <div className="flex items-center gap-2.5 text-red-700 dark:text-red-300 font-bold text-base">
                     <XCircle className="size-5 text-red-600 shrink-0" />
@@ -369,6 +401,55 @@ export function ClaimDetail() {
                       {claim.eligibilityCheck.rawNote}
                     </p>
                   )}
+                  {claim.eligibilityCheck.status === "failed" &&
+                    claim.eligibilityCheck.failureMode && (
+                      <p className="text-xs font-semibold mt-2">
+                        {claim.eligibilityCheck.failureMode === "transient_outage"
+                          ? "Transient payer outage — response will auto-retry."
+                          : claim.eligibilityCheck.failureMode === "data_mismatch"
+                          ? "Data mismatch (name/DOB variation) — correct the flagged field and retry."
+                          : "No coverage on file — contact payer or try a different identifier."}
+                      </p>
+                    )}
+                  {claim.eligibilityCheck.benefitEstimate && (
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-lg bg-white/70 dark:bg-gray-900/40 border border-green-200 dark:border-green-800 p-2">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Copay
+                        </p>
+                        <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                          {claim.eligibilityCheck.benefitEstimate.copayAmount != null
+                            ? `$${claim.eligibilityCheck.benefitEstimate.copayAmount.toFixed(2)}`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-white/70 dark:bg-gray-900/40 border border-green-200 dark:border-green-800 p-2">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Coinsurance
+                        </p>
+                        <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                          {claim.eligibilityCheck.benefitEstimate.coinsuranceRate != null
+                            ? `${claim.eligibilityCheck.benefitEstimate.coinsuranceRate}%`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-white/70 dark:bg-gray-900/40 border border-green-200 dark:border-green-800 p-2">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Deductible left
+                        </p>
+                        <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                          {claim.eligibilityCheck.benefitEstimate.deductibleRemaining != null
+                            ? `$${claim.eligibilityCheck.benefitEstimate.deductibleRemaining.toFixed(2)}`
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {claim.eligibilityCheck.benefitEstimate?.behavioralHealthCarveoutNote && (
+                    <p className="text-[11px] italic text-gray-500 dark:text-gray-400 mt-3">
+                      {claim.eligibilityCheck.benefitEstimate.behavioralHealthCarveoutNote}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -387,6 +468,45 @@ export function ClaimDetail() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Clearinghouse Reference
+              </h2>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">PCCN</span>
+                  <span className={`font-mono font-semibold ${claim.pccn ? "text-gray-900 dark:text-white" : "text-gray-400"}`}>
+                    {claim.pccn || "Not assigned (pre-adjudication)"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Claim Frequency Code</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    {claim.claimFrequencyCode || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Patient Control #</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white break-all text-right ml-4">
+                    {claim.patientControlNumber || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Plan Type</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {claim.isMedicare ? "Medicare" : "Commercial"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3">
+                {claim.pccn
+                  ? "PCCN assigned — payer has accepted the claim into adjudication."
+                  : "No PCCN yet — the claim has not reached adjudication."}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Status Timeline
               </h2>
               <div className="space-y-0">
@@ -397,16 +517,16 @@ export function ClaimDetail() {
                     )}
                     <div
                       className={`size-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
-                        event.status === "paid" || event.status === "approved"
+                        event.status === "paid" || event.status === "approved" || event.status === "adjusted"
                           ? "bg-green-100 dark:bg-green-900/30"
-                          : event.status === "denied" || event.status === "rejected"
+                          : event.status === "denied" || event.status === "rejected" || event.status === "stedi_rejected" || event.status === "payer_rejected"
                           ? "bg-red-100 dark:bg-red-900/30"
                           : "bg-gray-100 dark:bg-gray-700"
                       }`}
                     >
-                      {event.status === "paid" || event.status === "approved" ? (
+                      {event.status === "paid" || event.status === "approved" || event.status === "adjusted" ? (
                         <CheckCircle className="size-3.5 text-green-600 dark:text-green-400" />
-                      ) : event.status === "denied" || event.status === "rejected" ? (
+                      ) : event.status === "denied" || event.status === "rejected" || event.status === "stedi_rejected" || event.status === "payer_rejected" ? (
                         <XCircle className="size-3.5 text-red-600 dark:text-red-400" />
                       ) : (
                         <div className="size-2 rounded-full bg-gray-400 dark:bg-gray-500" />
@@ -431,6 +551,87 @@ export function ClaimDetail() {
             </div>
           </div>
 
+          {claimRemittance && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Receipt className="size-4 text-emerald-500" />
+                Remittance / ERA
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Billed</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claimRemittance.billedAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Allowed</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claimRemittance.allowedAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Paid</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                    ${claimRemittance.paidAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Patient Responsibility</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claimRemittance.patientResponsibility.toFixed(2)}
+                  </span>
+                </div>
+                {claimRemittance.adjustmentReason && (
+                  <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                      Adjustment Reason
+                    </p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {claimRemittance.adjustmentReason}
+                    </p>
+                  </div>
+                )}
+                {claimRemittance.discrepancyFlag && (
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs font-bold text-red-700 dark:text-red-300">
+                    Payment discrepancy / underpayment flagged
+                  </div>
+                )}
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+                  Posted {formatDate(claimRemittance.postedAt)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {claimBill && claimBill.status === "written_off" && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Ban className="size-4 text-red-500" />
+                Write-Off
+              </h3>
+              <div className="space-y-1.5 text-sm">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Reason
+                </p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {WRITE_OFF_REASON_LABELS[claimBill.writeOffReason || "bad_debt"]}
+                </p>
+                {claimBill.writeOffNote && (
+                  <>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider pt-1">
+                      Note
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 italic">{claimBill.writeOffNote}</p>
+                  </>
+                )}
+                <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">
+                  Written off {claimBill.resolvedAt ? formatDate(claimBill.resolvedAt) : ""}
+                </p>
+              </div>
+            </div>
+          )}
+
           {claim.flowType === "manual" && claim.region === "US" && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
@@ -440,7 +641,7 @@ export function ClaimDetail() {
                 View the CMS-1500 claim form for this claim.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/cms1500`, { state: { from: location.state?.from || "/billing?tab=insurance&subtab=claims" } })}
+                onClick={() => navigate(`/claims/${claim.id}/cms1500`, { state: { from: location.state?.from || "/billing/bills" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Printer className="size-4" />
@@ -458,7 +659,7 @@ export function ClaimDetail() {
                 View the itemized claim summary for submission to your insurer.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/summary`, { state: { from: location.state?.from || "/billing?tab=insurance&subtab=claims" } })}
+                onClick={() => navigate(`/claims/${claim.id}/summary`, { state: { from: location.state?.from || "/billing/bills" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <FileText className="size-4" />
@@ -467,7 +668,8 @@ export function ClaimDetail() {
             </div>
           )}
 
-          {claim.flowType === "mantra" && claim.status === "pending_with_payer" && (
+          {claim.flowType === "mantra" &&
+            (claim.status === "in_adjudication" || claim.status === "pending_with_payer") && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 Demo Controls
@@ -495,7 +697,76 @@ export function ClaimDetail() {
             </div>
           )}
 
-          {claim.flowType === "mantra" && ["denied", "rejected", "pended"].includes(claim.status) && (
+          {claim.flowType === "mantra" && claim.payment && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Receipt className="size-4 text-emerald-500" />
+                Adjudication Result (835)
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Billed</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claim.payment.billedAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Allowed</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claim.payment.allowedAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Paid</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                    ${claim.payment.paidAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Patient Responsibility</span>
+                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    ${claim.payment.patientResponsibility.toFixed(2)}
+                  </span>
+                </div>
+                {claim.payment.adjustmentReason && (
+                  <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                      Adjustment Reason
+                    </p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {claim.payment.adjustmentReason}
+                    </p>
+                  </div>
+                )}
+                {claim.payment.remarkCode && (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                    Remark code {claim.payment.remarkCode}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {claim.flowType === "mantra" && claim.status === "approved" && !claimRemittance && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Close Claim — Record Remittance
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Payer approved this claim. Record the payment to post the ERA and close the claim.
+              </p>
+              <button
+                onClick={() => simulatePayerAdjudication(claim.id)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <CheckCircle className="size-4" />
+                Record Payment & Remittance
+              </button>
+            </div>
+          )}
+
+          {claim.flowType === "mantra" &&
+            ["denied", "rejected", "pended", "stedi_rejected", "payer_rejected"].includes(claim.status) && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 Claim {claim.status === "denied" ? "Denied" : claim.status === "rejected" ? "Rejected" : "Pended"}

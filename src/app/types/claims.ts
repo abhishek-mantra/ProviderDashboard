@@ -2,21 +2,35 @@ export type ClaimFlowType = "mantra" | "manual" | "superbill";
 
 import { mockClients } from "../data/mockPartnerData";
 
+// Real clearinghouse-aligned status machine (Part 4a). The pivot point is the
+// presence of a PCCN (Payer Claim Control Number) — assigned only once a claim
+// reaches adjudication. Prior to that the claim never reached the payer
+// (Stedi edit validation / pre-adjudication rejection) or is awaiting the
+// payer's acknowledgment.
 export type ClaimStatus =
   | "draft"
   | "eligibility_pending"
   | "eligibility_confirmed"
   | "eligibility_failed"
   | "submitted"
+  | "awaiting_ack"
+  | "no_response_investigate"
+  | "stedi_validating"
+  | "stedi_rejected"
+  | "sent_to_payer"
+  | "payer_rejected"
+  | "in_adjudication"
+  | "paid"
+  | "denied"
+  | "adjusted"
+  | "manual_generated"
+  | "superbill_generated"
+  // Legacy statuses retained for seed/history compatibility.
   | "scrubbing"
   | "rejected"
   | "pending_with_payer"
   | "approved"
-  | "denied"
-  | "pended"
-  | "paid"
-  | "manual_generated"
-  | "superbill_generated";
+  | "pended";
 
 export type NotesStatus = "locked" | "draft" | "unsigned";
 
@@ -30,6 +44,28 @@ export interface ServiceLine {
   modifiers?: string[];
 }
 
+// Mock 835-equivalent result of a real adjudication (Part 4d). allowedAmount is
+// usually LESS than billedAmount (a real adjustment), patientResponsibility is
+// the genuine remainder that feeds A/R follow-up.
+export interface ClaimPayment {
+  billedAmount: number;
+  allowedAmount: number;
+  paidAmount: number;
+  patientResponsibility: number;
+  adjustmentReason: string;
+  remittanceDate: string;
+  remarkCode?: string;
+}
+
+// Two-stage pre-visit estimate (Part 4d) — modeled on a real benefits-information
+// response (copay, coinsurance, deductible remaining), NOT the fee schedule.
+export interface BenefitEstimate {
+  copayAmount: number | null;
+  coinsuranceRate: number | null;
+  deductibleRemaining: number | null;
+  behavioralHealthCarveoutNote?: string;
+}
+
 export interface EligibilityCheck {
   requestedAt: string;
   status: "pending" | "confirmed" | "failed";
@@ -39,6 +75,9 @@ export interface EligibilityCheck {
   deductibleRemaining: number | null;
   authorizationRequired: boolean;
   rawNote: string;
+  // Part 4i — distinct failure modes instead of one generic "failed"
+  failureMode?: "transient_outage" | "data_mismatch" | "no_coverage" | null;
+  benefitEstimate?: BenefitEstimate | null;
 }
 
 export interface ClaimStatusEvent {
@@ -70,6 +109,14 @@ export interface Claim {
   currency: "USD";
   createdAt: string;
   updatedAt: string;
+  // Part 4a — PCCN presence distinguishes pre-adjudication from adjudication.
+  pccn: string | null;
+  // Part 4b — claim frequency code + patient control number.
+  claimFrequencyCode: string | null;
+  patientControlNumber: string | null;
+  isMedicare: boolean;
+  // Part 4d — post-adjudication 835-equivalent result.
+  payment: ClaimPayment | null;
 }
 
 export interface FeeScheduleEntry {
@@ -89,6 +136,44 @@ export const MOCK_FEE_SCHEDULE: FeeScheduleEntry[] = [
 export function getFeeForService(cptCode: string): number {
   const entry = MOCK_FEE_SCHEDULE.find((e) => e.cptCode === cptCode);
   return entry?.providerRate ?? 150;
+}
+
+/** Canonical service description for a CPT code (used by bill detail + invoice). */
+export function getServiceDescription(cptCode: string): string {
+  return (
+    MOCK_FEE_SCHEDULE.find((e) => e.cptCode === cptCode)?.description || "Therapy Session"
+  );
+}
+
+/**
+ * Normalize a date-of-service value into a consistent "Mar 15, 2026" label.
+ * Handles both ISO date-only strings ("2026-02-24") and already-formatted
+ * strings ("Mar 15, 2026") so every surface renders identically.
+ */
+export function formatDateOfService(value: string): string {
+  if (!value) return "—";
+  const trimmed = value.trim();
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+  const date = new Date(iso ? `${trimmed}T00:00:00Z` : trimmed);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    ...(iso ? { timeZone: "UTC" } : {}),
+  });
+}
+
+/** Format a full ISO timestamp ("2026-02-24T09:00:00Z") as "Feb 24, 2026". */
+export function formatDate(iso: string): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export interface UnbilledSession {
@@ -143,15 +228,23 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   eligibility_confirmed: "Eligibility Confirmed",
   eligibility_failed: "Eligibility Failed",
   submitted: "Submitted",
+  awaiting_ack: "Awaiting Payer Acknowledgment",
+  no_response_investigate: "No Response — Investigate",
+  stedi_validating: "Stedi Validating",
+  stedi_rejected: "Rejected at Clearinghouse",
+  sent_to_payer: "Sent to Payer",
+  payer_rejected: "Rejected by Payer",
+  in_adjudication: "In Adjudication",
+  paid: "Paid",
+  denied: "Denied",
+  adjusted: "Adjusted",
+  manual_generated: "Manual Claim Generated",
+  superbill_generated: "Superbill Generated",
   scrubbing: "Scrubbing",
   rejected: "Rejected",
   pending_with_payer: "Pending with Payer",
   approved: "Approved",
-  denied: "Denied",
   pended: "Pended",
-  paid: "Paid",
-  manual_generated: "Manual Claim Generated",
-  superbill_generated: "Superbill Generated",
 };
 
 export const MOCK_PAYERS: Payer[] = [
@@ -162,6 +255,36 @@ export const MOCK_PAYERS: Payer[] = [
   { id: "us-5", name: "Oscar Health", intermediaryType: "clearinghouse", intermediaryName: "Claim.MD" },
 ];
 
+// Part 4e — Transaction enrollment status, per provider × payer. This is the
+// ONLY thing a clearinghouse can actually see: whether a provider is registered
+// to exchange electronic transactions (claims / eligibility / ERA) with this
+// specific payer. True credentialing (provider qualifications, 90–180 days) and
+// payer enrollment (60–120 days) are separate, manually-tracked processes and
+// are deliberately NOT conflated with this status.
+export type TransactionEnrollmentStatus =
+  | "not_enrolled"
+  | "enrollment_pending"
+  | "provider_action_required"
+  | "live"
+  | "rejected";
+
+export const TRANSACTION_ENROLLMENT_LABELS: Record<TransactionEnrollmentStatus, string> = {
+  not_enrolled: "Not Enrolled for Electronic Filing",
+  enrollment_pending: "Enrollment Pending",
+  provider_action_required: "Provider Action Required",
+  live: "Enrolled for Electronic Filing",
+  rejected: "Enrollment Rejected",
+};
+
+export const MOCK_TRANSACTION_ENROLLMENT: Record<string, TransactionEnrollmentStatus> = {
+  "us-1": "live",
+  "us-2": "live",
+  "us-3": "provider_action_required",
+  "us-4": "live",
+  "us-5": "not_enrolled",
+};
+
+// True credentialing — manually tracked, separate from transaction enrollment.
 export const MOCK_CREDENTIAL_STATUS: Record<string, "credentialed" | "not_credentialed" | "pending"> = {
   "us-1": "credentialed",
   "us-2": "credentialed",
@@ -176,6 +299,44 @@ export function generateClaimNumber(): string {
     .padStart(3, "0");
   return `CLM-2026-${num}`;
 }
+
+// Part 4b — Patient Control Number: random 17-char-max ID, generated once at
+// first submission.
+export function generatePatientControlNumber(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+  let out = "";
+  for (let i = 0; i < 17; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+// Part 4b — Claim Frequency Code:
+//  - pccn null (pre-adjudication): "1" (original), reuse the same PCN
+//  - pccn set, not Medicare: "7" (replacement), new PCN, include PCCN
+//  - pccn set, Medicare: "1", reuse same PCN, omit PCCN
+export function computeClaimFrequencyCode(
+  pccn: string | null,
+  isMedicare: boolean
+): "1" | "7" {
+  if (pccn && !isMedicare) return "7";
+  return "1";
+}
+
+// Part 4a — mock PCCN assignment once a claim reaches adjudication.
+export function generatePccn(): string {
+  return `PCCN-${Math.floor(1000000 + Math.random() * 9000000)}`;
+}
+
+// Short fixed list of plausible denial/rejection reasons (Bug 9 / Part 4c).
+export const MOCK_DENIAL_REASONS = [
+  "Missing prior authorization",
+  "Diagnosis/procedure mismatch",
+  "Coverage terminated",
+  "Service not covered under current plan benefits",
+  "Invalid or missing payer ID",
+  "Claim exceeds timely filing limit",
+] as const;
 
 export function findPayerForClient(client: { insuranceCompany?: string }): Payer | undefined {
   if (!client.insuranceCompany) return undefined;

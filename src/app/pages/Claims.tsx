@@ -71,6 +71,7 @@ export function Claims({
     switch (status) {
       case "paid":
       case "approved":
+      case "adjusted":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
             {label}
@@ -78,9 +79,17 @@ export function Claims({
         );
       case "denied":
       case "rejected":
+      case "stedi_rejected":
+      case "payer_rejected":
       case "eligibility_failed":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {label}
+          </span>
+        );
+      case "in_adjudication":
+        return (
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
             {label}
           </span>
         );
@@ -89,6 +98,10 @@ export function Claims({
       case "pending_with_payer":
       case "pended":
       case "eligibility_pending":
+      case "awaiting_ack":
+      case "no_response_investigate":
+      case "stedi_validating":
+      case "sent_to_payer":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
             {label}
@@ -113,7 +126,7 @@ export function Claims({
   const handleClientSelect = (client: Client) => {
     setShowClientSelectModal(false);
     setSearchQuery("");
-    navigate(`/billing/unbilled?clientId=${client.id}`);
+    navigate(`/billing/bills?clientId=${client.id}`);
   };
 
   const [phaseFilter, setPhaseFilter] = useState<"all" | "action_needed" | "in_progress" | "settled">("all");
@@ -126,11 +139,11 @@ export function Claims({
     claims.forEach((claim) => {
       if (!practiceClientIds.has(claim.clientId)) return;
       const claimTotal = claim.serviceLines.reduce((acc, sl) => acc + (sl.chargeAmount || 0), 0);
-      if (["submitted", "scrubbing", "pending_with_payer", "pended"].includes(claim.status)) {
+      if (["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status)) {
         pendingAmount += claimTotal;
-      } else if (["denied", "rejected", "eligibility_failed"].includes(claim.status)) {
+      } else if (["denied", "rejected", "stedi_rejected", "payer_rejected", "eligibility_failed"].includes(claim.status)) {
         attentionAmount += claimTotal;
-      } else if (["paid", "approved"].includes(claim.status)) {
+      } else if (["paid", "approved", "adjusted"].includes(claim.status)) {
         paidAmount += claimTotal;
       }
     });
@@ -153,11 +166,11 @@ export function Claims({
     
     let matchesPhase = true;
     if (phaseFilter === "action_needed") {
-      matchesPhase = ["denied", "rejected", "eligibility_failed", "draft"].includes(claim.status);
+      matchesPhase = ["denied", "rejected", "stedi_rejected", "payer_rejected", "eligibility_failed", "draft"].includes(claim.status);
     } else if (phaseFilter === "in_progress") {
-      matchesPhase = ["submitted", "scrubbing", "pending_with_payer", "pended"].includes(claim.status);
+      matchesPhase = ["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status);
     } else if (phaseFilter === "settled") {
-      matchesPhase = ["paid", "approved", "manual_generated", "superbill_generated"].includes(claim.status);
+      matchesPhase = ["paid", "approved", "adjusted", "manual_generated", "superbill_generated"].includes(claim.status);
     }
 
     const matchesStatus = statusFilter === "all" || claim.status === statusFilter;
@@ -306,14 +319,14 @@ export function Claims({
                 Submitted
               </button>
               <button
-                onClick={() => setStatusFilter("pending_with_payer")}
+                onClick={() => setStatusFilter("in_adjudication")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "pending_with_payer"
+                  statusFilter === "in_adjudication"
                     ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
-                Pending
+                In Adjudication
               </button>
               <button
                 onClick={() => setStatusFilter("approved")}
@@ -353,7 +366,7 @@ export function Claims({
                   Status
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["all", "submitted", "pending_with_payer", "approved", "denied", "paid"].map(
+                  {["all", "submitted", "awaiting_ack", "in_adjudication", "paid", "denied"].map(
                     (status) => (
                       <button
                         key={status}

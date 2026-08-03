@@ -146,11 +146,11 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
             {getClientAssignments(clientId).length === 0 ? (
               <p className="p-4 text-sm text-gray-400 italic">No additional providers assigned</p>
             ) : (
-              getClientAssignments(clientId).map((a) => {
+              getClientAssignments(clientId).map((a, idx) => {
                 const provider = providers.find((p) => p.id === a.providerId);
                 const member = establishmentMembers.find((m) => m.providerId === a.providerId);
                 return (
-                  <div key={a.providerId} className="p-3 flex items-center gap-3">
+                  <div key={`${a.providerId}-${idx}`} className="p-3 flex items-center gap-3">
                     <div className="size-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0">
                       {provider?.name.split(" ").map((n) => n[0]).join("").slice(0, 2) || "?"}
                     </div>
@@ -325,11 +325,11 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
                     </div>
                     {assignments.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {assignments.map((a) => {
+                        {assignments.map((a, idx) => {
                           const provider = providers.find((p) => p.id === a.providerId);
                           return (
                             <span
-                              key={a.providerId}
+                              key={`${a.providerId}-${idx}`}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium"
                             >
                               {provider?.name || a.providerId}

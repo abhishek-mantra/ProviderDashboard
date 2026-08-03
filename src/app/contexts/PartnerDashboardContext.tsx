@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
-import type { Provider, Practice, PracticeMember, EstablishmentSuperAdmin, CustomRole, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse, PermissionSet } from "../types/partnerDashboard";
+import type { Provider, Practice, PracticeMember, EstablishmentSuperAdmin, CustomRole, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse, PermissionSet, DiagnosisTreatmentPlan, Bill, PriorAuthorization, RemittanceRecord, WriteOffReason } from "../types/partnerDashboard";
 import { ROLE_PERMISSION_DEFAULTS, BASE_ROLES } from "../types/partnerDashboard";
-import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses, mockPractices, mockPracticeMembers, mockSuperAdmins, mockCustomRoles } from "../data/mockPartnerData";
+import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses, mockPractices, mockPracticeMembers, mockSuperAdmins, mockCustomRoles, mockDiagnosisTreatmentPlans, mockBills, mockPriorAuthorizations, mockRemittanceRecords } from "../data/mockPartnerData";
+import { generateId } from "../utils/id";
 
 
 interface PartnerDashboardContextType {
@@ -60,6 +61,22 @@ interface PartnerDashboardContextType {
   setFormResponses: React.Dispatch<React.SetStateAction<FormResponse[]>>;
   topUpCredits: number;
   addTopUpCredits: (minutes: number) => void;
+  diagnosisPlans: DiagnosisTreatmentPlan[];
+  setDiagnosisPlans: React.Dispatch<React.SetStateAction<DiagnosisTreatmentPlan[]>>;
+  addDiagnosisPlan: (plan: Omit<DiagnosisTreatmentPlan, "id" | "createdAt">) => DiagnosisTreatmentPlan;
+  lockDiagnosisPlan: (planId: string) => void;
+  unlockDiagnosisPlan: (planId: string) => void;
+  bills: Bill[];
+  setBills: React.Dispatch<React.SetStateAction<Bill[]>>;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "billNumber">) => Bill;
+  updateBill: (billId: string, updates: Partial<Bill>) => void;
+  writeOffBill: (billId: string, reason: WriteOffReason, note?: string) => void;
+  priorAuthorizations: PriorAuthorization[];
+  setPriorAuthorizations: React.Dispatch<React.SetStateAction<PriorAuthorization[]>>;
+  addPriorAuthorization: (auth: Omit<PriorAuthorization, "id" | "requestedAt">) => PriorAuthorization;
+  remittanceRecords: RemittanceRecord[];
+  setRemittanceRecords: React.Dispatch<React.SetStateAction<RemittanceRecord[]>>;
+  addRemittanceRecord: (remit: Omit<RemittanceRecord, "id" | "postedAt">) => RemittanceRecord;
 }
 
 const PartnerDashboardContext = createContext<PartnerDashboardContextType | undefined>(undefined);
@@ -92,6 +109,98 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   const [intakeFlows, setIntakeFlows] = useState<IntakeFlow[]>(mockIntakeFlows);
   const [formEntries, setFormEntries] = useState<FormEntry[]>(mockFormEntries);
   const [formResponses, setFormResponses] = useState<FormResponse[]>(mockFormResponses);
+
+  const [diagnosisPlans, setDiagnosisPlans] = useState<DiagnosisTreatmentPlan[]>(mockDiagnosisTreatmentPlans);
+  const [bills, setBills] = useState<Bill[]>(mockBills);
+  const [priorAuthorizations, setPriorAuthorizations] = useState<PriorAuthorization[]>(mockPriorAuthorizations);
+  const [remittanceRecords, setRemittanceRecords] = useState<RemittanceRecord[]>(mockRemittanceRecords);
+
+  const addDiagnosisPlan = useCallback((plan: Omit<DiagnosisTreatmentPlan, "id" | "createdAt">) => {
+    const newPlan: DiagnosisTreatmentPlan = {
+      ...plan,
+      id: `dtp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      createdAt: new Date().toISOString(),
+    };
+    setDiagnosisPlans((prev) => [newPlan, ...prev]);
+    return newPlan;
+  }, []);
+
+  const lockDiagnosisPlan = useCallback((planId: string) => {
+    setDiagnosisPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, isLocked: true, lockedAt: new Date().toISOString() } : p))
+    );
+  }, []);
+
+  const unlockDiagnosisPlan = useCallback((planId: string) => {
+    setDiagnosisPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, isLocked: false } : p))
+    );
+  }, []);
+
+  const addBill = useCallback((bill: Omit<Bill, "id" | "createdAt" | "billNumber">) => {
+    const newBill: Bill = {
+      ...bill,
+      id: generateId("bill"),
+      paidAmount: bill.paidAmount ?? 0,
+      writeOffAmount: bill.writeOffAmount ?? 0,
+      billNumber: `BILL-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      createdAt: new Date().toISOString(),
+    };
+    setBills((prev) => [newBill, ...prev]);
+    return newBill;
+  }, []);
+
+  const updateBill = useCallback((billId: string, updates: Partial<Bill>) => {
+    setBills((prev) =>
+      prev.map((b) => (b.id === billId ? { ...b, ...updates } : b))
+    );
+  }, []);
+
+  const writeOffBill = useCallback((billId: string, reason: WriteOffReason, note?: string, amount?: number) => {
+    setBills((prev) =>
+      prev.map((b) => {
+        if (b.id !== billId) return b;
+        const outstanding = b.amount - (b.paidAmount || 0) - (b.writeOffAmount || 0);
+        const writeOffAmt = Math.min(amount ?? outstanding, outstanding);
+        const newWriteOffAmount = (b.writeOffAmount || 0) + writeOffAmt;
+        const fullyWrittenOff = newWriteOffAmount >= b.amount;
+        return {
+          ...b,
+          writeOffAmount: newWriteOffAmount,
+          writeOffReason: reason,
+          writeOffNote: note || b.writeOffNote || "",
+          writeOffBy: currentProviderId,
+          ...(fullyWrittenOff
+            ? {
+                status: "written_off" as const,
+                resolutionMethod: "write_off" as const,
+                resolvedAt: new Date().toISOString(),
+              }
+            : {}),
+        };
+      })
+    );
+  }, [currentProviderId]);
+
+  const addPriorAuthorization = useCallback((auth: Omit<PriorAuthorization, "id" | "requestedAt">) => {
+    const newAuth: PriorAuthorization = {
+      ...auth,
+      id: generateId("pauth"),
+      requestedAt: new Date().toISOString(),
+    };
+    setPriorAuthorizations((prev) => [newAuth, ...prev]);
+    return newAuth;
+  }, []);
+
+  const addRemittanceRecord = useCallback((remit: Omit<RemittanceRecord, "id" | "postedAt">) => {
+    const newRemit: RemittanceRecord = {
+      ...remit,
+      id: generateId("remit"),
+      postedAt: new Date().toISOString(),
+    };
+    setRemittanceRecords((prev) => [newRemit, ...prev]);
+    return newRemit;
+  }, []);
 
   // Default currentPracticeId to the first practice this provider has active membership in
   const [currentPracticeId, setCurrentPracticeId] = useState<string>(() => {
@@ -468,6 +577,22 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         setFormResponses,
         topUpCredits,
         addTopUpCredits,
+        diagnosisPlans,
+        setDiagnosisPlans,
+        addDiagnosisPlan,
+        lockDiagnosisPlan,
+        unlockDiagnosisPlan,
+        bills,
+        setBills,
+        addBill,
+        updateBill,
+        writeOffBill,
+        priorAuthorizations,
+        setPriorAuthorizations,
+        addPriorAuthorization,
+        remittanceRecords,
+        setRemittanceRecords,
+        addRemittanceRecord,
       }}
     >
       {children}

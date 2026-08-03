@@ -20,8 +20,7 @@ export function CreditWidget({ credits, maxCredits, state = "healthy" }: CreditW
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-medium text-[#6B7280]">AI Credits</span>
         <Link
-          to="/billing"
-          state={{ tab: "credits" }}
+          to="/settings/billing"
           className="text-[11px] text-[#1EAAE7] hover:underline"
         >
           Add more

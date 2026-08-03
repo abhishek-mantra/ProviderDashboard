@@ -63,10 +63,61 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   const [showReferModal, setShowReferModal] = useState(false);
   const [targetPracticeId, setTargetPracticeId] = useState("");
   const [targetProviderId, setTargetProviderId] = useState("");
-  const [editingDiagnosis, setEditingDiagnosis] = useState(false);
-  const [diagnosisDraft, setDiagnosisDraft] = useState("");
+  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, practiceMembers, currentPracticeId, referClient, getLinkedClientRecords, diagnosisPlans, addDiagnosisPlan, lockDiagnosisPlan, unlockDiagnosisPlan } = usePartnerDashboard();
   const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent, providers, intakeForms, formResponses, clients, practices, practiceMembers, currentPracticeId, referClient, getLinkedClientRecords, setClients } = usePartnerDashboard();
+
+  const [showNewPlanModal, setShowNewPlanModal] = useState(false);
+  const [newPlanCodes, setNewPlanCodes] = useState<string[]>(["F41.1"]);
+  const [newPlanNotes, setNewPlanNotes] = useState("");
+  const [newPlanDate, setNewPlanDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [newPlanLock, setNewPlanLock] = useState(true);
+
+  const COMMON_ICD10_CODES = [
+    { code: "F41.1", label: "Generalized anxiety disorder" },
+    { code: "F32.9", label: "Major depressive disorder, single episode, unspecified" },
+    { code: "F32.1", label: "Major depressive disorder, single episode, moderate" },
+    { code: "F33.1", label: "Major depressive disorder, recurrent, moderate" },
+    { code: "F43.22", label: "Adjustment disorder with anxiety" },
+    { code: "F43.23", label: "Adjustment disorder with mixed anxiety and depressed mood" },
+    { code: "F41.9", label: "Anxiety disorder, unspecified" },
+    { code: "F40.10", label: "Social phobia, unspecified" },
+    { code: "F90.0", label: "ADHD, predominantly inattentive type" },
+    { code: "F42.2", label: "Obsessive-compulsive disorder" },
+  ];
+
+  const clientDiagnosisPlans = useMemo(
+    () => (diagnosisPlans || []).filter((p) => p.clientId === id),
+    [diagnosisPlans, id]
+  );
+
+  const handleCreatePlan = () => {
+    if (newPlanCodes.length === 0) {
+      toast.error("Please select at least one ICD-10 diagnosis code.");
+      return;
+    }
+    addDiagnosisPlan({
+      clientId: id || "1",
+      diagnosisCodes: newPlanCodes,
+      treatmentPlanNotes: newPlanNotes,
+      assignedProviderId: clientRecord?.treatingProviderId || "prov-1",
+      effectiveDate: newPlanDate,
+      isLocked: newPlanLock,
+    });
+    toast.success("Diagnosis & Treatment Plan saved successfully.");
+    setShowNewPlanModal(false);
+    setNewPlanNotes("");
+  };
+
+  const handleUnlockPlan = (planId: string) => {
+    if (
+      window.confirm(
+        "Unlocking will allow edits to a signed treatment plan and may affect audit trails. Do you wish to continue?"
+      )
+    ) {
+      unlockDiagnosisPlan(planId);
+      toast.info("Diagnosis Plan unlocked for editing.");
+    }
+  };
 
   const clientRecord = clients.find((item) => item.id === id) || clients[0];
   const linkedRecords = getLinkedClientRecords(id || "");
@@ -98,15 +149,6 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     }
   };
 
-  const handleSaveDiagnosis = (code: string) => {
-    if (id) {
-      setClients((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, diagnosisCode: code || null } : c))
-      );
-    }
-    setEditingDiagnosis(false);
-  };
-
   const actionButtons: ActionButton[] = [
     {
       icon: Calendar,
@@ -131,7 +173,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     {
       icon: CreditCard,
       label: "Invoicing",
-      onClick: () => navigate("/billing", { state: { tab: "invoices" } })
+      onClick: () => navigate(`/billing/bills?clientId=${id}`)
     },
     {
       icon: ShieldCheck,
@@ -163,7 +205,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     {
       icon: DollarSign,
       label: "Earnings",
-      onClick: () => navigate("/billing", { state: { tab: "earnings", clientFilter: client.name } })
+      onClick: () => navigate(`/billing/bills?clientId=${id}`)
     },
     {
       icon: ClipboardList,
@@ -173,7 +215,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     {
       icon: ShieldCheck,
       label: "New Claim",
-      onClick: () => navigate(`/billing/unbilled?clientId=${id}`)
+      onClick: () => navigate(`/billing/bills?clientId=${id}`)
     }
   ];
 
@@ -642,6 +684,23 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
 
       {activeTab === "summary" && (
         <>
+          {canViewClinicalContent && clientDiagnosisPlans.length === 0 && (
+            <div className="mb-4 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 rounded-xl flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="text-xs md:text-sm font-medium">
+                  <strong>No active Diagnosis & Treatment Plan</strong> — required before signing notes or submitting claims.
+                </span>
+              </div>
+              <button
+                onClick={() => setShowNewPlanModal(true)}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+              >
+                + Create Plan
+              </button>
+            </div>
+          )}
+
           {/* Summary Section: clinical content is limited to the treating clinician,
               permitted supervisor, or care-team clinician. Admin membership alone
               never grants access. */}
@@ -689,51 +748,99 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                 </div>
               </div>
 
-              {/* Diagnosis Code */}
-              <div className="pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold text-gray-900 dark:text-white">Diagnosis Code:</span>
-                  </span>
-                  {editingDiagnosis ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={diagnosisDraft}
-                        onChange={(e) => setDiagnosisDraft(e.target.value)}
-                        className="w-32 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="e.g. F41.1"
-                      />
-                      <button
-                        onClick={() => handleSaveDiagnosis(diagnosisDraft)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-[#00c0ff] rounded hover:bg-[#00a0d0]"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingDiagnosis(false)}
-                        className="px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs md:text-sm font-mono text-[#043570] dark:text-[#00c0ff] font-semibold">
-                        {clientRecord.diagnosisCode || "—"}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setDiagnosisDraft(clientRecord.diagnosisCode || "");
-                          setEditingDiagnosis(true);
-                        }}
-                        className="text-xs text-[#00c0ff] hover:text-[#043570] dark:hover:text-white transition-colors"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
+              {/* Diagnosis & Treatment Plans (ICD-10) */}
+              <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="size-4 text-[#00c0ff]" />
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      Diagnosis & Treatment Plans (ICD-10)
+                    </span>
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                      {clientDiagnosisPlans.length}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowNewPlanModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-[#043570] hover:bg-[#032554] text-white rounded-lg transition-colors shadow-sm"
+                  >
+                    + New Plan
+                  </button>
                 </div>
+
+                {clientDiagnosisPlans.length === 0 ? (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center text-xs text-gray-500 dark:text-gray-400">
+                    No diagnosis & treatment plans on file. Create a plan to enable session note signing and charge capture.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {clientDiagnosisPlans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className={`p-3 rounded-xl border transition-all ${
+                          plan.isLocked
+                            ? "bg-white dark:bg-gray-800 border-emerald-200 dark:border-emerald-800/60 shadow-xs"
+                            : "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {plan.diagnosisCodes.map((code) => (
+                              <span
+                                key={code}
+                                className="px-2 py-0.5 text-xs font-mono font-bold bg-[#043570]/10 dark:bg-[#00c0ff]/20 text-[#043570] dark:text-[#00c0ff] rounded-md border border-[#043570]/20 dark:border-[#00c0ff]/30"
+                              >
+                                {code}
+                              </span>
+                            ))}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Effective: <strong>{plan.effectiveDate}</strong>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {plan.isLocked ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-full">
+                                <Lock className="size-3" />
+                                Locked
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded-full">
+                                Draft
+                              </span>
+                            )}
+
+                            {plan.isLocked ? (
+                              <button
+                                onClick={() => handleUnlockPlan(plan.id)}
+                                className="text-xs text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                title="Unlock plan for editing"
+                              >
+                                Unlock
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  lockDiagnosisPlan(plan.id);
+                                  toast.success("Diagnosis Plan locked and activated.");
+                                }}
+                                className="px-2 py-0.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors"
+                              >
+                                Lock Plan
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {plan.treatmentPlanNotes && (
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 pl-1 border-l-2 border-gray-200 dark:border-gray-600 italic">
+                            {plan.treatmentPlanNotes}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div> : (
@@ -840,6 +947,118 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
         isOpen={isMobileAppModalOpen}
         onClose={() => setIsMobileAppModalOpen(false)}
       />
+
+      {/* New Diagnosis & Treatment Plan Modal */}
+      {showNewPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-gray-200 dark:border-gray-700 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <ClipboardList className="size-5 text-[#00c0ff]" />
+                New Diagnosis & Treatment Plan
+              </h3>
+              <button
+                onClick={() => setShowNewPlanModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-2">
+                Select ICD-10 Diagnosis Code(s) *
+              </label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-900/30">
+                {COMMON_ICD10_CODES.map((item) => {
+                  const isChecked = newPlanCodes.includes(item.code);
+                  return (
+                    <label
+                      key={item.code}
+                      className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-800 cursor-pointer text-xs transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setNewPlanCodes(newPlanCodes.filter((c) => c !== item.code));
+                          } else {
+                            setNewPlanCodes([...newPlanCodes, item.code]);
+                          }
+                        }}
+                        className="rounded border-gray-300 dark:border-gray-600 text-[#043570] focus:ring-[#00c0ff]"
+                      />
+                      <span className="font-mono font-bold text-[#043570] dark:text-[#00c0ff] shrink-0">
+                        {item.code}
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300 truncate">
+                        {item.label}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-1">
+                Effective Date *
+              </label>
+              <input
+                type="date"
+                value={newPlanDate}
+                onChange={(e) => setNewPlanDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 block">
+                Can be backdated to cover prior appointments.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-1">
+                Treatment Plan Notes (Optional)
+              </label>
+              <textarea
+                value={newPlanNotes}
+                onChange={(e) => setNewPlanNotes(e.target.value)}
+                rows={3}
+                placeholder="Document clinical justification, objectives, or treatment modality..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="lock-plan-chk"
+                checked={newPlanLock}
+                onChange={(e) => setNewPlanLock(e.target.checked)}
+                className="rounded border-gray-300 dark:border-gray-600 text-[#043570] focus:ring-[#00c0ff]"
+              />
+              <label htmlFor="lock-plan-chk" className="text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Lock plan immediately upon saving (recommended for charge capture)
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setShowNewPlanModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreatePlan}
+                className="px-5 py-2 text-sm font-bold bg-[#043570] hover:bg-[#032554] text-white rounded-xl shadow-md hover:shadow-lg transition-all"
+              >
+                Save Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

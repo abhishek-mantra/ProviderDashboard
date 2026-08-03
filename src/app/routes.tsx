@@ -10,7 +10,11 @@ import { Sessions } from "./pages/Sessions";
 import { Clients } from "./pages/Clients";
 import { Earnings } from "./pages/Earnings";
 import { Billing } from "./pages/Billing";
+import { BillsHub } from "./pages/BillsHub";
+import { BillDetail } from "./pages/BillDetail";
+import { BillDocument } from "./pages/BillDocument";
 import { UnbilledSessions } from "./pages/UnbilledSessions";
+import { RevenueCycle } from "./pages/RevenueCycle";
 import { Profile } from "./pages/Profile";
 import { EditProfile } from "./pages/EditProfile";
 import { Verification } from "./pages/Verification";
@@ -47,6 +51,7 @@ import { SettingsOrganization } from "./pages/SettingsOrganization";
 import { SettingsBillingPlans } from "./pages/SettingsBillingPlans";
 import { SettingsBillingPayments } from "./pages/SettingsBillingPayments";
 import { SettingsBillingCreditUsage } from "./pages/SettingsBillingCreditUsage";
+import { FeeScheduleView } from "./pages/FeeScheduleView";
 import { SettingsAIVoices } from "./pages/SettingsAIVoices";
 import { SettingsNumbers } from "./pages/SettingsNumbers";
 import { SettingsCustomFields } from "./pages/SettingsCustomFields";
@@ -132,7 +137,13 @@ export const router = createBrowserRouter([
       { path: "clients/:id/orders", element: <ClientOrders /> },
       { path: "earnings", element: <Earnings /> },
       { path: "billing", element: <Billing /> },
+      { path: "billing/bills", element: <BillsHub /> },
+      { path: "billing/bills/superbill", element: <SuperbillDocument /> },
+      { path: "billing/bills/:billId", element: <BillDetail /> },
+      { path: "billing/bills/:billId/superbill", element: <SuperbillDocument /> },
+      { path: "billing/bills/:billId/invoice", element: <BillDocument /> },
       { path: "billing/unbilled", element: <UnbilledSessions /> },
+      { path: "revenue-cycle", element: <RevenueCycle /> },
       { path: "profile", element: <Profile /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "verification", element: <Verification /> },
@@ -145,7 +156,9 @@ export const router = createBrowserRouter([
       { path: "insurance", element: <InsurancePage /> },
       { path: "credential-status", element: <CredentialStatus /> },
 
-      // Claims routes (old wizard scrapped — use /billing/unbilled as entry point)
+      // Claims routes — entry point for creating claims is now the Bill hub (/billing/bills).
+      // /billing/unbilled and the Invoices pages remain as legacy surfaces; "New Claim" CTAs
+      // across the app route into the Bill hub instead.
       { path: "claims", element: <Claims /> },
       { path: "claims/:claimId/cms1500", element: <CMS1500Form /> },
       { path: "claims/:claimId/summary", element: <ItemizedClaimSummary /> },
@@ -191,9 +204,11 @@ export const router = createBrowserRouter([
           },
           { path: "organization", element: <SettingsOrganization /> },
           { path: "billing/plans", element: <SettingsBillingPlans /> },
+          { path: "billing", element: <SettingsBillingPlans /> },
           { path: "billing/payments", element: <SettingsBillingPayments /> },
           { path: "billing/credit-usage", element: <SettingsBillingCreditUsage /> },
           { path: "billing/manage-credit-usage", element: <SettingsBillingCreditUsage /> },
+          { path: "fee-schedule", element: <FeeScheduleView /> },
           { path: "ai-voices", element: <SettingsAIVoices /> },
           { path: "numbers", element: <SettingsNumbers /> },
           { path: "custom-fields", element: <SettingsCustomFields /> },

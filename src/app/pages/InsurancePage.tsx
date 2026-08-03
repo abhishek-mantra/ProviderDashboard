@@ -28,9 +28,9 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
     setActiveTab(tab);
     const currentTab = searchParams.get("tab");
     if (currentTab === "insurance" || window.location.pathname.includes("/billing")) {
-      setSearchParams({ tab: "insurance", subtab: tab });
+      setSearchParams({ tab: "insurance", subtab: tab }, { replace: true });
     } else {
-      setSearchParams({ tab });
+      setSearchParams({ tab }, { replace: true });
     }
   };
 

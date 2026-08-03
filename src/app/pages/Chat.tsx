@@ -303,6 +303,8 @@ export function Chat() {
     time: string;
     sessionType: "video" | "chat" | "in-person";
     location: "online" | "offline";
+    cptCode?: string;
+    fee?: number;
   }) => {
     console.log("Appointment scheduled:", appointment);
     // Here you would typically save the appointment to your backend

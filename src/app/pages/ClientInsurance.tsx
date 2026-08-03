@@ -11,7 +11,7 @@ export function ClientInsurance() {
   const navigate = useNavigate();
   const { id } = useParams();
   const clients = usePracticeScopedClients();
-  const { claims: allClaims } = useClaims();
+  const { claims: allClaims, runEligibilityCheck } = useClaims();
   const contextClient = id ? clients.find((c) => c.id === id) : undefined;
   const [activeTab, setActiveTab] = useState<"insurance" | "claims">("insurance");
   
@@ -37,6 +37,11 @@ export function ClientInsurance() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [payerFilter, setPayerFilter] = useState<string>("all");
 
+  // Part 4i — eligibility check modal state
+  const [eligibilityOpen, setEligibilityOpen] = useState(false);
+  const [eligibilityOutcome, setEligibilityOutcome] = useState<"confirmed" | "transient_outage" | "data_mismatch" | "no_coverage">("confirmed");
+  const [editedMemberName, setEditedMemberName] = useState("");
+
   const clientClaims = id ? allClaims.filter((c) => c.clientId === id) : [];
   const uniquePayers = Array.from(new Set(clientClaims.map((c) => c.payerName).filter(Boolean))).sort();
 
@@ -45,6 +50,7 @@ export function ClientInsurance() {
     switch (status) {
       case "paid":
       case "approved":
+      case "adjusted":
         return (
           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
             {label}
@@ -52,9 +58,17 @@ export function ClientInsurance() {
         );
       case "denied":
       case "rejected":
+      case "stedi_rejected":
+      case "payer_rejected":
       case "eligibility_failed":
         return (
           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {label}
+          </span>
+        );
+      case "in_adjudication":
+        return (
+          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
             {label}
           </span>
         );
@@ -62,6 +76,10 @@ export function ClientInsurance() {
       case "scrubbing":
       case "pending_with_payer":
       case "eligibility_pending":
+      case "awaiting_ack":
+      case "no_response_investigate":
+      case "stedi_validating":
+      case "sent_to_payer":
         return (
           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
             {label}
@@ -568,7 +586,7 @@ export function ClientInsurance() {
 
                   {/* New Claim Button */}
                   <button
-                    onClick={() => navigate(`/billing/unbilled?clientId=${id}`)}
+                    onClick={() => navigate(`/billing/bills?clientId=${id}`)}
                     className="flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap"
                   >
                     <Plus className="size-3.5 md:size-4" />
@@ -591,7 +609,7 @@ export function ClientInsurance() {
                         className="w-full px-2.5 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4169E1] text-xs text-gray-900 dark:text-white"
                       >
                         <option value="all">All Status</option>
-                        {["draft","eligibility_pending","eligibility_confirmed","eligibility_failed","submitted","scrubbing","pending_with_payer","approved","paid","denied","rejected","manual_generated","superbill_generated"].map((s) => (
+                        {["draft","eligibility_pending","eligibility_confirmed","eligibility_failed","submitted","awaiting_ack","stedi_validating","sent_to_payer","in_adjudication","paid","denied","adjusted","manual_generated","superbill_generated"].map((s) => (
                           <option key={s} value={s}>{CLAIM_STATUS_LABELS[s as ClaimStatus] || s}</option>
                         ))}
                       </select>
@@ -628,6 +646,43 @@ export function ClientInsurance() {
                       Reset Filters
                     </button>
                   </div>
+                )}
+              </div>
+
+              {/* Part 4i — Eligibility Check panel */}
+              <div className="bg-white dark:bg-gray-750 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="size-9 shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                      <ShieldCheck className="size-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Eligibility Check</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-md">
+                        Run a benefits-eligibility verification against the payer before submission.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEligibilityOpen(true)}
+                    disabled={clientClaims.length === 0}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                  >
+                    <ShieldCheck className="size-3.5" />
+                    Run Eligibility Check
+                  </button>
+                </div>
+                {clientClaims.length > 0 && (
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    Latest claim: {clientClaims[0].claimNumber} · {clientClaims[0].payerName || "No payer set"} ·{" "}
+                    {clientClaims[0].eligibilityCheck
+                      ? clientClaims[0].eligibilityCheck.status === "confirmed"
+                        ? "eligibility confirmed"
+                        : clientClaims[0].eligibilityCheck.status === "failed"
+                        ? `eligibility failed (${clientClaims[0].eligibilityCheck.failureMode || "generic"})`
+                        : "eligibility pending"
+                      : "eligibility not yet checked"}
+                  </p>
                 )}
               </div>
 
@@ -747,6 +802,104 @@ export function ClientInsurance() {
         </div>
       </div>
       </div>
+
+      {/* Part 4i — Eligibility Check Modal */}
+      {eligibilityOpen && clientClaims.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 space-y-5 animate-scale-up">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#4169E1] dark:text-blue-400">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    Eligibility Check
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {clientClaims[0].claimNumber} · {clientClaims[0].payerName || "No payer set"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEligibilityOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                Simulated payer response
+              </p>
+              <div className="grid gap-2">
+                {([
+                  { value: "confirmed", label: "Confirmed — coverage active", desc: "Benefit estimate returned (copay, coinsurance, deductible)." },
+                  { value: "transient_outage", label: "Transient payer outage", desc: "Auto-retries silently, then succeeds. No user action." },
+                  { value: "data_mismatch", label: "Data mismatch", desc: "Name/DOB variation — shows an editable retry form." },
+                  { value: "no_coverage", label: "No coverage / not enrolled", desc: "Real failure state with next steps." },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setEligibilityOutcome(opt.value)}
+                    className={`text-left p-3 rounded-xl border transition-colors ${
+                      eligibilityOutcome === opt.value
+                        ? "border-[#4169E1] bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{opt.label}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {eligibilityOutcome === "data_mismatch" && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 space-y-2">
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                  Flagged field: Member Name
+                </p>
+                <input
+                  type="text"
+                  value={editedMemberName}
+                  onChange={(e) => setEditedMemberName(e.target.value)}
+                  placeholder="Correct the subscriber name (e.g. Sarah Jane)"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
+                />
+              </div>
+            )}
+
+            {eligibilityOutcome === "no_coverage" && (
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 space-y-1.5">
+                <p className="text-xs font-bold text-red-800 dark:text-red-300">Next steps</p>
+                <p className="text-xs text-red-700 dark:text-red-400">• Contact the payer to confirm coverage.</p>
+                <p className="text-xs text-red-700 dark:text-red-400">• Try a different member identifier.</p>
+                <p className="text-xs text-red-700 dark:text-red-400">• Confirm provider is enrolled with this payer.</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setEligibilityOpen(false)}
+                className="px-4 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  runEligibilityCheck(clientClaims[0].id, eligibilityOutcome);
+                  setEligibilityOpen(false);
+                }}
+                className="px-5 py-2.5 text-xs font-bold bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl shadow-md transition-all"
+              >
+                Run Check
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

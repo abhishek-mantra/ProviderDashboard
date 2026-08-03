@@ -1,9 +1,10 @@
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useState, useEffect, useMemo } from "react";
 import { useTranscriberPrefill, demoNoteData, demoTranscript } from "../hooks/useTranscriberPrefill";
-import { ArrowLeft, FileText, ChevronDown, Sparkles, Loader2, Save, Zap, Check, User, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { ArrowLeft, FileText, ChevronDown, Sparkles, Loader2, Save, Zap, Check, User, ChevronLeft, ChevronRight, Lock, AlertCircle, Plus, X } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
+import { getActiveDiagnosisForDate } from "../types/partnerDashboard";
 
 interface TemplateOption {
   id: string;
@@ -173,7 +174,7 @@ Client demonstrates strong engagement and willingness to implement new coping st
 export function AddSessionNote() {
   const navigate = useNavigate();
   const { id: paramClientId, sessionId: paramSessionId } = useParams();
-  const { canViewClientClinicalContent } = usePartnerDashboard();
+  const { canViewClientClinicalContent, clients, diagnosisPlans, addBill, currentProviderId, addDiagnosisPlan, lockDiagnosisPlan } = usePartnerDashboard();
   const [searchParams] = useSearchParams();
   const { isFromTranscriber: isFromTranscriberHook } = useTranscriberPrefill();
 
@@ -192,12 +193,16 @@ export function AddSessionNote() {
   const [activeTab, setActiveTab] = useState<"transcript" | "noteworthy">("transcript");
   const [selectedSessionId, setSelectedSessionId] = useState("1");
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-  const [diagnosisCodeAtSigning, setDiagnosisCodeAtSigning] = useState("");
   const [selectedCptCode, setSelectedCptCode] = useState("");
   const [isNoteLocked, setIsNoteLocked] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
 
-  const { clients } = usePartnerDashboard();
+  // Part 3a — inline Diagnosis & Treatment Plan quick-action
+  const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
+  const [planDiagnosisCode, setPlanDiagnosisCode] = useState("");
+  const [planEffectiveDate, setPlanEffectiveDate] = useState(new Date().toISOString().split("T")[0]);
+  const [planNotes, setPlanNotes] = useState("");
+
   const { feeSchedule, unbilledSessions, signAndLockSession } = useClaims();
 
   const currentSession = useMemo(() => {
@@ -210,23 +215,26 @@ export function AddSessionNote() {
   const effectiveClientId = paramClientId || searchClientId || currentSession?.clientId;
   const clientRecord = clients.find((c) => c.id === effectiveClientId);
 
+  const activeDiagnosisCodes = useMemo(() => {
+    return getActiveDiagnosisForDate(
+      effectiveClientId || "",
+      currentSession?.date || new Date().toISOString().split("T")[0],
+      diagnosisPlans || []
+    );
+  }, [diagnosisPlans, effectiveClientId, currentSession]);
+
   const feeScheduleOptions = useMemo(() => feeSchedule, [feeSchedule]);
 
   useEffect(() => {
     if (currentSession) {
-      if (currentSession.diagnosisCode && !diagnosisCodeAtSigning) {
-        setDiagnosisCodeAtSigning(currentSession.diagnosisCode);
-      }
       if (currentSession.cptCode && !selectedCptCode) {
         setSelectedCptCode(currentSession.cptCode);
       }
       if (currentSession.notesStatus === "locked") {
         setIsNoteLocked(true);
       }
-    } else if (clientRecord?.diagnosisCode && !diagnosisCodeAtSigning) {
-      setDiagnosisCodeAtSigning(clientRecord.diagnosisCode);
     }
-  }, [currentSession, clientRecord]);
+  }, [currentSession]);
 
   // Reset field values when template changes
   useEffect(() => {
@@ -256,6 +264,22 @@ export function AddSessionNote() {
   // Check if fields are already filled
   const isFieldsFilled = () => {
     return Object.keys(fieldValues).length > 0;
+  };
+
+  const handleCreateDiagnosisPlan = () => {
+    if (!effectiveClientId || !planDiagnosisCode.trim()) return;
+    const plan = addDiagnosisPlan({
+      clientId: effectiveClientId,
+      diagnosisCodes: [planDiagnosisCode.trim().toUpperCase()],
+      treatmentPlanNotes: planNotes.trim() || undefined,
+      assignedProviderId: currentProviderId || "prov-1",
+      effectiveDate: planEffectiveDate,
+      isLocked: false,
+    });
+    lockDiagnosisPlan(plan.id);
+    setPlanDiagnosisCode("");
+    setPlanNotes("");
+    setShowDiagnosisModal(false);
   };
 
   return (
@@ -721,7 +745,6 @@ export function AddSessionNote() {
                       type="button"
                       onClick={() => {
                         setSelectedCptCode("90834");
-                        if (!diagnosisCodeAtSigning) setDiagnosisCodeAtSigning("F41.1");
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 transition-all border border-indigo-200 dark:border-indigo-800"
                     >
@@ -730,18 +753,72 @@ export function AddSessionNote() {
                     </button>
                   </div>
 
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-white mb-1.5">
-                      Diagnosis Code (ICD-10) *
-                    </label>
-                    <input
-                      type="text"
-                      value={diagnosisCodeAtSigning}
-                      onChange={(e) => setDiagnosisCodeAtSigning(e.target.value)}
-                      placeholder="e.g. F41.1"
-                      className="w-full px-3 py-2.5 bg-gradient-to-br from-gray-50 to-white dark:from-gray-750 dark:to-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00c0ff] focus:border-transparent text-sm text-gray-900 dark:text-white font-mono"
-                    />
-                  </div>
+                  {!effectiveSessionId && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                        <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span className="text-sm font-bold">
+                          Scheduled Appointment Required
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800 dark:text-amber-300">
+                        Sign &amp; Lock is only available for a scheduled appointment. Open this note from a
+                        session or client appointment to capture billing.
+                      </p>
+                    </div>
+                  )}
+
+                  {activeDiagnosisCodes.length === 0 ? (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                        <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span className="text-sm font-bold">
+                          Locked Diagnosis & Treatment Plan Required
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800 dark:text-amber-300">
+                        Cannot sign & lock note or capture billing charges without an active locked diagnosis plan on file for this client.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDiagnosisModal(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          <Plus className="size-3.5" />
+                          New Diagnosis &amp; Treatment Plan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/clients/${effectiveClientId}`)}
+                          className="px-3 py-1.5 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 text-xs font-semibold rounded-lg hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+                        >
+                          Manage Plans on Profile
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                          Auto-Resolved ICD-10 Diagnosis (from Active Treatment Plan):
+                        </span>
+                        <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                          ✓ Verified Active
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        {activeDiagnosisCodes.map((code) => (
+                          <span
+                            key={code}
+                            className="px-2.5 py-1 text-xs font-mono font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-md border border-emerald-300 dark:border-emerald-700"
+                          >
+                            {code}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -776,7 +853,9 @@ export function AddSessionNote() {
                     <Lock className="size-5 text-green-600 dark:text-green-400" />
                     <div>
                       <p className="text-sm font-semibold text-green-700 dark:text-green-400">Note Signed & Locked</p>
-                      <p className="text-xs text-green-600 dark:text-green-300">Diagnosis: {diagnosisCodeAtSigning} | CPT: {selectedCptCode}</p>
+                      <p className="text-xs text-green-600 dark:text-green-300">
+                        Diagnosis: {activeDiagnosisCodes.join(", ") || "—"} | CPT: {selectedCptCode}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -801,22 +880,40 @@ export function AddSessionNote() {
                   {!isNoteLocked && (
                     <button
                       onClick={() => {
-                        if (!diagnosisCodeAtSigning.trim() || !selectedCptCode) return;
+                        if (activeDiagnosisCodes.length === 0 || !selectedCptCode || !effectiveSessionId) return;
                         setIsSigning(true);
                         setTimeout(() => {
-                          const targetSessionId = effectiveSessionId || unbilledSessions.find(
-                            (s) => s.clientId === effectiveClientId && s.notesStatus !== "locked"
-                          )?.id;
-                          if (targetSessionId) {
-                            signAndLockSession(targetSessionId, diagnosisCodeAtSigning.trim(), selectedCptCode);
-                          }
+                          // Bill is created here at Sign & Lock (Stage 2). A real scheduled
+                          // appointment is required — no synthetic fallback session is created.
+                          const targetSessionId = effectiveSessionId;
+                          signAndLockSession(targetSessionId, activeDiagnosisCodes[0], selectedCptCode);
+                          addBill({
+                            clientId: effectiveClientId || "1",
+                            clientName: clientRecord?.name || "Client",
+                            providerId: currentProviderId || "prov-1",
+                            sessionId: targetSessionId,
+                            dateOfService: currentSession?.date || new Date().toISOString().split("T")[0],
+                            cptCode: selectedCptCode,
+                            diagnosisCodes: activeDiagnosisCodes,
+                            amount: feeScheduleOptions.find(f => f.cptCode === selectedCptCode)?.providerRate || 150,
+                            payerId: clientRecord?.insuranceCompany ? "us-1" : null,
+                            payerName: clientRecord?.insuranceCompany || null,
+                            resolutionMethod: clientRecord?.insuranceCompany ? "insurance" : null,
+                            status: "unresolved",
+                            claimId: null,
+                          });
                           setIsNoteLocked(true);
                           setIsSigning(false);
                         }, 800);
                       }}
-                      disabled={!diagnosisCodeAtSigning.trim() || !selectedCptCode || isSigning}
+                      disabled={
+                        activeDiagnosisCodes.length === 0 ||
+                        !selectedCptCode ||
+                        isSigning ||
+                        !effectiveSessionId
+                      }
                       className={`flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-lg md:rounded-xl transition-all font-bold shadow-sm hover:shadow-md text-sm md:text-base ${
-                        isSigning
+                        isSigning || activeDiagnosisCodes.length === 0 || !effectiveSessionId
                           ? "bg-gray-300 cursor-not-allowed text-gray-500"
                           : "bg-emerald-600 hover:bg-emerald-700 text-white"
                       }`}
@@ -1055,6 +1152,89 @@ export function AddSessionNote() {
         </div>
         </div>
       </div>
+
+      {/* Part 3a — Inline New Diagnosis & Treatment Plan Modal */}
+      {showDiagnosisModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 space-y-5 animate-scale-up">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <FileText className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    New Diagnosis &amp; Treatment Plan
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {clientRecord?.name || "Client"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDiagnosisModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                  ICD-10 Diagnosis Code *
+                </label>
+                <input
+                  type="text"
+                  value={planDiagnosisCode}
+                  onChange={(e) => setPlanDiagnosisCode(e.target.value)}
+                  placeholder="e.g. F41.1"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                  Effective Date
+                </label>
+                <input
+                  type="date"
+                  value={planEffectiveDate}
+                  onChange={(e) => setPlanEffectiveDate(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                  Treatment Plan Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={planNotes}
+                  onChange={(e) => setPlanNotes(e.target.value)}
+                  placeholder="Optional short-term/long-term objectives..."
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00c0ff] resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setShowDiagnosisModal(false)}
+                className="px-4 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!planDiagnosisCode.trim()}
+                onClick={handleCreateDiagnosisPlan}
+                className="px-5 py-2.5 text-xs font-bold bg-[#00c0ff] hover:bg-[#00a8e6] text-white rounded-xl shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Create &amp; Lock Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

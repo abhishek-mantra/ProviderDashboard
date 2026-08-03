@@ -173,6 +173,8 @@ export interface MockClient {
   practiceId: string;
   treatingProviderId: string;
   insuranceCompany?: string;
+  /** Secondary/alternative insurance plans. Primary plan is `insuranceCompany`; these are selectable in Create Bill. */
+  insurances?: string[];
   diagnosisCode: string | null;
   referredFromClientId?: string;
 }
@@ -396,3 +398,109 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   file_upload: "File Upload",
   screening_instrument: "Screening Instrument",
 };
+
+// ── RCM Data Models ─────────────────────────────────────────────────────────
+
+export interface DiagnosisTreatmentPlan {
+  id: string;
+  clientId: string;
+  diagnosisCodes: string[];
+  treatmentPlanNotes?: string;
+  assignedProviderId: string;
+  effectiveDate: string;
+  isLocked: boolean;
+  createdAt: string;
+  lockedAt?: string;
+}
+
+export function getActiveDiagnosisForDate(
+  clientId: string,
+  appointmentDate: string,
+  plans: DiagnosisTreatmentPlan[]
+): string[] {
+  if (!Array.isArray(plans)) return [];
+  // resolves the most recent locked plan with effectiveDate <= appointmentDate
+  const validPlans = plans
+    .filter((p) => p.clientId === clientId && p.isLocked && p.effectiveDate <= appointmentDate)
+    .sort((a, b) => (a.effectiveDate > b.effectiveDate ? -1 : a.effectiveDate < b.effectiveDate ? 1 : 0));
+  return validPlans.length > 0 ? validPlans[0].diagnosisCodes : [];
+}
+
+export type WriteOffReason =
+  | "bad_debt"
+  | "financial_hardship"
+  | "goodwill_adjustment"
+  | "timely_filing_expired"
+  | "client_deceased"
+  | "other";
+
+export const WRITE_OFF_REASON_LABELS: Record<WriteOffReason, string> = {
+  bad_debt: "Bad debt / uncollectible",
+  financial_hardship: "Financial hardship waiver",
+  goodwill_adjustment: "Provider goodwill adjustment",
+  timely_filing_expired: "Timely filing expired",
+  client_deceased: "Client deceased",
+  other: "Other",
+};
+
+export interface BillServiceLine {
+  sessionId: string;
+  cptCode: string;
+  dateOfService: string;
+  description: string;
+  amount: number;
+}
+
+export interface Bill {
+  id: string;
+  billNumber: string;              // e.g. "BILL-2026-0142"
+  clientId: string;
+  clientName: string;
+  providerId: string;
+  sessionId: string;               // primary (first) session id
+  dateOfService: string;
+  cptCode: string;                 // primary (first) line cpt
+  diagnosisCodes: string[];
+  amount: number;
+  paidAmount?: number;
+  writeOffAmount?: number;
+  payerId: string | null;
+  payerName: string | null;
+  resolutionMethod: "cash" | "online" | "insurance" | "write_off" | null;
+  status: "unresolved" | "paid_direct" | "claim_pending" | "paid_via_claim" | "written_off";
+  claimId: string | null;
+  writeOffReason?: WriteOffReason | null;
+  writeOffNote?: string;
+  writeOffBy?: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  /** All session ids billed on this bill (primary first). Present on grouped bills. */
+  sessionIds?: string[];
+  /** Per-line breakdown. Undefined for single-session bills. */
+  serviceLines?: BillServiceLine[];
+}
+
+export interface PriorAuthorization {
+  id: string;
+  clientId: string;
+  payerId: string;
+  serviceType: string;
+  status: "not_required" | "pending" | "approved" | "denied" | "expired";
+  authorizationNumber: string | null;
+  requestedAt: string;
+  decidedAt: string | null;
+  validUntil: string | null;
+  linkedBillIds: string[];
+}
+
+export interface RemittanceRecord {
+  id: string;
+  claimId: string;
+  billedAmount: number;
+  allowedAmount: number;
+  paidAmount: number;
+  patientResponsibility: number;
+  adjustmentReason: string | null;
+  postedAt: string;
+  discrepancyFlag: boolean;
+}

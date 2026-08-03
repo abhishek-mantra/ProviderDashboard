@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Plus, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, EyeOff, GripVertical } from "lucide-react";
+import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Plus, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, Activity, EyeOff, GripVertical } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Toaster, toast } from "./ui/sonner";
 import { usePlanMode } from "../contexts/PlanModeContext";
@@ -234,7 +234,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { planMode } = usePlanMode();
-  const { isCurrentUserAdmin, isCurrentUserSupervisor, providers, currentProviderId } = usePartnerDashboard();
+  const { isCurrentUserAdmin, isCurrentUserSupervisor, providers, currentProviderId, getPermissionsForCurrentUser } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const providerName = currentProvider?.name || "John Wilson";
   const providerInitials = providerName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -256,8 +256,8 @@ export function Layout() {
 
   // Nav item ordering — one per mode, persisted
   const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'revenue-cycle', 'messages', 'appointments', 'intake-forms', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'revenue-cycle', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -540,6 +540,7 @@ export function Layout() {
     'home':               { icon: <Home className="size-5 flex-shrink-0" />,          label: 'Home' },
     'clients':            { icon: <Users className="size-5 flex-shrink-0" />,         label: 'Clients' },
     'billing':            { icon: <CreditCard className="size-5 flex-shrink-0" />,    label: 'Billing' },
+    'revenue-cycle':      { icon: <Activity className="size-5 flex-shrink-0" />,      label: 'Revenue Cycle' },
     'messages':           { icon: <MessageSquare className="size-5 flex-shrink-0" />, label: 'Messages' },
     'appointments':       { icon: <Calendar className="size-5 flex-shrink-0" />,      label: 'Appointments' },
     'refer-earn':         { icon: <Gift className="size-5 flex-shrink-0" />,          label: 'Refer & Earn' },
@@ -771,7 +772,10 @@ export function Layout() {
       case 'clients':
         return renderNavItem("/clients", <Users className="size-5 flex-shrink-0" />, "Clients");
       case 'billing':
-        return renderNavItem("/billing", <CreditCard className="size-5 flex-shrink-0" />, "Billing");
+        return renderNavItem("/billing/bills", <CreditCard className="size-5 flex-shrink-0" />, "Billing");
+      case 'revenue-cycle':
+        if (!isCurrentUserAdmin) return null;
+        return renderNavItem("/revenue-cycle", <Activity className="size-5 flex-shrink-0" />, "Revenue Cycle");
       case 'messages':
         return renderNavItem("/chat", <MessageSquare className="size-5 flex-shrink-0" />, "Messages");
       case 'appointments':

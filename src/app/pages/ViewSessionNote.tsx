@@ -1,6 +1,7 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, Link } from "react-router";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
-import { ArrowLeft, FileText, Calendar, Clock, Edit2, ChevronDown, User, Sparkles } from "lucide-react";
+import { getActiveDiagnosisForDate } from "../types/partnerDashboard";
+import { ArrowLeft, FileText, Calendar, Clock, Edit2, ChevronDown, User, Sparkles, AlertTriangle, Lock, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 interface NoteField {
@@ -322,13 +323,19 @@ Strong rapport building evident. Client shows:
 export function ViewSessionNote() {
   const navigate = useNavigate();
   const { noteId } = useParams();
-  const { canViewClientClinicalContent } = usePartnerDashboard();
+  const { canViewClientClinicalContent, diagnosisTreatmentPlans, bills } = usePartnerDashboard();
   const [activeTab, setActiveTab] = useState<"transcript" | "noteworthy">("transcript");
   const [selectedSessionId, setSelectedSessionId] = useState("1");
   
   const note = noteId ? mockNotes[noteId] : null;
   const noteClientId = noteId === "1" || noteId === "3" ? "1" : noteId === "2" ? "2" : "3";
   const selectedSession = sessionDates.find(s => s.id === selectedSessionId);
+
+  const activeDiagnosisCode = getActiveDiagnosisForDate(
+    diagnosisTreatmentPlans,
+    noteClientId,
+    note?.sessionDate || "2026-03-14"
+  );
 
   if (!note || !canViewClientClinicalContent(noteClientId)) {
     return (
@@ -454,6 +461,79 @@ export function ViewSessionNote() {
                   </div>
                 </div>
               ))}
+
+              {/* ── STAGE 1 & 2: SIGN & LOCK HARD-GATE & DIAGNOSIS VERIFICATION ── */}
+              <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="bg-gradient-to-br from-gray-50 to-indigo-50/30 dark:from-gray-900/40 dark:to-indigo-950/20 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Lock className="size-4.5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                          Sign &amp; Lock Note (for billing)
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Requires an active locked ICD-10 Treatment Plan on file.
+                        </p>
+                      </div>
+                    </div>
+
+                    {activeDiagnosisCode ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                        <CheckCircle2 className="size-3.5 text-emerald-500" />
+                        <span>Plan Verified &amp; Locked</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-xs font-bold">
+                        <AlertTriangle className="size-3.5 text-red-500" />
+                        <span>Missing Treatment Plan</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
+                      Auto-Resolved ICD-10 Diagnosis (from Active Treatment Plan)
+                    </label>
+                    <div className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-900 dark:text-white flex items-center justify-between">
+                      <span>{activeDiagnosisCode || "No locked ICD-10 code found for this service date"}</span>
+                      {activeDiagnosisCode && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                          Ready for Superbill / Claim
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {!activeDiagnosisCode ? (
+                    <div className="p-3.5 bg-red-50/80 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <p className="text-xs text-red-800 dark:text-red-300 font-medium">
+                        No active Diagnosis &amp; Treatment Plan — required before signing notes or submitting claims.
+                      </p>
+                      <Link
+                        to={`/clients/${noteClientId}/profile`}
+                        className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap shadow-xs text-center"
+                      >
+                        Create Treatment Plan
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        Note is signed and locked. Fee schedule charge ($150.00) captured.
+                      </span>
+                      <Link
+                        to="/billing/bills"
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                      >
+                        View in Bills Hub
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,30 +1,28 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { Shield, FileText, Plus, PlayCircle, DollarSign, Clock } from "lucide-react";
-import { CredentialStatus } from "./CredentialStatus";
+import { FileText, Plus, Clock } from "lucide-react";
 import { Claims } from "./Claims";
-import { FeeScheduleView } from "./FeeScheduleView";
 import { UnbilledSessions } from "./UnbilledSessions";
 
 interface InsurancePageProps {
-  defaultTab?: "unbilled" | "claims" | "feeSchedule" | "credential";
+  defaultTab?: "unbilled" | "claims";
 }
 
 export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const subtabParam = searchParams.get("subtab") || searchParams.get("tab");
-  const initialTab = (subtabParam as "unbilled" | "claims" | "feeSchedule" | "credential") || defaultTab || "unbilled";
-  const [activeTab, setActiveTab] = useState<"unbilled" | "claims" | "feeSchedule" | "credential">(initialTab);
+  const initialTab = subtabParam === "claims" ? "claims" : defaultTab || "unbilled";
+  const [activeTab, setActiveTab] = useState<"unbilled" | "claims">(initialTab);
   const [showClientSelectModal, setShowClientSelectModal] = useState(false);
 
   useEffect(() => {
-    const tabParam = (searchParams.get("subtab") || searchParams.get("tab")) as "unbilled" | "claims" | "feeSchedule" | "credential";
-    if (tabParam && ["unbilled", "claims", "feeSchedule", "credential"].includes(tabParam)) {
+    const tabParam = (searchParams.get("subtab") || searchParams.get("tab")) as "unbilled" | "claims";
+    if (tabParam && ["unbilled", "claims"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: "unbilled" | "claims" | "feeSchedule" | "credential") => {
+  const handleTabChange = (tab: "unbilled" | "claims") => {
     setActiveTab(tab);
     const currentTab = searchParams.get("tab");
     if (currentTab === "insurance" || window.location.pathname.includes("/billing")) {
@@ -41,7 +39,7 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
         <div>
           <h1 className="text-3xl text-gray-900 dark:text-white mb-2">Insurance & Claims</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Manage your unbilled sessions, submitted claims, fee schedules, and credential status
+            Manage your unbilled sessions and submitted claims
           </p>
         </div>
       </div>
@@ -70,28 +68,6 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
           <FileText className="size-4" />
           <span>Claims</span>
         </button>
-        <button
-          onClick={() => handleTabChange("feeSchedule")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all text-sm whitespace-nowrap ${
-            activeTab === "feeSchedule"
-              ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
-        >
-          <DollarSign className="size-4" />
-          <span>Fee Schedule</span>
-        </button>
-        <button
-          onClick={() => handleTabChange("credential")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all text-sm whitespace-nowrap ${
-            activeTab === "credential"
-              ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
-        >
-          <Shield className="size-4" />
-          <span>Credential Status</span>
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -115,14 +91,6 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
               showClientSelectModal={showClientSelectModal}
               setShowClientSelectModal={setShowClientSelectModal}
             />
-          </div>
-        )}
-        {activeTab === "feeSchedule" && (
-          <FeeScheduleView />
-        )}
-        {activeTab === "credential" && (
-          <div className="space-y-6">
-            <CredentialStatus hideHeader />
           </div>
         )}
       </div>

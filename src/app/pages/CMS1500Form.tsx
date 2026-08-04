@@ -280,7 +280,7 @@ export function CMS1500Form() {
     });
   };
 
-  const handleBack = useGoBack(rawClaim ? `/claims/${rawClaim.id}` : "/billing/bills");
+  const handleBack = useGoBack(rawClaim ? `/claims/${rawClaim.id}` : "/billing");
 
   const inputClass = "w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#4169E1]";
   const cellClass = "text-[9px] font-semibold text-[#0a0a0a] dark:text-gray-200 mb-0.5";

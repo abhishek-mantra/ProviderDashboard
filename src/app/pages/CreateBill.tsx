@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   ArrowLeft,
@@ -111,9 +111,12 @@ export function CreateBill() {
   const clientSessions = useMemo(
     () =>
       unbilledSessions.filter(
-        (s) => s.clientId === clientId && s.notesStatus === "locked" && !billedSessionIds.has(s.id)
+        (s) =>
+          s.clientId === clientId &&
+          !billedSessionIds.has(s.id) &&
+          (s.notesStatus === "locked" || deepSessionIds.includes(s.id))
       ),
-    [unbilledSessions, clientId, billedSessionIds]
+    [unbilledSessions, clientId, billedSessionIds, deepSessionIds]
   );
 
   const selectedSessions = clientSessions.filter((s) => selectedSessionIds.includes(s.id));
@@ -151,19 +154,42 @@ export function CreateBill() {
     // Predict payer from the client's coverage on file — insurance if they have a plan.
     setMode(plan ? "insurance" : "self_pay");
     if (deepSessionIds.length) {
-      const preselect = unbilledSessions.filter(
-        (s) => deepSessionIds.includes(s.id) && s.clientId === deepClientId
-      );
-      const ids = preselect.map((s) => s.id);
+      // Find existing or synthesize deep session
+      const matching = deepSessionIds.map((id) => {
+        let existing = unbilledSessions.find((s) => s.id === id);
+        if (!existing && deepClient) {
+          existing = {
+            id,
+            clientId: deepClientId,
+            clientName: deepClient.name,
+            dateOfService: "Mar 12, 2026",
+            payerId: deepClient.insuranceCompany ? "bupa" : "self-pay",
+            payerName: deepClient.insuranceCompany || "Self-Pay",
+            serviceType: "Therapy",
+            duration: "60 min",
+            notesStatus: "locked",
+            notesId: `note-${id}`,
+            cptCode: "90834",
+            diagnosisCode: deepClient.diagnosisCode || "F41.1",
+            amount: 210,
+            daysSinceService: 5,
+            selected: true,
+          };
+          addUnbilledSession(existing);
+        }
+        return existing;
+      }).filter((s): s is UnbilledSession => Boolean(s));
+
+      const ids = matching.map((s) => s.id);
       setSelectedSessionIds(ids);
       setLineItems(
-        preselect.map((s) => ({
+        matching.map((s) => ({
           key: `s-${s.id}`,
           sessionId: s.id,
           description:
             feeSchedule.find((f) => f.cptCode === s.cptCode)?.description || s.serviceType,
           quantity: "1",
-          amount: getFeeForService(s.cptCode).toFixed(2),
+          amount: (s.amount || getFeeForService(s.cptCode)).toFixed(2),
           discount: "0.00",
         }))
       );
@@ -449,7 +475,7 @@ export function CreateBill() {
       {/* Header */}
       <div className="flex items-center gap-3 pb-4">
         <button
-          onClick={() => navigate("/billing/bills")}
+          onClick={() => navigate("/billing")}
           className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
           <ArrowLeft className="size-6 text-gray-600 dark:text-gray-400" />
@@ -746,7 +772,7 @@ export function CreateBill() {
             <div className="flex items-center gap-2 mb-1">
               <Calendar className="size-4 text-[#4169E1]" />
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                Attached Appointments / Sessions
+                Link unbilled appointments
               </h3>
               {client && (
                 <button

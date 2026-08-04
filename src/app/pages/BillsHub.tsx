@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -15,6 +15,9 @@ import {
   Receipt,
   Link2,
   Upload,
+  Eye,
+  History,
+  ChevronDown,
 } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
@@ -28,6 +31,7 @@ import {
 } from "../types/partnerDashboard";
 import { getCurrencySymbol } from "../types/claims";
 import { openBillingPanel } from "../components/billing/billingPanelStore";
+import { usePaymentModalTarget } from "../components/billing/paymentModalStore";
 
 type ListTab = "all" | "unpaid" | "sent" | "draft";
 type PaymentType = "client" | "insurance" | "write_off";
@@ -157,12 +161,20 @@ export function BillsHub() {
   const [writeOffNote, setWriteOffNote] = useState("");
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [batchError, setBatchError] = useState("");
+  const [modalClientId, setModalClientId] = useState<string | null>(null);
+  const [showPastPayments, setShowPastPayments] = useState(false);
 
-  const openBatchModal = () => {
+  const modalTarget = usePaymentModalTarget();
+
+  const openBatchModal = useCallback((targetClientId?: string, preSelectedBillIds?: string[]) => {
+    const targetBills = targetClientId
+      ? openBills.filter((b) => b.clientId === targetClientId)
+      : openBills;
+    const hasSelections = preSelectedBillIds && preSelectedBillIds.length > 0;
     const initial: Record<string, boolean> = {};
     const amounts: Record<string, string> = {};
-    openBills.forEach((b) => {
-      initial[b.id] = true;
+    targetBills.forEach((b) => {
+      initial[b.id] = hasSelections ? preSelectedBillIds.includes(b.id) : true;
       amounts[b.id] = getTotalDue(b).toFixed(2);
     });
     setBatchSelected(initial);
@@ -174,14 +186,70 @@ export function BillsHub() {
     setWriteOffNote("");
     setFileNames([]);
     setBatchError("");
+    setModalClientId(targetClientId || null);
+    setShowPastPayments(false);
     setBatchOpen(true);
-  };
+  }, [openBills]);
+
+  useEffect(() => {
+    if (modalTarget) {
+      openBatchModal(modalTarget.clientId, modalTarget.billIds);
+    }
+  }, [modalTarget, openBatchModal]);
 
   const toggleBatchBill = (id: string) => {
     setBatchSelected((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const selectedBatchBills = openBills.filter((b) => batchSelected[b.id]);
+  const clientsWithOpenBills = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; openCount: number }>();
+    openBills.forEach((b) => {
+      const existing = map.get(b.clientId);
+      if (existing) {
+        existing.openCount += 1;
+      } else {
+        map.set(b.clientId, { id: b.clientId, name: b.clientName, openCount: 1 });
+      }
+    });
+    return Array.from(map.values());
+  }, [openBills]);
+
+  const modalBills = useMemo(() => {
+    return modalClientId
+      ? openBills.filter((b) => b.clientId === modalClientId)
+      : [];
+  }, [modalClientId, openBills]);
+
+  const pastPayments = useMemo(() => {
+    if (!modalClientId) return [];
+    return bills
+      .filter(
+        (b) =>
+          b.clientId === modalClientId &&
+          (b.status === "paid_direct" ||
+            b.status === "paid_via_claim" ||
+            (b.paidAmount && b.paidAmount > 0) ||
+            b.clientPaid > 0 ||
+            getTotalDue(b) === 0)
+      )
+      .map((b) => {
+        const paidVal = b.paidAmount || b.clientPaid || b.amount;
+        return {
+          id: b.id,
+          billNumber: b.billNumber,
+          paidAmount: paidVal,
+          date: formatDate(b.resolvedAt || b.createdAt || b.dateOfService),
+          method:
+            b.resolutionMethod === "insurance"
+              ? "Insurance"
+              : b.resolutionMethod === "cash"
+              ? "Cash"
+              : "Credit/Debit",
+        };
+      });
+  }, [bills, modalClientId, formatDate]);
+
+  const selectedBatchBills = modalBills.filter((b) => batchSelected[b.id]);
 
   const subtotal = useMemo(() => {
     return selectedBatchBills.reduce((sum, b) => {
@@ -295,14 +363,6 @@ export function BillsHub() {
 
       {/* Toolbar row - Step 3.1 peers */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        <Link
-          to="/billing/unbilled"
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0"
-        >
-          <FileText className="size-4" />
-          View Unbilled Sessions
-        </Link>
-
         <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 px-3 py-2 rounded-xl flex-1 lg:max-w-[220px]">
           <Search className="size-4 text-gray-400 shrink-0" />
           <select
@@ -328,13 +388,20 @@ export function BillsHub() {
             Create Bill
           </button>
           <button
-            onClick={openBatchModal}
+            onClick={() => openBatchModal(clientFilter !== "all" ? clientFilter : undefined)}
             disabled={openBills.length === 0}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Wallet className="size-4" />
             Add Payment
           </button>
+          <Link
+            to="/billing/unbilled"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0"
+          >
+            <FileText className="size-4" />
+            Unbilled Sessions
+          </Link>
         </div>
       </div>
 
@@ -409,156 +476,175 @@ export function BillsHub() {
         </div>
       </div>
 
-      {/* Bills list */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse min-w-[760px]">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                <th className="py-3.5 px-3 md:px-4">Bill</th>
-                <th className="py-3.5 px-3 md:px-4">Client</th>
-                <th className="py-3.5 px-3 md:px-4 hidden md:table-cell">Issued</th>
-                <th className="py-3.5 px-3 md:px-4 hidden lg:table-cell">Due</th>
-                <th className="py-3.5 px-3 md:px-4 text-right">Amount</th>
-                <th className="py-3.5 px-3 md:px-4 text-right">Status</th>
-                <th className="py-3.5 px-3 md:px-4 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-[13px]">
-              {filteredBills.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                  <div className="inline-flex flex-col items-center gap-3">
-                    <div className="size-14 rounded-full bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center">
-                      <Receipt className="size-6 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400 font-semibold">
-                        No bills match your filters.
-                      </p>
-                      <p className="text-[12px] text-gray-400 mt-1">
-                        Click{" "}
-                        <span className="font-semibold text-[#043570] dark:text-[#00c0ff]">
-                          Create Bill
-                        </span>{" "}
-                        to bill a signed session.
-                      </p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredBills.map((b) => {
-                const sym = getCurrencySymbol(b.currency ?? "USD");
-                const received = (b.clientPaid || 0) + (b.insurancePaid || 0);
-                const pending = getTotalDue(b);
-                const overdue = pending > 0 && b.dueDate && new Date(`${b.dueDate}T00:00:00`) < new Date();
-                return (
-                  <tr key={b.id} className="transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-750/40">
-                    <td className="py-4 px-4">
-                      <button
-                        onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
-                        className="font-bold text-[#043570] dark:text-[#00c0ff] hover:underline font-mono"
-                      >
-                        {b.billNumber}
-                      </button>
-                      <div className="text-[11px] text-gray-400 flex items-center gap-1.5 mt-1 whitespace-nowrap">
-                        <Link2 className="size-3" />
-                        {b.billType === "insurance"
-                          ? `${b.insurerName || "Insurance"} · copay`
-                          : "Self-pay"}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <button
-                        onClick={() => openBillingPanel({ kind: "client", id: b.clientId })}
-                        className="font-semibold text-gray-900 dark:text-white hover:text-[#043570] dark:hover:text-[#00c0ff] block truncate max-w-[180px]"
-                      >
-                        {b.clientName}
-                      </button>
-                    </td>
-                    <td className="py-4 px-4 hidden md:table-cell text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                      {formatDate(b.createdAt || b.dateOfService)}
-                    </td>
-                    <td className="py-4 px-4 hidden lg:table-cell whitespace-nowrap">
+      {/* Bills list - Card style layout */}
+      <div className="space-y-3">
+        {filteredBills.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center shadow-sm">
+            <div className="inline-flex flex-col items-center gap-3">
+              <div className="size-14 rounded-full bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center">
+                <Receipt className="size-6 text-gray-400 dark:text-gray-500" />
+              </div>
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 font-semibold">
+                  No bills match your filters.
+                </p>
+                <p className="text-[12px] text-gray-400 mt-1">
+                  Click{" "}
+                  <span className="font-semibold text-[#043570] dark:text-[#00c0ff]">
+                    Create Bill
+                  </span>{" "}
+                  to bill a signed session.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          filteredBills.map((b) => {
+            const sym = getCurrencySymbol(b.currency ?? "USD");
+            const received = (b.clientPaid || 0) + (b.insurancePaid || 0);
+            const pending = getTotalDue(b);
+            const overdue = pending > 0 && b.dueDate && new Date(`${b.dueDate}T00:00:00`) < new Date();
+            return (
+              <div
+                key={b.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm"
+              >
+                {/* Left side: Bill info & client name (no profile picture) */}
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <button
+                      onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
+                      className="font-mono font-bold text-sm text-[#043570] dark:text-[#00c0ff] hover:underline"
+                    >
+                      {b.billNumber}
+                    </button>
+                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                    <button
+                      onClick={() => openBillingPanel({ kind: "client", id: b.clientId })}
+                      className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#043570] dark:hover:text-[#00c0ff] truncate max-w-[200px]"
+                    >
+                      {b.clientName}
+                    </button>
+                    {/* Status Pill */}
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 border rounded-full text-[11px] font-bold whitespace-nowrap ml-1 ${
+                        b.status === "draft"
+                          ? "bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
+                          : pending > 0
+                            ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
+                            : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                      }`}
+                    >
                       <span
-                        className={`${
-                          overdue ? "text-red-600 dark:text-red-400 font-bold" : "text-gray-600 dark:text-gray-300"
+                        className={`size-1.5 rounded-full ${
+                          b.status === "draft"
+                            ? "bg-gray-400"
+                            : pending > 0
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                        }`}
+                      />
+                      {b.status === "draft"
+                        ? "Draft"
+                        : b.status === "written_off"
+                          ? "Written Off"
+                          : pending > 0
+                            ? "Unpaid"
+                            : "Settled"}
+                    </span>
+                  </div>
+
+                  {/* Issued & Due date + type */}
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span>
+                      Issued: <strong className="font-semibold text-gray-700 dark:text-gray-300">{formatDate(b.createdAt || b.dateOfService)}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Due:{" "}
+                      <strong
+                        className={`font-semibold ${
+                          overdue ? "text-red-600 dark:text-red-400 font-bold" : "text-gray-700 dark:text-gray-300"
                         }`}
                       >
                         {formatDate(b.dueDate)}
+                      </strong>
+                      {overdue && <span className="ml-1.5 text-[10px] font-bold text-red-500 uppercase">Overdue</span>}
+                    </span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-[11px]">
+                      <Link2 className="size-3" />
+                      {b.billType === "insurance" ? `${b.insurerName || "Insurance"} · copay` : "Self-pay"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right side: 3 Financial Figures (Total, Paid, Unpaid) + Action buttons */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100 dark:border-gray-700/60">
+                  {/* Single Unified Segmented Financial Card */}
+                  <div className="flex items-center divide-x divide-gray-200 dark:divide-gray-700/80 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/50 shadow-2xs overflow-hidden">
+                    {/* Total */}
+                    <div className="px-3 py-1 text-center min-w-[62px]">
+                      <span className="block text-[9px] uppercase tracking-wider font-extrabold text-gray-400 dark:text-gray-500">
+                        Total
                       </span>
-                      {overdue && (
-                        <div className="text-[10px] text-red-500 font-bold mt-0.5">Overdue</div>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="font-mono font-extrabold text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                      <span className="font-mono font-bold text-xs text-gray-900 dark:text-white">
                         {sym}{b.amount.toFixed(2)}
-                      </div>
-                      <div className="mt-1 space-y-0.5 font-mono whitespace-nowrap text-[11px]">
-                        <div className="text-emerald-600 dark:text-emerald-400">
-                          <span className="font-bold text-gray-400 dark:text-gray-500">Recv </span>{sym}{received.toFixed(2)}
-                        </div>
-                        <div className="text-amber-600 dark:text-amber-400">
-                          <span className="font-bold text-gray-400 dark:text-gray-500">Due </span>{sym}{pending.toFixed(2)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 border rounded-full text-[11px] font-bold whitespace-nowrap ${
-                          b.status === "draft"
-                            ? "bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
-                            : pending > 0
-                              ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
-                              : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-                        }`}
-                      >
-                        <span
-                          className={`size-1.5 rounded-full ${
-                            b.status === "draft"
-                              ? "bg-gray-400"
-                              : pending > 0
-                                ? "bg-amber-500"
-                                : "bg-emerald-500"
-                          }`}
-                        />
-                        {b.status === "draft"
-                          ? "Draft"
-                          : b.status === "written_off"
-                            ? "Written Off"
-                            : pending > 0
-                              ? "Unpaid"
-                              : "Settled"}
                       </span>
-                    </td>
-                    <td className="py-4 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline whitespace-nowrap"
-                        >
-                          View Payments
-                          <span aria-hidden>›</span>
-                        </button>
-                        {pending > 0 && (
-                          <button
-                            onClick={() => openSinglePay(b)}
-                            className="px-3 py-1.5 bg-[#043570] hover:bg-[#032554] text-white rounded-lg text-[11px] font-bold transition-colors shadow-xs whitespace-nowrap"
-                          >
-                            Add Payment
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-        </div>
+                    </div>
+
+                    {/* Paid */}
+                    <div className="px-3 py-1 text-center min-w-[62px] bg-emerald-50/30 dark:bg-emerald-950/20">
+                      <span className="block text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
+                        Paid
+                      </span>
+                      <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-300">
+                        {sym}{received.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Unpaid */}
+                    <div className={`px-3 py-1 text-center min-w-[62px] ${
+                      pending > 0 ? "bg-amber-50/40 dark:bg-amber-950/20" : ""
+                    }`}>
+                      <span className={`block text-[9px] uppercase tracking-wider font-extrabold ${
+                        pending > 0 ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-gray-500"
+                      }`}>
+                        Unpaid
+                      </span>
+                      <span className={`font-mono font-bold text-xs ${
+                        pending > 0 ? "text-amber-700 dark:text-amber-300" : "text-gray-500 dark:text-gray-400"
+                      }`}>
+                        {sym}{Math.max(0, pending).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors cursor-pointer"
+                      title="View bill & payments"
+                    >
+                      <Eye className="size-3.5 text-gray-500 dark:text-gray-400" />
+                      <span>View</span>
+                    </button>
+                    <button
+                      onClick={() =>
+                        showToast(`Invoice ${b.billNumber} sent to ${b.clientName} via email/SMS.`)
+                      }
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-[#043570] hover:bg-[#032554] rounded-xl transition-colors shadow-xs cursor-pointer"
+                      title="Send invoice / notification to client"
+                    >
+                      <Send className="size-3.5" />
+                      <span>Send</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* -- SINGLE-BILL ADD PAYMENT (Step 4) ----------------------------------- */}
@@ -746,14 +832,57 @@ export function BillsHub() {
               </button>
             </div>
 
-            {openBills.length === 0 ? (
-              <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                No open bills with an outstanding balance.
+            {/* Client selector inside modal */}
+            <div className="flex items-center gap-2.5 bg-gray-50 dark:bg-gray-750 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                Select Client:
+              </label>
+              <select
+                value={modalClientId || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const newId = val === "" ? null : val;
+                  setModalClientId(newId);
+                  if (newId) {
+                    const newBills = openBills.filter((b) => b.clientId === newId);
+                    const initial: Record<string, boolean> = {};
+                    const amounts: Record<string, string> = {};
+                    newBills.forEach((b) => {
+                      initial[b.id] = true;
+                      amounts[b.id] = getTotalDue(b).toFixed(2);
+                    });
+                    setBatchSelected(initial);
+                    setBatchRows(amounts);
+                  } else {
+                    setBatchSelected({});
+                    setBatchRows({});
+                  }
+                }}
+                className="bg-white dark:bg-gray-800 text-xs font-semibold text-gray-900 dark:text-white px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none cursor-pointer w-full"
+              >
+                <option value="" disabled={!!modalClientId}>
+                  -- Select Client --
+                </option>
+                {clientsWithOpenBills.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.openCount} open bill{c.openCount === 1 ? "" : "s"})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {!modalClientId ? (
+              <p className="py-10 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                Please select a client from the dropdown above to view open bills and add payments.
+              </p>
+            ) : modalBills.length === 0 ? (
+              <p className="py-10 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                No open bills with an outstanding balance for this client.
               </p>
             ) : (
               <>
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {openBills.map((b) => {
+                  {modalBills.map((b) => {
                     const due = getTotalDue(b);
                     const checked = !!batchSelected[b.id];
                     return (
@@ -927,27 +1056,97 @@ export function BillsHub() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <button
-                    onClick={() => setBatchOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={applyBatchSave}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-[#043570] hover:bg-[#032554] text-white rounded-xl shadow-xs transition-colors"
-                  >
-                    {payMethod === "link" ? (
-                      <>
-                        <Send className="size-3.5" /> Send Payment Link
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="size-3.5" /> Save Payment
-                      </>
-                    )}
-                  </button>
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                  {/* Footer Row: Past Payments accordion on Left, Cancel & Save on Right */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="border border-blue-200 dark:border-blue-800 rounded-xl overflow-hidden bg-blue-50/40 dark:bg-blue-950/20">
+                      <button
+                        type="button"
+                        onClick={() => setShowPastPayments((v) => !v)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:bg-blue-100/50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                      >
+                        <History className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
+                        <span>Past Payments</span>
+                        {modalClientId && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-mono text-[#043570] dark:text-[#00c0ff]">
+                            {pastPayments.length} settled
+                          </span>
+                        )}
+                        <span className="text-[11px] font-normal text-gray-500 ml-1">
+                          {showPastPayments ? "Hide" : "Show history"}
+                        </span>
+                        <ChevronDown
+                          className={`size-3.5 text-[#043570] dark:text-[#00c0ff] transition-transform duration-200 ${
+                            showPastPayments ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBatchOpen(false)}
+                        className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyBatchSave}
+                        className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-[#043570] hover:bg-[#032554] text-white rounded-xl shadow-xs transition-colors cursor-pointer"
+                      >
+                        {payMethod === "link" ? (
+                          <>
+                            <Send className="size-3.5" /> Send Payment Link
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="size-3.5" /> Save Payment
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Past Payments History Panel */}
+                  {showPastPayments && (
+                    <div className="p-3 border border-blue-200/60 dark:border-blue-800/60 rounded-xl bg-blue-50/20 dark:bg-blue-950/20 space-y-2 max-h-48 overflow-y-auto animate-fade-in">
+                      {!modalClientId ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 py-3 text-center">
+                          Please select a client above to view past payment records.
+                        </p>
+                      ) : pastPayments.length === 0 ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 py-3 text-center">
+                          No past settled payments found for this client.
+                        </p>
+                      ) : (
+                        pastPayments.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 text-xs"
+                          >
+                            <div>
+                              <p className="font-mono font-bold text-[#043570] dark:text-[#00c0ff]">
+                                {p.billNumber}
+                              </p>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                {p.date} · {p.method}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                ${p.paidAmount.toFixed(2)}
+                              </span>
+                              <p className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
+                                Settled
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}

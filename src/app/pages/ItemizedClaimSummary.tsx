@@ -18,14 +18,14 @@ export function ItemizedClaimSummary() {
       : undefined;
   const currentProvider = providers.find((p) => p.id === currentProviderId) || providers[0];
 
-  const handleBack = useGoBack(claim ? `/claims/${claim.id}` : "/billing/bills");
+  const handleBack = useGoBack(claim ? `/claims/${claim.id}` : "/billing");
 
   if (!claim) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Claim Not Found</h1>
-          <button onClick={() => navigate("/billing/bills")} className="text-[#043570] hover:underline font-bold">Back to Claims</button>
+          <button onClick={() => navigate("/billing")} className="text-[#043570] hover:underline font-bold">Back to Claims</button>
         </div>
       </div>
     );

@@ -569,9 +569,6 @@ export function Clients() {
                   <span className="text-sm font-semibold text-white">Assigned To</span>
                 </th>
                 <th className="px-3 md:px-4 py-2 md:py-3 text-left">
-                  <span className="text-sm font-semibold text-white">Practice</span>
-                </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left">
                   <div className="flex items-center gap-2 relative">
                     <span className="text-sm font-semibold text-white">Status</span>
                     <div
@@ -697,13 +694,6 @@ export function Clients() {
                         <span className="text-sm text-gray-700 dark:text-gray-300">
                           {getAssignedProvider(client.id)?.name || "Unassigned"}
                         </span>
-                      </td>
-                      <td className="px-3 md:px-4 py-2 md:py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                            {getPracticeName(client.practiceId)}
-                          </span>
-                        </div>
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3">
                         {client.status ? (

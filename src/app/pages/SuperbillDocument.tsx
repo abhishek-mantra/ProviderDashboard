@@ -68,7 +68,7 @@ export function SuperbillDocument() {
   const provider = providers.find((p) => p.id === (sourceClaim?.providerId || currentProviderId)) || providers[0];
 
   const handleBack = useGoBack(
-    claim ? `/claims/${claim.id}` : billId ? `/billing/bills/${billId}` : "/billing/bills"
+    claim ? `/claims/${claim.id}` : billId ? `/billing/bills/${billId}` : "/billing"
   );
 
   if (!sourceClaim) {

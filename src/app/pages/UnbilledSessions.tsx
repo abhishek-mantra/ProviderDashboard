@@ -319,23 +319,24 @@ export function UnbilledSessions({ scope: scopeProp = "all" }: UnbilledSessionsP
                           {session.daysSinceService}d
                         </td>
                         <td className="py-3 px-2 text-right">
-                          <button
-                            onClick={() => openCreateBill(session.clientId, [session.id])}
-                            disabled={isDraft}
-                            title={
-                              isDraft
-                                ? "Sign & lock the session note before billing this appointment."
-                                : undefined
-                            }
-                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors ${
-                              isDraft
-                                ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                : "bg-[#043570] hover:bg-[#032554] text-white"
-                            }`}
-                          >
-                            <Sparkles className="size-3" />
-                            Create Bill
-                          </button>
+                          {isDraft ? (
+                            <button
+                              onClick={() => navigate(`/clients/${session.clientId}`)}
+                              title="Add and lock session notes first before billing"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors shadow-2xs cursor-pointer"
+                            >
+                              <FileText className="size-3" />
+                              Add Notes
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openCreateBill(session.clientId, [session.id])}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-[#043570] hover:bg-[#032554] text-white transition-colors shadow-2xs cursor-pointer"
+                            >
+                              <Sparkles className="size-3" />
+                              Unbilled
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -349,9 +350,9 @@ export function UnbilledSessions({ scope: scopeProp = "all" }: UnbilledSessionsP
           <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-wrap">
             <Sparkles className="size-3.5 text-gray-400" />
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              "Create Bill" opens the invoice editor for that client — tick several appointments to
-              combine them into one multi-line bill. Draft sessions show an amber badge and must be
-              signed &amp; locked before billing.
+              "Unbilled" opens the invoice editor for that client — tick several appointments to
+              combine them into one multi-line bill. Draft sessions show an "Add Notes" button to
+              complete &amp; sign session notes prior to billing.
             </p>
           </div>
         </div>

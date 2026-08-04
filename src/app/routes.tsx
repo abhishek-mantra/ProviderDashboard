@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "./components/Layout";
 import { GetStarted } from "./pages/GetStarted";
 import { OTPVerify } from "./pages/OTPVerify";
@@ -137,7 +137,7 @@ export const router = createBrowserRouter([
       { path: "clients/:id/orders", element: <ClientOrders /> },
       { path: "earnings", element: <Earnings /> },
       { path: "billing", element: <Billing /> },
-      { path: "billing/bills", element: <BillsHub /> },
+      { path: "billing/bills", element: <Navigate to="/billing" replace /> },
       { path: "billing/bills/superbill", element: <SuperbillDocument /> },
       { path: "billing/bills/create", element: <CreateBill /> },
       { path: "billing/bills/:billId", element: <BillDetail /> },

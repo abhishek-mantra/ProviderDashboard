@@ -397,6 +397,7 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
   const now = new Date();
   const baseClients = [
     { clientId: "1", clientName: "Sarah Johnson", payerId: "us-1", payerName: "UnitedHealthcare" },
+    { clientId: "2", clientName: "Michael Chen", payerId: "bupa", payerName: "Bupa" },
     { clientId: "5", clientName: "Olivia Brown", payerId: "us-2", payerName: "Cigna" },
     { clientId: "8", clientName: "Aisha Patel", payerId: "us-4", payerName: "Blue Cross Blue Shield" },
   ];
@@ -414,7 +415,25 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
     { serviceType: "Psychiatric Diagnostic Evaluation", duration: "60 min", cptCode: "90791" },
     { serviceType: "Family Therapy, 50 min", duration: "50 min", cptCode: "90847" },
   ];
-  const sessions: UnbilledSession[] = [];
+  const sessions: UnbilledSession[] = [
+    {
+      id: "sess-2-done",
+      clientId: "2",
+      clientName: "Michael Chen",
+      dateOfService: "Mar 12, 2026",
+      payerId: "bupa",
+      payerName: "Bupa",
+      serviceType: "Therapy",
+      duration: "60 min",
+      notesStatus: "locked",
+      notesId: "note-sess-2",
+      cptCode: "90834",
+      diagnosisCode: "F41.1",
+      amount: 210,
+      daysSinceService: 15,
+      selected: true,
+    },
+  ];
   let idCounter = 0;
   baseClients.forEach((client) => {
     for (let i = 0; i < 3; i++) {

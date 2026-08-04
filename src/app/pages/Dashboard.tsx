@@ -452,7 +452,7 @@ export function Dashboard() {
                   Check-In & Appointments
                 </button>
                 <button
-                  onClick={() => navigate("/billing/bills")}
+                  onClick={() => navigate("/billing")}
                   className="px-4 py-2.5 bg-emerald-900/50 hover:bg-emerald-900/80 text-white rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5"
                 >
                   <CreditCard className="size-4" />

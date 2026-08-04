@@ -60,7 +60,7 @@ export function ClaimDetail() {
       ? rawClaim
       : undefined;
 
-  const handleBack = useGoBack("/billing/bills");
+  const handleBack = useGoBack("/billing");
 
   if (!claim) {
     return (
@@ -643,7 +643,7 @@ export function ClaimDetail() {
                 View the CMS-1500 claim form for this claim.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/cms1500`, { state: { from: location.state?.from || "/billing/bills" } })}
+                onClick={() => navigate(`/claims/${claim.id}/cms1500`, { state: { from: location.state?.from || "/billing" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Printer className="size-4" />
@@ -661,7 +661,7 @@ export function ClaimDetail() {
                 View the itemized claim summary for submission to your insurer.
               </p>
               <button
-                onClick={() => navigate(`/claims/${claim.id}/summary`, { state: { from: location.state?.from || "/billing/bills" } })}
+                onClick={() => navigate(`/claims/${claim.id}/summary`, { state: { from: location.state?.from || "/billing" } })}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <FileText className="size-4" />

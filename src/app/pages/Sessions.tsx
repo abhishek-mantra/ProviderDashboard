@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video, Check, Sparkles, MapPin, Receipt } from "lucide-react";
+import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video, Check, Sparkles, MapPin, Receipt, ArrowLeftRight, ShieldCheck } from "lucide-react";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import { RecordPastSessionModal } from "../components/RecordPastSessionModal";
 import { MissedSessionModal } from "../components/MissedSessionModal";
@@ -78,6 +78,86 @@ export function Sessions() {
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [selectedSessionForAccept, setSelectedSessionForAccept] = useState<Session | null>(null);
   const [aiNotetakerForAccept, setAiNotetakerForAccept] = useState(true);
+
+  // Session Details & Session Validation states
+  const [selectedSessionForDetails, setSelectedSessionForDetails] = useState<Session | null>(null);
+  const [sessionValidationStatus, setSessionValidationStatus] = useState<Record<string, string>>({
+    "sess-2-done": "valid",
+    "req-sarah": "valid",
+    "req-abhishek": "valid",
+  });
+
+  const renderSessionStatusBadge = (session: Session) => {
+    const val = sessionValidationStatus[session.id];
+    if (val && val !== "valid") {
+      if (val === "client_no_show") {
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            Client No-Show
+          </span>
+        );
+      }
+      if (val === "provider_no_show") {
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+            <span className="size-1.5 rounded-full bg-red-500"></span>
+            Provider No-Show
+          </span>
+        );
+      }
+      if (val === "cancelled_client" || val === "cancelled_provider") {
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 flex items-center gap-1 flex-shrink-0 shadow-xs">
+            <span className="size-1.5 rounded-full bg-gray-500"></span>
+            Cancelled
+          </span>
+        );
+      }
+      if (val === "invalid") {
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+            <span className="size-1.5 rounded-full bg-purple-500"></span>
+            Invalid
+          </span>
+        );
+      }
+    }
+
+    if (session.status === "done") {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+          <span className="size-1.5 rounded-full bg-emerald-500"></span>
+          Completed
+        </span>
+      );
+    }
+
+    if (session.status === "pending") {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+          <span className="size-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+          Pending Approval
+        </span>
+      );
+    }
+
+    if (session.needsAccept) {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+          <span className="size-1.5 rounded-full bg-amber-500 animate-ping"></span>
+          Needs Acceptance
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 flex items-center gap-1 flex-shrink-0 shadow-xs">
+        <span className="size-1.5 rounded-full bg-blue-500"></span>
+        Upcoming
+      </span>
+    );
+  };
 
   const [sessions, setSessions] = useState<Session[]>([
     {
@@ -558,67 +638,74 @@ export function Sessions() {
               {filteredSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    setSelectedSessionForDetails(session);
+                  }}
+                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-[#00c0ff]/60 hover:shadow-md transition-all cursor-pointer"
                 >
                   {/* Main Content Row */}
-                  <div className="flex items-start gap-2.5 md:gap-3 mb-3">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <img 
-                        src={session.avatar} 
-                        alt={session.clientName}
-                        className="size-11 md:size-12 rounded-full object-cover"
-                      />
-                      <div className="absolute -bottom-0.5 -right-0.5 size-4 bg-[#2563EB] rounded-full border-2 border-white dark:border-gray-750 flex items-center justify-center text-white">
-                        <MapPin className="size-2.5" />
+                  <div className="flex items-start justify-between gap-2.5 md:gap-3 mb-3">
+                    <div className="flex items-start gap-2.5 md:gap-3 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={session.avatar} 
+                          alt={session.clientName}
+                          className="size-11 md:size-12 rounded-full object-cover"
+                        />
+                        <div className="absolute -bottom-0.5 -right-0.5 size-4 bg-[#2563EB] rounded-full border-2 border-white dark:border-gray-750 flex items-center justify-center text-white">
+                          <MapPin className="size-2.5" />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Client Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 md:gap-2 mb-0.5">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
-                          {session.clientName}
-                        </h3>
-                        {session.aiNotetakerEnabled && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            <Sparkles className="size-2.5 text-purple-600 dark:text-purple-400" /> AI Notes
-                          </span>
-                        )}
-                        {session.serviceType && !session.aiNotetakerEnabled && (
-                          <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
-                            session.serviceType === "Mantra"
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                              : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                          }`}>
-                            {session.serviceType}
-                          </span>
+                      {/* Client Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-0.5">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
+                            {session.clientName}
+                          </h3>
+                          {session.aiNotetakerEnabled && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                              <Sparkles className="size-2.5 text-purple-600 dark:text-purple-400" /> AI Notes
+                            </span>
+                          )}
+                          {session.serviceType && !session.aiNotetakerEnabled && (
+                            <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
+                              session.serviceType === "Mantra"
+                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            }`}>
+                              {session.serviceType}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs text-[#2563EB] dark:text-blue-400 mb-1.5 font-semibold">{session.service}</p>
+                        
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3 md:size-3.5 text-gray-400" />
+                            <span>{session.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="size-3 md:size-3.5 text-gray-400" />
+                            <span>{session.time}</span>
+                          </div>
+                          <span className="text-gray-400 hidden md:inline">•</span>
+                          <span className="hidden md:inline">{session.duration}</span>
+                        </div>
+                        
+                        {session.platform && (
+                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
+                            <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
+                            {session.platform}
+                          </p>
                         )}
                       </div>
-                      
-                      <p className="text-xs text-[#2563EB] dark:text-blue-400 mb-1.5 font-semibold">{session.service}</p>
-                      
-                      {/* Metadata Row */}
-                      <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="size-3 md:size-3.5 text-gray-400" />
-                          <span>{session.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="size-3 md:size-3.5 text-gray-400" />
-                          <span>{session.time}</span>
-                        </div>
-                        <span className="text-gray-400 hidden md:inline">•</span>
-                        <span className="hidden md:inline">{session.duration}</span>
-                      </div>
-                      
-                      {session.platform && (
-                        <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
-                          <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
-                          {session.platform}
-                        </p>
-                      )}
                     </div>
+                    {renderSessionStatusBadge(session)}
                   </div>
                   
                   {/* Action Buttons */}
@@ -695,60 +782,67 @@ export function Sessions() {
               {filteredSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    setSelectedSessionForDetails(session);
+                  }}
+                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-[#00c0ff]/60 hover:shadow-md transition-all cursor-pointer"
                 >
                   {/* Main Content Row */}
-                  <div className="flex items-start gap-2.5 md:gap-3 mb-3">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <img 
-                        src={session.avatar} 
-                        alt={session.clientName}
-                        className="size-10 md:size-12 rounded-full object-cover"
-                      />
-                      <div className="absolute -bottom-0.5 -right-0.5 size-3 md:size-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-750"></div>
-                    </div>
+                  <div className="flex items-start justify-between gap-2.5 md:gap-3 mb-3">
+                    <div className="flex items-start gap-2.5 md:gap-3 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={session.avatar} 
+                          alt={session.clientName}
+                          className="size-10 md:size-12 rounded-full object-cover"
+                        />
+                        <div className="absolute -bottom-0.5 -right-0.5 size-3 md:size-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-750"></div>
+                      </div>
 
-                    {/* Client Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 md:gap-2 mb-1">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
-                          {session.clientName}
-                        </h3>
-                        {session.serviceType && (
-                          <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
-                            session.serviceType === "Mantra"
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                              : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                          }`}>
-                            {session.serviceType}
-                          </span>
+                      {/* Client Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
+                            {session.clientName}
+                          </h3>
+                          {session.serviceType && (
+                            <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
+                              session.serviceType === "Mantra"
+                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            }`}>
+                              {session.serviceType}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
+                        
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3 md:size-3.5" />
+                            <span>{session.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="size-3 md:size-3.5" />
+                            <span>{session.time}</span>
+                          </div>
+                          <span className="text-gray-400 hidden md:inline">•</span>
+                          <span className="hidden md:inline">{session.duration}</span>
+                        </div>
+                        
+                        {session.platform && (
+                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
+                            <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
+                            {session.platform}
+                          </p>
                         )}
                       </div>
-                      
-                      <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
-                      
-                      {/* Metadata Row */}
-                      <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="size-3 md:size-3.5" />
-                          <span>{session.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="size-3 md:size-3.5" />
-                          <span>{session.time}</span>
-                        </div>
-                        <span className="text-gray-400 hidden md:inline">•</span>
-                        <span className="hidden md:inline">{session.duration}</span>
-                      </div>
-                      
-                      {session.platform && (
-                        <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
-                          <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
-                          {session.platform}
-                        </p>
-                      )}
                     </div>
+                    {renderSessionStatusBadge(session)}
                   </div>
 
                   {/* Rating */}
@@ -822,24 +916,28 @@ export function Sessions() {
               {filteredSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    setSelectedSessionForDetails(session);
+                  }}
+                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-[#00c0ff]/60 hover:shadow-md transition-all cursor-pointer"
                 >
                   {/* Main Content Row */}
-                  <div className="flex items-start gap-2.5 md:gap-3 mb-3">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <img 
-                        src={session.avatar} 
-                        alt={session.clientName}
-                        className="size-10 md:size-12 rounded-full object-cover"
-                      />
-                      <div className="absolute -bottom-0.5 -right-0.5 size-3 md:size-4 bg-orange-500 rounded-full border-2 border-white dark:border-gray-750"></div>
-                    </div>
+                  <div className="flex items-start justify-between gap-2.5 md:gap-3 mb-3">
+                    <div className="flex items-start gap-2.5 md:gap-3 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={session.avatar} 
+                          alt={session.clientName}
+                          className="size-10 md:size-12 rounded-full object-cover"
+                        />
+                        <div className="absolute -bottom-0.5 -right-0.5 size-3 md:size-4 bg-orange-500 rounded-full border-2 border-white dark:border-gray-750"></div>
+                      </div>
 
-                    {/* Client Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+                      {/* Client Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-1">
                           <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
                             {session.clientName}
                           </h3>
@@ -853,41 +951,25 @@ export function Sessions() {
                             </span>
                           )}
                         </div>
-                        <button
-                          onClick={() => {
-                            setSelectedPendingSession(session);
-                            setIsPendingSessionModalOpen(true);
-                          }}
-                          className="flex items-center gap-0.5 md:gap-1 text-[#00c0ff] hover:text-[#0099cc] transition-colors flex-shrink-0"
-                        >
-                          <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap">View</span>
-                          <ChevronRight className="size-3 md:size-3.5" />
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-2 mb-1.5 md:mb-2">
-                        <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 font-medium">{session.service}</p>
-                        <span className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded flex items-center gap-0.5 md:gap-1 flex-shrink-0">
-                          <AlertCircle className="size-2.5 md:size-3" />
-                          <span className="hidden md:inline">Pending Approval</span>
-                          <span className="md:hidden">Pending</span>
-                        </span>
-                      </div>
-                      
-                      {/* Metadata Row */}
-                      <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="size-3 md:size-3.5" />
-                          <span>{session.date}</span>
+                        
+                        <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
+                        
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3 md:size-3.5" />
+                            <span>{session.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="size-3 md:size-3.5" />
+                            <span>{session.time}</span>
+                          </div>
+                          <span className="text-gray-400 hidden md:inline">•</span>
+                          <span className="hidden md:inline">{session.duration}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="size-3 md:size-3.5" />
-                          <span>{session.time}</span>
-                        </div>
-                        <span className="text-gray-400 hidden md:inline">•</span>
-                        <span className="hidden md:inline">{session.duration}</span>
                       </div>
                     </div>
+                    {renderSessionStatusBadge(session)}
                   </div>
 
                   {/* Action Buttons */}
@@ -910,106 +992,109 @@ export function Sessions() {
               {filteredSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    setSelectedSessionForDetails(session);
+                  }}
+                  className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg md:rounded-xl p-3 md:p-4 hover:border-[#00c0ff]/60 hover:shadow-md transition-all cursor-pointer"
                 >
                   {/* Main Content Row */}
-                  <div className="flex items-start gap-2.5 md:gap-3 mb-3">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <img 
-                        src={session.avatar} 
-                        alt={session.clientName}
-                        className="size-10 md:size-12 rounded-full object-cover"
-                      />
-                      <div className={`absolute -bottom-0.5 -right-0.5 size-3 md:size-4 rounded-full border-2 border-white dark:border-gray-750 ${
-                        session.status === "done" ? "bg-green-500" : session.status === "pending" ? "bg-orange-500" : "bg-blue-500"
-                      }`}></div>
-                    </div>
+                  <div className="flex items-start justify-between gap-2.5 md:gap-3 mb-3">
+                    <div className="flex items-start gap-2.5 md:gap-3 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={session.avatar} 
+                          alt={session.clientName}
+                          className="size-10 md:size-12 rounded-full object-cover"
+                        />
+                        <div className={`absolute -bottom-0.5 -right-0.5 size-3 md:size-4 rounded-full border-2 border-white dark:border-gray-750 ${
+                          session.status === "done" ? "bg-green-500" : session.status === "pending" ? "bg-orange-500" : "bg-blue-500"
+                        }`}></div>
+                      </div>
 
-                    {/* Client Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 md:gap-2 mb-1">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
-                          {session.clientName}
-                        </h3>
-                        {session.serviceType && (
-                          <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
-                            session.serviceType === "Mantra"
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                              : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                          }`}>
-                            {session.serviceType}
-                          </span>
+                      {/* Client Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
+                            {session.clientName}
+                          </h3>
+                          {session.serviceType && (
+                            <span className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded font-semibold flex-shrink-0 ${
+                              session.serviceType === "Mantra"
+                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            }`}>
+                              {session.serviceType}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
+                        
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3 md:size-3.5" />
+                            <span>{session.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="size-3 md:size-3.5" />
+                            <span>{session.time}</span>
+                          </div>
+                          <span className="text-gray-400 hidden md:inline">•</span>
+                          <span className="hidden md:inline">{session.duration}</span>
+                        </div>
+                        
+                        {session.platform && (
+                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
+                            <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
+                            {session.platform}
+                          </p>
                         )}
                       </div>
-                      
-                      <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 mb-1.5 md:mb-2 font-medium">{session.service}</p>
-                      
-                      {/* Metadata Row */}
-                      <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="size-3 md:size-3.5" />
-                          <span>{session.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="size-3 md:size-3.5" />
-                          <span>{session.time}</span>
-                        </div>
-                        <span className="text-gray-400 hidden md:inline">•</span>
-                        <span className="hidden md:inline">{session.duration}</span>
-                      </div>
-                      
-                      {session.platform && (
-                        <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-1.5 flex items-center gap-1">
-                          <span className="size-1 md:size-1.5 bg-gray-400 rounded-full"></span>
-                          {session.platform}
-                        </p>
-                      )}
                     </div>
+                    {renderSessionStatusBadge(session)}
                   </div>
 
-                  {/* Only show action buttons for done sessions */}
-                  {session.status === "done" && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => navigate(`/sessions/${session.id}/notes`)}
-                        className="flex-1 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                      >
-                        <FileText className="size-3.5" />
-                        <span className="text-xs font-bold">Notes/ Transcript</span>
-                      </button>
-                      {session.serviceType !== "Mantra" && (() => {
-                        const sessionBill = billForSession(session.id);
-                        if (sessionBill) {
-                          return (
-                            <button
-                              onClick={() => openBillingPanel({ kind: "bill", id: sessionBill.id })}
-                              className="flex-1 py-2.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                            >
-                              <Receipt className="size-3.5" />
-                              <span className="text-xs font-bold">Bill #{sessionBill.billNumber}</span>
-                            </button>
-                          );
-                        }
-                        const cid = (session as { clientId?: string }).clientId;
+                  {/* Consistent action buttons for all sessions */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                    <button
+                      onClick={() => navigate(`/sessions/${session.id}/notes`)}
+                      className="flex-1 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                    >
+                      <FileText className="size-3.5" />
+                      <span className="text-xs font-bold">Notes/ Transcript</span>
+                    </button>
+                    {session.serviceType !== "Mantra" && (() => {
+                      const sessionBill = billForSession(session.id);
+                      if (sessionBill) {
                         return (
                           <button
-                            onClick={() =>
-                              navigate(
-                                cid
-                                  ? `/billing/bills/create?clientId=${cid}&sessions=${session.id}`
-                                  : "/billing/bills/create"
-                              )
-                            }
-                              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
+                            onClick={() => openBillingPanel({ kind: "bill", id: sessionBill.id })}
+                            className="flex-1 py-2 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
                           >
-                            <Plus className="size-3.5" />
-                            <span className="text-xs font-bold">Bill</span>
+                            <Receipt className="size-3.5" />
+                            <span className="text-xs font-bold">Bill #{sessionBill.billNumber}</span>
                           </button>
                         );
-                      })()}
-                    </div>
-                  )}
+                      }
+                      const cid = (session as { clientId?: string }).clientId || "2";
+                      return (
+                        <button
+                          onClick={() =>
+                            navigate(
+                              `/billing/bills/create?clientId=${cid}&sessions=${session.id}`
+                            )
+                          }
+                          className="flex-1 py-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                        >
+                          <Plus className="size-3.5" />
+                          <span className="text-xs font-bold">Bill</span>
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1952,6 +2037,187 @@ export function Sessions() {
                     className="w-full py-3 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl text-sm font-bold transition-all cursor-pointer"
                   >
                     Cancel Appointment
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Session Details Modal with Validation Status Filter */}
+      <AnimatePresence>
+        {selectedSessionForDetails && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700"
+            >
+              {/* Header Gradient Banner */}
+              <div className="bg-gradient-to-r from-[#043570] via-[#0052a3] to-[#00c0ff] text-white p-5 relative">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tight text-white">Session Details</h2>
+                    <p className="text-xs text-blue-100 font-mono mt-0.5">
+                      Session ID: S-{selectedSessionForDetails.id.replace(/^(sess|req)-?/, "")}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Validation Status Filter Dropdown in Top Header (Marked Red) */}
+                    <div className="relative">
+                      <select
+                        value={sessionValidationStatus[selectedSessionForDetails.id] || "valid"}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSessionValidationStatus((prev) => ({
+                            ...prev,
+                            [selectedSessionForDetails.id]: val,
+                          }));
+                          toast.success(`Session validation updated: ${val.replace(/_/g, " ").toUpperCase()}`);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/40 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50"
+                        title="Validate Session Status"
+                      >
+                        <option value="valid" className="text-gray-900 bg-white">✓ Valid / Attended</option>
+                        <option value="client_no_show" className="text-gray-900 bg-white">⚠ Client No-Show</option>
+                        <option value="provider_no_show" className="text-gray-900 bg-white">✖ Provider No-Show</option>
+                        <option value="cancelled_client" className="text-gray-900 bg-white">⊘ Cancelled by Client</option>
+                        <option value="cancelled_provider" className="text-gray-900 bg-white">⊘ Cancelled by Provider</option>
+                        <option value="invalid" className="text-gray-900 bg-white">! Invalid / Disputed</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedSessionForDetails(null)}
+                      className="p-1 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer"
+                    >
+                      <X className="size-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-5">
+                {/* Center Avatars */}
+                <div className="flex items-center justify-center gap-3 py-2">
+                  <div className="relative">
+                    <img
+                      src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHw0MCUyMHllYXIlMjBvbGQlMjBpbmRpYW4lMjBkb2N0b3IlMjBtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                      alt="Provider"
+                      className="size-16 rounded-full object-cover border-2 border-blue-500 shadow-md"
+                    />
+                  </div>
+                  <div className="size-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500">
+                    <ArrowLeftRight className="size-4" />
+                  </div>
+                  <div className="relative">
+                    <img
+                      src={selectedSessionForDetails.avatar}
+                      alt={selectedSessionForDetails.clientName}
+                      className="size-16 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600 shadow-md"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                    Karan Hinduja Test
+                    <span className="text-gray-400 font-normal">⇄</span>
+                    {selectedSessionForDetails.clientName}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {selectedSessionForDetails.service}
+                  </p>
+                </div>
+
+                {/* Details Box */}
+                <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-2xl border border-slate-200/80 dark:border-gray-700/60 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1.5">
+                      <Calendar className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
+                      Service:
+                    </span>
+                    <strong className="text-gray-900 dark:text-white font-semibold">
+                      {selectedSessionForDetails.service}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1.5">
+                      <Clock className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
+                      Time:
+                    </span>
+                    <strong className="text-gray-900 dark:text-white font-semibold">
+                      {selectedSessionForDetails.date} ({selectedSessionForDetails.time})
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1.5">
+                      <Clock className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
+                      Duration:
+                    </span>
+                    <strong className="text-gray-900 dark:text-white font-semibold">
+                      {selectedSessionForDetails.duration}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1.5">
+                      <ShieldCheck className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
+                      Validation:
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      (sessionValidationStatus[selectedSessionForDetails.id] || "valid") === "valid"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    }`}>
+                      {(sessionValidationStatus[selectedSessionForDetails.id] || "valid").replace(/_/g, " ").toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Session Didn't Happen Link */}
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      setSessionValidationStatus((prev) => ({
+                        ...prev,
+                        [selectedSessionForDetails.id]: "client_no_show",
+                      }));
+                      toast.info("Session marked as Client No-Show");
+                    }}
+                    className="text-xs font-bold text-[#2563EB] dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    Session didn't happen?
+                  </button>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      const sid = selectedSessionForDetails.id;
+                      setSelectedSessionForDetails(null);
+                      navigate(`/sessions/${sid}/notes`);
+                    }}
+                    className="flex-1 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <FileText className="size-3.5" />
+                    <span>Notes / Transcript</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const s = selectedSessionForDetails;
+                      const cid = (s as { clientId?: string }).clientId || "2";
+                      setSelectedSessionForDetails(null);
+                      navigate(`/billing/bills/create?clientId=${cid}&sessions=${s.id}`);
+                    }}
+                    className="flex-1 py-2.5 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>+ Bill</span>
                   </button>
                 </div>
               </div>

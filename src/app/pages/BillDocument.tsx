@@ -19,7 +19,7 @@ export function BillDocument() {
   const [emailSent, setEmailSent] = useState(false);
 
   const bill = bills.find((b) => b.id === billId || b.billNumber === billId);
-  const handleBack = useGoBack(bill ? "/billing/bills" : "/billing/bills");
+  const handleBack = useGoBack("/billing");
 
   const provider = providers.find((p) => p.id === bill?.providerId) || providers.find((p) => p.id === currentProviderId) || providers[0];
   const client = clients.find((c) => c.id === bill?.clientId);

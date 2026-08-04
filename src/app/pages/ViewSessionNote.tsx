@@ -525,7 +525,7 @@ export function ViewSessionNote() {
                         Note is signed and locked. Fee schedule charge ($150.00) captured.
                       </span>
                       <Link
-                        to="/billing/bills"
+                        to="/billing"
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
                       >
                         View in Bills Hub

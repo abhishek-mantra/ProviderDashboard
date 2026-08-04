@@ -23,7 +23,7 @@ const REQUIRES_PRIOR_AUTH_CPTS = ["90791"];
 
 export function RevenueCycle() {
   const navigate = useNavigate();
-  const handleBack = useGoBack("/billing/bills");
+  const handleBack = useGoBack("/billing");
   const { bills, clients, providers, priorAuthorizations } = usePartnerDashboard();
   const { claims, updateClaimStatus } = useClaims();
 
@@ -255,7 +255,7 @@ export function RevenueCycle() {
             ))}
           </select>
           <Link
-            to="/billing/bills"
+            to="/billing"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold transition-colors"
           >
             <Send className="size-3.5" />

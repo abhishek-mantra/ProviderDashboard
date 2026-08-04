@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { Receipt, ShieldCheck } from "lucide-react";
 import { BillsHub } from "./BillsHub";
 import { InsurancePage } from "./InsurancePage";
@@ -6,7 +7,30 @@ import { InsurancePage } from "./InsurancePage";
 type BillingTab = "bills" | "insurance";
 
 export function Billing() {
-  const [tab, setTab] = useState<BillingTab>("bills");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [tab, setTab] = useState<BillingTab>(
+    urlTab === "insurance" ? "insurance" : "bills"
+  );
+
+  useEffect(() => {
+    if (urlTab === "insurance" || urlTab === "bills") {
+      setTab(urlTab);
+    }
+  }, [urlTab]);
+
+  const handleTabChange = (nextTab: BillingTab) => {
+    setTab(nextTab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextTab === "bills") {
+        next.delete("tab");
+      } else {
+        next.set("tab", nextTab);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="px-1 md:px-0">
@@ -23,8 +47,8 @@ export function Billing() {
       {/* Two tabs: Bills | Insurance */}
       <div className="flex items-center gap-1 border-b border-gray-200 dark:border-gray-700 mb-5 md:mb-6 overflow-x-auto">
         <button
-          onClick={() => setTab("bills")}
-          className={`px-4 py-3 font-medium transition-all relative text-xs md:text-sm whitespace-nowrap flex items-center gap-2 ${
+          onClick={() => handleTabChange("bills")}
+          className={`px-4 py-3 font-medium transition-all relative text-xs md:text-sm whitespace-nowrap flex items-center gap-2 cursor-pointer ${
             tab === "bills"
               ? "text-[#00c0ff]"
               : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
@@ -37,8 +61,8 @@ export function Billing() {
           )}
         </button>
         <button
-          onClick={() => setTab("insurance")}
-          className={`px-4 md:px-4 py-3 font-medium transition-all relative text-xs md:text-sm whitespace-nowrap flex items-center gap-2 ${
+          onClick={() => handleTabChange("insurance")}
+          className={`px-4 md:px-4 py-3 font-medium transition-all relative text-xs md:text-sm whitespace-nowrap flex items-center gap-2 cursor-pointer ${
             tab === "insurance"
               ? "text-[#00c0ff]"
               : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
@@ -53,11 +77,7 @@ export function Billing() {
       </div>
 
       {/* Content */}
-      {tab === "bills" ? (
-        <BillsHub />
-      ) : (
-        <InsurancePage />
-      )}
+      {tab === "bills" ? <BillsHub /> : <InsurancePage />}
     </div>
   );
 }

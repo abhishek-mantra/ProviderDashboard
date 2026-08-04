@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -25,6 +25,7 @@ import {
   useBillingPanelTarget,
   closeBillingPanel,
 } from "./billingPanelStore";
+import { openPaymentModal } from "./paymentModalStore";
 
 function statusPill(bill: {
   status: string;
@@ -66,13 +67,12 @@ function Collapsible({
     <div className="border-b border-gray-100 dark:border-gray-700/60 last:border-b-0">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full flex items-center justify-between py-3 text-left"
+        className="w-full flex items-center justify-between py-3 text-left cursor-pointer"
       >
         <span className="text-sm font-bold text-gray-900 dark:text-white">{title}</span>
         <ChevronDown
-          className={`size-4 text-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`size-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -98,8 +98,6 @@ export function BillingPanel() {
   const { clients, bills } = usePartnerDashboard();
   const { unbilledSessions } = useClaims();
 
-  // Keep the last opened target around so the exit animation can play while
-  // the store has already flipped back to null.
   const [lastTarget, setLastTarget] = useState(target);
   useEffect(() => {
     if (target) setLastTarget(target);
@@ -115,7 +113,6 @@ export function BillingPanel() {
     return clients.find((c) => c.id === byBill) || null;
   }, [effective, clients, bills]);
 
-  // Close on Escape
   useEffect(() => {
     if (!target) return;
     const onKey = (e: KeyboardEvent) => {
@@ -134,6 +131,37 @@ export function BillingPanel() {
         : [],
     [client, bills]
   );
+
+  const [selectedBills, setSelectedBills] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!effective) return;
+    const initialId = effective.id;
+    const matchingBill = bills.find((b) => b.id === initialId || b.billNumber === initialId);
+    if (matchingBill) {
+      setSelectedBills({ [matchingBill.id]: true });
+    } else if (clientBills.length > 0) {
+      setSelectedBills({ [clientBills[0].id]: true });
+    }
+  }, [effective, bills, clientBills]);
+
+  const toggleBillSelection = (id: string) => {
+    setSelectedBills((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const selectedBillIds = useMemo(
+    () => Object.keys(selectedBills).filter((id) => selectedBills[id]),
+    [selectedBills]
+  );
+
+  const selectedTotal = useMemo(() => {
+    return clientBills
+      .filter((b) => selectedBills[b.id])
+      .reduce((sum, b) => sum + getTotalDue(b), 0);
+  }, [clientBills, selectedBills]);
 
   const summary = useMemo(() => {
     const clientBalance = clientBills.reduce((s, b) => s + getTotalDue(b), 0);
@@ -170,7 +198,6 @@ export function BillingPanel() {
     <AnimatePresence>
       {target && client && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -179,17 +206,15 @@ export function BillingPanel() {
             onClick={closeBillingPanel}
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
           />
-          {/* Panel */}
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 380, damping: 34 }}
-            className="fixed top-0 right-0 z-[60] h-full w-full max-w-[420px] bg-white dark:bg-gray-800 shadow-2xl flex flex-col"
+            className="fixed top-0 right-0 z-[60] h-full w-full lg:w-1/3 min-w-[360px] md:min-w-[440px] bg-white dark:bg-gray-800 shadow-2xl flex flex-col"
             role="dialog"
             aria-label={`Billing details for ${client.name}`}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="size-10 rounded-full bg-[#043570]/10 dark:bg-[#00c0ff]/10 flex items-center justify-center text-[#043570] dark:text-[#00c0ff] font-bold text-sm shrink-0">
@@ -201,19 +226,18 @@ export function BillingPanel() {
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-gray-900 dark:text-white truncate">{client.name}</p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Billing</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Billing Overview</p>
                 </div>
               </div>
               <button
                 onClick={closeBillingPanel}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {/* Client billing summary */}
               <div className="p-5 bg-[#F8FAFC] dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700/60">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
                   <Wallet className="size-3.5" /> Client Billing Summary
@@ -265,15 +289,22 @@ export function BillingPanel() {
                     <p className="text-[11px] text-gray-400">on file</p>
                   </div>
                 </div>
+
+                {/* Add Payment Button - Launches Add Payment modal pre-filtered to this client & selected invoices */}
                 <button
-                  onClick={() => goToBills(`/billing/bills?clientId=${client.id}`)}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                  onClick={() => {
+                    openPaymentModal({
+                      clientId: client.id,
+                      billIds: selectedBillIds,
+                    });
+                  }}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
                 >
-                  <CreditCard className="size-3.5" /> Add Payment
+                  <CreditCard className="size-3.5" />
+                  Add Payment {selectedTotal > 0 ? `($${selectedTotal.toFixed(2)})` : ""}
                 </button>
               </div>
 
-              {/* Insurance section */}
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
                   <ShieldCheck className="size-3.5" /> Insurance
@@ -303,8 +334,14 @@ export function BillingPanel() {
                       </div>
                     </div>
                     <button
-                      onClick={() => goToBills(`/billing/bills?clientId=${client.id}`)}
-                      className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#00c0ff]/10 text-[#043570] dark:text-[#00c0ff] border border-[#00c0ff]/30 rounded-xl text-xs font-bold hover:bg-[#00c0ff]/20 transition-colors"
+                      onClick={() => {
+                        const targetBill = clientBills.find((b) => b.billType === "insurance") || clientBills[0];
+                        openPaymentModal({
+                          clientId: client.id,
+                          billIds: targetBill ? [targetBill.id] : undefined,
+                        });
+                      }}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#00c0ff]/10 text-[#043570] dark:text-[#00c0ff] border border-[#00c0ff]/30 rounded-xl text-xs font-bold hover:bg-[#00c0ff]/20 transition-colors cursor-pointer"
                     >
                       <CreditCard className="size-3.5" /> Add insurance payment
                     </button>
@@ -313,8 +350,8 @@ export function BillingPanel() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-300">No insurance on file</p>
                     <button
-                      onClick={() => goToBills(`/billing/bills?clientId=${client.id}`)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline"
+                      onClick={() => goToBills(`/billing?clientId=${client.id}`)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline cursor-pointer"
                     >
                       <Plus className="size-3.5" /> Add New
                     </button>
@@ -322,27 +359,21 @@ export function BillingPanel() {
                 )}
               </div>
 
-              {/* Client info + invoices */}
-              <div className="px-5">
-                <Collapsible open title="Client info">
-                  <div className="space-y-2.5 text-xs text-gray-700 dark:text-gray-300">
-                    <div className="flex items-center gap-2.5">
-                      <Phone className="size-3.5 text-gray-400 shrink-0" />
-                      <span>{client?.phone || "N/A"}</span>
+              <div className="px-5 py-3">
+                <Collapsible
+                  open
+                  title={
+                    <div className="flex items-center justify-between w-full pr-2">
+                      <span>Invoices ({clientBills.length})</span>
+                      {selectedBillIds.length > 0 && (
+                        <span className="text-xs font-bold text-[#043570] dark:text-[#00c0ff]">
+                          Selected ({selectedBillIds.length}): ${selectedTotal.toFixed(2)}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      <Mail className="size-3.5 text-gray-400 shrink-0" />
-                      <span className="truncate">{client?.email || "N/A"}</span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <MapPin className="size-3.5 text-gray-400 shrink-0 mt-0.5" />
-                      <span>{client?.address || "N/A"}</span>
-                    </div>
-                  </div>
-                </Collapsible>
-
-                <Collapsible open title={`Invoices (${clientBills.length})`}>
-                  <div className="space-y-2">
+                  }
+                >
+                  <div className="space-y-2 mt-1">
                     {clientBills.length === 0 && (
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         No invoices on file yet.
@@ -351,20 +382,37 @@ export function BillingPanel() {
                     {clientBills.map((b) => {
                       const due = getTotalDue(b);
                       const pill = statusPill({ status: b.status, due });
+                      const isChecked = !!selectedBills[b.id];
                       return (
                         <div
                           key={b.id}
-                          className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl"
+                          onClick={() => toggleBillSelection(b.id)}
+                          className={`flex items-center gap-3 px-3.5 py-3 rounded-xl border transition-all cursor-pointer ${isChecked
+                              ? "bg-blue-50/70 dark:bg-blue-950/30 border-[#043570]/40 dark:border-[#00c0ff]/40 shadow-xs"
+                              : "bg-gray-50 dark:bg-gray-750 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            }`}
                         >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleBillSelection(b.id);
+                            }}
+                            className="size-4 rounded text-[#043570] focus:ring-[#043570] border-gray-300 dark:border-gray-600 shrink-0 cursor-pointer"
+                          />
                           <div className="min-w-0 flex-1">
                             <button
-                              onClick={() => goToBills(`/billing/bills/${b.id}`)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                goToBills(`/billing/bills/${b.id}`);
+                              }}
                               className="font-mono text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline"
                             >
                               {b.billNumber}
                             </button>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                              {b.cptCode} ·{" "}
+                              {b.cptCode || "Session"} ·{" "}
                               {b.billType === "insurance"
                                 ? b.insurerName || "Insurance"
                                 : "Self-pay"}
@@ -375,7 +423,7 @@ export function BillingPanel() {
                           >
                             {pill.label}
                           </span>
-                          <span className="font-mono text-xs font-bold text-gray-900 dark:text-white w-16 text-right">
+                          <span className="font-mono text-xs font-bold text-gray-900 dark:text-white min-w-[60px] text-right">
                             {getCurrencySymbol(b.currency ?? "USD")}{b.amount.toFixed(2)}
                           </span>
                         </div>
@@ -388,8 +436,8 @@ export function BillingPanel() {
 
             <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
               <button
-                onClick={() => goToBills(`/billing/bills?clientId=${client.id}`)}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                onClick={() => goToBills(`/billing?clientId=${client.id}`)}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
               >
                 <ExternalLink className="size-3.5" /> Open {client.name}&apos;s bills
               </button>

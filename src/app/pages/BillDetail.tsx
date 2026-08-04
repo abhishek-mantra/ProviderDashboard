@@ -56,7 +56,7 @@ export function BillDetail() {
     recordBillPayment,
     writeOffBill,
   } = usePartnerDashboard();
-  const handleBack = useGoBack("/billing/bills");
+  const handleBack = useGoBack("/billing");
   const [searchParams] = useSearchParams();
   const { claims } = useClaims();
 
@@ -169,30 +169,6 @@ export function BillDetail() {
 
   return (
     <div className="space-y-6">
-      {bill.claimId &&
-        (() => {
-          const linkedClaim = claims.find((c) => c.id === bill.claimId);
-          return linkedClaim ? (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
-              <div>
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                  Insurance claim created — {linkedClaim.claimNumber}
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                  Submit this claim to the clearinghouse to begin payer adjudication.
-                </p>
-              </div>
-              <Link
-                to={`/claims/${linkedClaim.id}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors shrink-0"
-              >
-                <Send className="size-4" />
-                View & Submit Claim
-              </Link>
-            </div>
-          ) : null;
-        })()}
-
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
@@ -318,17 +294,36 @@ export function BillDetail() {
             Received <span className="font-bold text-gray-900 dark:text-white">{sym}{received.toFixed(2)}</span>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total Due</p>
-            <p
-              className={`text-xl font-black ${
-                totalDue > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
-              }`}
-            >
-              {sym}{Math.max(0, totalDue).toFixed(2)}
-            </p>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium mr-2">Total Due</span>
+            <span className="text-xl font-black text-amber-600 dark:text-amber-400">{sym}{Math.max(0, totalDue).toFixed(2)}</span>
           </div>
         </div>
       </div>
+
+      {/* Linked Claim Banner */}
+      {bill.claimId &&
+        (() => {
+          const linkedClaim = claims.find((c) => c.id === bill.claimId);
+          return linkedClaim ? (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl shadow-2xs">
+              <div>
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                  Insurance claim created — {linkedClaim.claimNumber}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                  Submit this claim to the clearinghouse to begin payer adjudication.
+                </p>
+              </div>
+              <Link
+                to={`/claims/${linkedClaim.id}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors shrink-0 cursor-pointer"
+              >
+                <Send className="size-4" />
+                View & Submit Claim
+              </Link>
+            </div>
+          ) : null;
+        })()}
 
       {/* ── ADD PAYMENT (Step 4.3 — unified form) ─────────────────────────────── */}
       <div id="add-payment" className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 scroll-mt-6">

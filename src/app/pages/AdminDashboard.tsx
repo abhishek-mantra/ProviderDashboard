@@ -1,5 +1,4 @@
-import { useNavigate, Link } from "react-router";
-import { useState } from "react";
+﻿import { useNavigate, Link } from "react-router";
 import {
   Building2,
   Users,
@@ -15,25 +14,19 @@ import {
   FileText,
   MessageSquare,
   ClipboardCheck,
-  Receipt,
   Filter,
-  Ban,
-  TrendingUp,
   Wallet,
   HandCoins,
-  Percent,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { PageContainer } from "../components/PageContainer";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
-import { useClaims } from "../contexts/ClaimContext";
 import { mockProviders, mockClients } from "../data/mockPartnerData";
 import {
   PLAN_TIER_LIMITS,
   PLAN_TIER_EXTRA_COST,
   PLAN_TIER_PRICING,
-  WRITE_OFF_REASON_LABELS,
 } from "../types/partnerDashboard";
 import type { PracticeMember, MockClient } from "../types/partnerDashboard";
 
@@ -85,11 +78,7 @@ export function AdminDashboard() {
     practices,
     clients,
     clientTreatingProviders,
-    bills,
   } = usePartnerDashboard();
-  const { claims } = useClaims();
-
-  const [rcmProviderFilter, setRcmProviderFilter] = useState("all");
   const establishment = getCurrentEstablishment();
   // A provider can hold membership records across multiple practices of the same
   // establishment (see mockPartnerData: prov-5 is a member of practice-1 AND
@@ -185,7 +174,7 @@ export function AdminDashboard() {
     toast.success("Listing reconfirmed");
   };
 
-  // Combined Availability — use practice visiting hours as the merged view
+  // Combined Availability â€” use practice visiting hours as the merged view
   const combinedAvailability = daysOfWeek.map((day) => ({
     day,
     ...(currentPractice?.visitingHours?.[day] || { isOpen: false, from: "09:00", to: "17:00" }),
@@ -194,133 +183,6 @@ export function AdminDashboard() {
   // Computed aggregate billing from live member/provider data
   const aggregateBilling = computeAggregateBilling(establishmentMembers, providers, clients, clientTreatingProviders);
 
-  // ── STAGE 9: RCM REVENUE & WRITE-OFF ANALYTICS ────────────────────────────────
-  const filteredRcmBills = rcmProviderFilter === "all"
-    ? bills
-    : bills.filter((b) => b.providerId === rcmProviderFilter);
-
-  // Bug 4 — real RCM KPIs computed from claims/bills, filtered by provider.
-  const filteredRcmClaims = rcmProviderFilter === "all"
-    ? claims
-    : claims.filter((c) => c.providerId === rcmProviderFilter);
-
-  const rcmTotalBilled = filteredRcmBills.reduce((acc, b) => acc + b.amount, 0);
-  const rcmTotalCollected = filteredRcmBills
-    .filter((b) => b.status === "paid_direct" || b.status === "paid_via_claim")
-    .reduce((acc, b) => acc + b.amount, 0);
-  const rcmTotalWrittenOff = filteredRcmBills
-    .filter((b) => b.status === "written_off")
-    .reduce((acc, b) => acc + b.amount, 0);
-  const rcmTotalOutstanding = filteredRcmBills
-    .filter((b) => b.status === "unresolved" || b.status === "claim_pending")
-    .reduce((acc, b) => acc + b.amount, 0);
-
-  // Net Collection Rate — the stakeholder's "how healthy is our RCM" headline.
-  // Denominator = gross billed minus contractual adjustments (billed vs allowed
-  // shortfall recorded by simulatePayerAdjudication on each claim's payment).
-  const rcmContractualAdjustments = filteredRcmClaims.reduce((acc, c) => {
-    if (c.payment && c.payment.billedAmount > 0) {
-      return acc + Math.max(0, c.payment.billedAmount - c.payment.allowedAmount);
-    }
-    return acc;
-  }, 0);
-  const rcmNetCollectionRate = (() => {
-    const denominator = rcmTotalBilled - rcmContractualAdjustments;
-    if (denominator <= 0) return 0;
-    return Math.round((rcmTotalCollected / denominator) * 1000) / 10;
-  })();
-
-  // Bug 4 — real RCM KPIs computed from claims/bills, filtered by provider.
-  const submittedClaims = filteredRcmClaims.filter((c) => c.submittedDate != null);
-
-  const rcmCleanClaimRate = (() => {
-    if (submittedClaims.length === 0) return 0;
-    const clean = submittedClaims.filter(
-      (c) =>
-        ["paid", "in_adjudication", "approved"].includes(c.status) &&
-        !c.statusHistory.some((e) => ["stedi_rejected", "payer_rejected", "rejected"].includes(e.status))
-    );
-    return Math.round((clean.length / submittedClaims.length) * 1000) / 10;
-  })();
-
-  const rcmFirstPassRate = (() => {
-    if (submittedClaims.length === 0) return 0;
-    const accepted = submittedClaims.filter(
-      (c) =>
-        ["paid", "in_adjudication", "approved", "denied", "adjusted"].includes(c.status) &&
-        !c.statusHistory.some((e) => e.status === "draft" && /resubmission/i.test(e.note || ""))
-    );
-    return Math.round((accepted.length / submittedClaims.length) * 1000) / 10;
-  })();
-
-  const rcmAvgDaysInAr = (() => {
-    const resolved = filteredRcmBills.filter((b) => b.resolvedAt && b.dateOfService);
-    if (resolved.length === 0) return 0;
-    const totalDays = resolved.reduce((sum, b) => {
-      const res = new Date(b.resolvedAt!).getTime();
-      const dos = new Date(b.dateOfService).getTime();
-      return sum + Math.max(0, Math.round((res - dos) / 86400000));
-    }, 0);
-    return Math.round((totalDays / resolved.length) * 10) / 10;
-  })();
-
-  const rcmDenialRate = (() => {
-    if (submittedClaims.length === 0) return 0;
-    const denied = submittedClaims.filter((c) =>
-      c.statusHistory.some((e) => e.status === "denied" || e.status === "payer_rejected" || e.status === "stedi_rejected")
-    );
-    return Math.round((denied.length / submittedClaims.length) * 1000) / 10;
-  })();
-
-  const rcmWriteOffsByReason = Object.keys(WRITE_OFF_REASON_LABELS).map((reasonCode) => {
-    const matchingBills = filteredRcmBills.filter(
-      (b) => b.status === "written_off" && (b.writeOffReason || "bad_debt") === reasonCode
-    );
-    const amount = matchingBills.reduce((acc, b) => acc + b.amount, 0);
-    const count = matchingBills.length;
-    return {
-      reasonCode,
-      label: WRITE_OFF_REASON_LABELS[reasonCode as keyof typeof WRITE_OFF_REASON_LABELS],
-      amount,
-      count,
-    };
-  });
-
-  // Payer performance cut — denial rate / days to payment / volume by payer, computed from the same claims data.
-  const payerPerformance = (() => {
-    const byPayer = new Map<string, { total: number; denied: number; paid: number; daysToPay: number[] }>();
-    for (const claim of filteredRcmClaims) {
-      const name = claim.payerName || "Self-Pay";
-      const entry = byPayer.get(name) || { total: 0, denied: 0, paid: 0, daysToPay: [] };
-      entry.total++;
-      if (["denied", "rejected", "stedi_rejected", "payer_rejected"].includes(claim.status)) {
-        entry.denied++;
-      }
-      if (claim.payment && claim.payment.paidAmount > 0) {
-        entry.paid++;
-        if (claim.submittedDate && claim.payment.remittanceDate) {
-          const days = Math.max(
-            1,
-            Math.round(
-              (new Date(claim.payment.remittanceDate).getTime() - new Date(claim.submittedDate).getTime()) / 86400000
-            )
-          );
-          entry.daysToPay.push(days);
-        }
-      }
-      byPayer.set(name, entry);
-    }
-    return Array.from(byPayer.entries())
-      .map(([name, e]) => ({
-        name,
-        volume: e.total,
-        denialRate: e.total ? Math.round((e.denied / e.total) * 100) : 0,
-        avgDaysToPay: e.daysToPay.length
-          ? Math.round(e.daysToPay.reduce((a, b) => a + b, 0) / e.daysToPay.length)
-          : 0,
-      }))
-      .sort((a, b) => b.volume - a.volume);
-  })();
 
 
   const statCards = [
@@ -384,7 +246,7 @@ export function AdminDashboard() {
               <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 flex items-center gap-2">
                 <Crown className="size-4 text-[#00c0ff]" />
                 {establishment.planTier} Plan
-                <span className="text-gray-400">·</span>
+                <span className="text-gray-400">Â·</span>
                 {establishment.city}, {establishment.state}
               </p>
             </div>
@@ -458,7 +320,7 @@ export function AdminDashboard() {
             </h3>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-gray-600 dark:text-gray-400">
-                {establishment.planTier} plan — {establishmentMembers.length}
+                {establishment.planTier} plan â€” {establishmentMembers.length}
                 <span className="text-gray-400 dark:text-gray-500">
                   {planLimit !== null ? ` / ${planLimit}` : ""} members
                 </span>
@@ -501,7 +363,7 @@ export function AdminDashboard() {
                 <AlertTriangle className="size-3" />
                 {planLimit - establishmentMembers.length > 0
                   ? `${planLimit - establishmentMembers.length} spots left`
-                  : "Plan full — upgrade to add more"}
+                  : "Plan full â€” upgrade to add more"}
               </p>
             )}
           </motion.div>
@@ -583,7 +445,7 @@ export function AdminDashboard() {
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   {mockClients.length > 0
                     ? (careTeamMemberships.length / mockClients.length).toFixed(1)
-                    : "—"}
+                    : "â€”"}
                 </span>
               </div>
             </div>
@@ -754,7 +616,7 @@ export function AdminDashboard() {
                 onClick={() => navigate("/settings/practice-details")}
                 className="mt-4 w-full text-center text-sm text-[#00c0ff] hover:text-[#0099cc] font-medium"
               >
-                Complete your listing →
+                Complete your listing â†’
               </button>
             )}
             <div className={`mt-4 rounded-lg p-3 text-sm ${listingIsStale ? "bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" : "bg-gray-50 text-gray-600 dark:bg-gray-750 dark:text-gray-400"}`}>
@@ -778,7 +640,7 @@ export function AdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Combined Availability
             </h3>
-            <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(Read-only · merged team schedule)</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(Read-only Â· merged team schedule)</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
             {combinedAvailability.map((slot) => (
@@ -851,7 +713,7 @@ export function AdminDashboard() {
                         {member.provider?.name || member.providerId}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {member.provider?.email} · {typeof member.role === "string" ? member.role : "Custom"}
+                        {member.provider?.email} Â· {typeof member.role === "string" ? member.role : "Custom"}
                       </p>
                     </div>
                   </div>
@@ -866,315 +728,6 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
-        {/* ── RCM REVENUE & PERFORMANCE ANALYTICS (Stage 9, merged) ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-6"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="size-10 bg-[#043570] dark:bg-[#0a5ca8] rounded-xl flex items-center justify-center text-white">
-                <Receipt className="size-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  RCM Revenue &amp; Performance Analytics
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Collections, claim acceptance, denial rates, aging AR, and write-off reason codes YTD.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600">
-                <Filter className="size-3.5 text-gray-500" />
-                <select
-                  value={rcmProviderFilter}
-                  onChange={(e) => setRcmProviderFilter(e.target.value)}
-                  className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
-                >
-                  <option value="all">All Clinicians</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <Link
-                to="/billing/bills"
-                className="px-4 py-1.5 text-xs font-bold bg-[#043570] hover:bg-[#032554] text-white rounded-xl transition-colors shadow-xs"
-              >
-                Open Bills Hub
-              </Link>
-            </div>
-          </div>
-
-          {/* Net Collection Rate — headline hero */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.42, duration: 0.3 }}
-            className="bg-gradient-to-br from-[#043570] to-[#0a5ca8] rounded-2xl p-6 md:p-7 text-white relative overflow-hidden"
-          >
-            <div className="absolute -top-10 -right-10 size-48 bg-[#00c0ff]/20 rounded-full blur-3xl" />
-            <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#00c0ff] mb-2">
-                  Net Collection Rate
-                </p>
-                <p className="text-4xl md:text-5xl font-black leading-none tracking-tight">
-                  {rcmNetCollectionRate}%
-                </p>
-                <p className="text-xs text-blue-100/80 mt-2 max-w-md">
-                  Collected after contractual adjustments, of adjusted gross billed — the first answer
-                  a stakeholder wants from the RCM.
-                </p>
-              </div>
-              <div className="text-right text-xs text-blue-100/90 space-y-1">
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="text-blue-200/70">Collected</span>
-                  <span className="font-bold text-white">${rcmTotalCollected.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="text-blue-200/70">Contractual adj.</span>
-                  <span className="font-bold text-white">${rcmContractualAdjustments.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="text-blue-200/70">Adjusted gross billed</span>
-                  <span className="font-bold text-white">${(rcmTotalBilled - rcmContractualAdjustments).toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Dollar cards — Gross Billed / Net Collected / Written Off / Active A/R */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.46, duration: 0.3 }}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-3"
-          >
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700">
-              <p className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                Gross Billed (YTD)
-              </p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">
-                ${rcmTotalBilled.toFixed(2)}
-              </p>
-              <p className="text-[10px] text-gray-400 mt-0.5">Total claims &amp; self-pay</p>
-            </div>
-
-            <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/40">
-              <p className="text-xs font-bold uppercase text-emerald-700 dark:text-emerald-400">
-                Net Collected
-              </p>
-              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">
-                ${rcmTotalCollected.toFixed(2)}
-              </p>
-              <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
-                Direct + Claim remit payouts
-              </p>
-            </div>
-
-            <div className="p-4 bg-red-50/70 dark:bg-red-950/20 rounded-2xl border border-red-200/80 dark:border-red-900/50 relative overflow-hidden">
-              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 uppercase">
-                Tax Event
-              </div>
-              <p className="text-xs font-bold uppercase text-red-700 dark:text-red-400 flex items-center gap-1">
-                <Ban className="size-3.5" />
-                <span>Total Written Off</span>
-              </p>
-              <p className="text-2xl font-black text-red-700 dark:text-red-300 mt-1">
-                ${rcmTotalWrittenOff.toFixed(2)}
-              </p>
-              <p className="text-[10px] text-red-600/80 dark:text-red-400/80 mt-0.5">
-                Distinct business reporting
-              </p>
-            </div>
-
-            <div className="p-4 bg-amber-50/70 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/40">
-              <p className="text-xs font-bold uppercase text-amber-700 dark:text-amber-400">
-                Active A/R Outstanding
-              </p>
-              <p className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">
-                ${rcmTotalOutstanding.toFixed(2)}
-              </p>
-              <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                Unresolved &amp; pending claims
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Percentage cards — Clean-Claim / First-Pass / AR-Days / Denial */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.3 }}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-          >
-            <div className="p-4 bg-gray-50/70 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Clean-Claim Rate
-              </p>
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                {rcmCleanClaimRate}%
-              </p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                {submittedClaims.length} submitted claims
-              </p>
-            </div>
-
-            <div className="p-4 bg-gray-50/70 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                First-Pass Acceptance
-              </p>
-              <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                {rcmFirstPassRate}%
-              </p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                Accepted on first submission
-              </p>
-            </div>
-
-            <div className="p-4 bg-gray-50/70 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Avg Days in A/R
-              </p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">
-                {rcmAvgDaysInAr} d
-              </p>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
-                {rcmAvgDaysInAr > 0 && rcmAvgDaysInAr < 30 ? "Healthy (<30 days)" : rcmAvgDaysInAr >= 30 ? "Attention (≥30 days)" : "No resolved bills"}
-              </p>
-            </div>
-
-            <div className="p-4 bg-gray-50/70 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Denial Rate
-              </p>
-              <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                {rcmDenialRate}%
-              </p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                Denied in status history
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Payer Performance */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.54, duration: 0.3 }}
-            className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Payer Performance</h3>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Denial rate, days to payment, and volume by payer</p>
-              </div>
-            </div>
-            {payerPerformance.length === 0 ? (
-              <p className="text-xs text-gray-400 py-6 text-center bg-white dark:bg-gray-800">
-                No claims submitted yet — payer performance will appear here.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold uppercase text-gray-500 dark:text-gray-400">
-                      <th className="py-2.5 px-4">Payer</th>
-                      <th className="py-2.5 px-4 text-right">Claims</th>
-                      <th className="py-2.5 px-4 text-right">Denial Rate</th>
-                      <th className="py-2.5 px-4 text-right">Avg Days to Payment</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                    {payerPerformance.map((p) => (
-                      <tr key={p.name} className="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
-                        <td className="py-2.5 px-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                          {p.name}
-                        </td>
-                        <td className="py-2.5 px-4 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                          {p.volume}
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-bold whitespace-nowrap">
-                          <span className={`${p.denialRate >= 25 ? "text-red-600 dark:text-red-400" : p.denialRate > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                            {p.denialRate}%
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-bold text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                          {p.avgDaysToPay ? `${p.avgDaysToPay}d` : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Write-off Reason Code Breakdown (single table) */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.58, duration: 0.3 }}
-            className="space-y-3 pt-2"
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <span>Write-Offs &amp; Adjustments Breakdown YTD</span>
-                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-full">
-                  By Reason Code
-                </span>
-              </h4>
-              <span className="text-xs text-gray-500">
-                Total Written Off: ${rcmTotalWrittenOff.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 font-bold uppercase text-gray-500 dark:text-gray-400">
-                    <th className="py-2.5 px-4">Reason Code</th>
-                    <th className="py-2.5 px-4">Bills Count</th>
-                    <th className="py-2.5 px-4">Amount YTD</th>
-                    <th className="py-2.5 px-4 text-right">% of Write-Offs</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                  {rcmWriteOffsByReason.map((row) => {
-                    const percent = rcmTotalWrittenOff > 0
-                      ? ((row.amount / rcmTotalWrittenOff) * 100).toFixed(1)
-                      : "0.0";
-                    return (
-                      <tr key={row.reasonCode} className="hover:bg-gray-50/50 dark:hover:bg-gray-750/30">
-                        <td className="py-2.5 px-4 font-semibold text-gray-900 dark:text-white">
-                          {row.label}
-                        </td>
-                        <td className="py-2.5 px-4 text-gray-600 dark:text-gray-400">
-                          {row.count} bill(s)
-                        </td>
-                        <td className="py-2.5 px-4 font-mono font-bold text-gray-900 dark:text-white">
-                          ${row.amount.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-bold text-gray-600 dark:text-gray-300">
-                          {percent}%
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        </motion.div>
 
     </PageContainer>
   );

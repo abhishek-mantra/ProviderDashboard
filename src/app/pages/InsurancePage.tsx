@@ -97,7 +97,7 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
       {/* Tab Content */}
       <div>
         {activeTab === "unbilled" && (
-          <UnbilledSessions />
+          <UnbilledSessions scope="insurance" />
         )}
         {activeTab === "claims" && (
           <div>

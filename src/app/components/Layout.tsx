@@ -7,6 +7,7 @@ import { usePlanMode } from "../contexts/PlanModeContext";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
 import { PracticeSwitcher } from "./PracticeSwitcher";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { BillingPanel } from "./billing/BillingPanel";
 
 function MantraProviderUpgradePopup({ onClose, onGetListed }: {
   onClose: () => void;
@@ -256,8 +257,8 @@ export function Layout() {
 
   // Nav item ordering — one per mode, persisted
   const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'revenue-cycle', 'messages', 'appointments', 'intake-forms', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'revenue-cycle', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -540,7 +541,6 @@ export function Layout() {
     'home':               { icon: <Home className="size-5 flex-shrink-0" />,          label: 'Home' },
     'clients':            { icon: <Users className="size-5 flex-shrink-0" />,         label: 'Clients' },
     'billing':            { icon: <CreditCard className="size-5 flex-shrink-0" />,    label: 'Billing' },
-    'revenue-cycle':      { icon: <Activity className="size-5 flex-shrink-0" />,      label: 'Revenue Cycle' },
     'messages':           { icon: <MessageSquare className="size-5 flex-shrink-0" />, label: 'Messages' },
     'appointments':       { icon: <Calendar className="size-5 flex-shrink-0" />,      label: 'Appointments' },
     'refer-earn':         { icon: <Gift className="size-5 flex-shrink-0" />,          label: 'Refer & Earn' },
@@ -772,10 +772,7 @@ export function Layout() {
       case 'clients':
         return renderNavItem("/clients", <Users className="size-5 flex-shrink-0" />, "Clients");
       case 'billing':
-        return renderNavItem("/billing/bills", <CreditCard className="size-5 flex-shrink-0" />, "Billing");
-      case 'revenue-cycle':
-        if (!isCurrentUserAdmin) return null;
-        return renderNavItem("/revenue-cycle", <Activity className="size-5 flex-shrink-0" />, "Revenue Cycle");
+        return renderNavItem("/billing", <CreditCard className="size-5 flex-shrink-0" />, "Billing");
       case 'messages':
         return renderNavItem("/chat", <MessageSquare className="size-5 flex-shrink-0" />, "Messages");
       case 'appointments':
@@ -1451,6 +1448,9 @@ export function Layout() {
 
       {/* Toast Notifications */}
       <Toaster />
+
+      {/* Reusable billing panel (bill/client detail slide-in) */}
+      <BillingPanel />
 
       {/* Premium Upgrade Popup */}
       {showPremiumUpgradePopup && (

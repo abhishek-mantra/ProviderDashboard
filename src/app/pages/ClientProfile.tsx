@@ -1,5 +1,6 @@
-import { useNavigate, useParams, Link } from "react-router";
+﻿import { useNavigate, useParams, Link } from "react-router";
 import { useState, useMemo } from "react";
+import { openBillingPanel } from "../components/billing/billingPanelStore";
 import {
   ArrowLeft,
   Calendar,
@@ -173,7 +174,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     {
       icon: CreditCard,
       label: "Invoicing",
-      onClick: () => navigate(`/billing/bills?clientId=${id}`)
+      onClick: () => openBillingPanel({ kind: "client", id })
     },
     {
       icon: ShieldCheck,
@@ -215,7 +216,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     {
       icon: ShieldCheck,
       label: "New Claim",
-      onClick: () => navigate(`/billing/bills?clientId=${id}`)
+      onClick: () => navigate(`/billing/bills/create?clientId=${id}`)
     }
   ];
 
@@ -426,7 +427,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm">
                   <ShieldCheck className="size-3.5 text-emerald-600" />
-                  <span>🟢 Active Coverage • BlueCross BlueShield</span>
+                  <span>Active Coverage - BlueCross BlueShield</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   $25 Copay • $500 Deductible
@@ -689,7 +690,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
               <div className="flex items-center gap-2.5">
                 <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span className="text-xs md:text-sm font-medium">
-                  <strong>No active Diagnosis & Treatment Plan</strong> — required before signing notes or submitting claims.
+                  <strong>No active Diagnosis & Treatment Plan</strong> - required before signing notes or submitting claims.
                 </span>
               </div>
               <button
@@ -961,7 +962,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                 onClick={() => setShowNewPlanModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -1063,9 +1064,9 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
   );
 }
 
-// ── Intake Tab Component ──────────────────────────────────────────────────────
+// -- Intake Tab Component ------------------------------------------------------
 
-// ── Form Response Viewer (Read-Only) ─────────────────────────────────────────
+// -- Form Response Viewer (Read-Only) -----------------------------------------
 
 export function FormResponseViewer({
   form,

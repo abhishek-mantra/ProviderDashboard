@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import type { Provider, Practice, PracticeMember, EstablishmentSuperAdmin, CustomRole, CareTeamMembership, MockClient, Establishment, IntakeForm, IntakeFlow, FormEntry, FormResponse, PermissionSet, DiagnosisTreatmentPlan, Bill, PriorAuthorization, RemittanceRecord, WriteOffReason } from "../types/partnerDashboard";
-import { ROLE_PERMISSION_DEFAULTS, BASE_ROLES } from "../types/partnerDashboard";
+import { ROLE_PERMISSION_DEFAULTS, BASE_ROLES, getClientDue, getInsuranceDue, isBillSettled } from "../types/partnerDashboard";
 import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses, mockPractices, mockPracticeMembers, mockSuperAdmins, mockCustomRoles, mockDiagnosisTreatmentPlans, mockBills, mockPriorAuthorizations, mockRemittanceRecords } from "../data/mockPartnerData";
 import { generateId } from "../utils/id";
 
@@ -68,9 +68,10 @@ interface PartnerDashboardContextType {
   unlockDiagnosisPlan: (planId: string) => void;
   bills: Bill[];
   setBills: React.Dispatch<React.SetStateAction<Bill[]>>;
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "billNumber">) => Bill;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "billNumber"> & { billNumber?: string }) => Bill;
   updateBill: (billId: string, updates: Partial<Bill>) => void;
-  writeOffBill: (billId: string, reason: WriteOffReason, note?: string) => void;
+  recordBillPayment: (billId: string, side: "client" | "insurance", amount: number) => Bill | undefined;
+  writeOffBill: (billId: string, reason: WriteOffReason, note?: string, amount?: number, side?: "client" | "insurance") => void;
   priorAuthorizations: PriorAuthorization[];
   setPriorAuthorizations: React.Dispatch<React.SetStateAction<PriorAuthorization[]>>;
   addPriorAuthorization: (auth: Omit<PriorAuthorization, "id" | "requestedAt">) => PriorAuthorization;
@@ -137,13 +138,15 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     );
   }, []);
 
-  const addBill = useCallback((bill: Omit<Bill, "id" | "createdAt" | "billNumber">) => {
+  const addBill = useCallback((bill: Omit<Bill, "id" | "createdAt" | "billNumber"> & { billNumber?: string }) => {
     const newBill: Bill = {
       ...bill,
       id: generateId("bill"),
       paidAmount: bill.paidAmount ?? 0,
       writeOffAmount: bill.writeOffAmount ?? 0,
-      billNumber: `BILL-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      dueDate: bill.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      billNumber: bill.billNumber || `BILL-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      currency: bill.currency ?? "USD",
       createdAt: new Date().toISOString(),
     };
     setBills((prev) => [newBill, ...prev]);
@@ -156,31 +159,58 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     );
   }, []);
 
-  const writeOffBill = useCallback((billId: string, reason: WriteOffReason, note?: string, amount?: number) => {
-    setBills((prev) =>
-      prev.map((b) => {
-        if (b.id !== billId) return b;
-        const outstanding = b.amount - (b.paidAmount || 0) - (b.writeOffAmount || 0);
-        const writeOffAmt = Math.min(amount ?? outstanding, outstanding);
-        const newWriteOffAmount = (b.writeOffAmount || 0) + writeOffAmt;
-        const fullyWrittenOff = newWriteOffAmount >= b.amount;
-        return {
-          ...b,
-          writeOffAmount: newWriteOffAmount,
-          writeOffReason: reason,
-          writeOffNote: note || b.writeOffNote || "",
-          writeOffBy: currentProviderId,
-          ...(fullyWrittenOff
-            ? {
-                status: "written_off" as const,
-                resolutionMethod: "write_off" as const,
-                resolvedAt: new Date().toISOString(),
-              }
-            : {}),
-        };
-      })
-    );
-  }, [currentProviderId]);
+  // Applies a payment to ONE side of a bill (client or insurance). The amount
+  // lands on the chosen side's "paid" bucket; when the whole bill is settled it
+  // is marked Paid.
+  const recordBillPayment = useCallback(
+    (billId: string, side: "client" | "insurance", amount: number) => {
+      const existing = bills.find((b) => b.id === billId);
+      if (!existing) return undefined;
+      const updated: Bill = { ...existing };
+      if (side === "client") updated.clientPaid = (existing.clientPaid || 0) + amount;
+      else updated.insurancePaid = (existing.insurancePaid || 0) + amount;
+      updated.paidAmount = (existing.paidAmount || 0) + amount;
+      if (isBillSettled(updated)) {
+        updated.status = "paid_direct";
+        updated.resolutionMethod = side === "client" ? updated.resolutionMethod || "cash" : "insurance";
+        updated.resolvedAt = new Date().toISOString();
+      } else {
+        updated.status = "unresolved";
+        updated.resolvedAt = null;
+      }
+      setBills((prev) => prev.map((b) => (b.id === billId ? updated : b)));
+      return updated;
+    },
+    [bills]
+  );
+
+  const writeOffBill = useCallback(
+    (billId: string, reason: WriteOffReason, note?: string, amount?: number, side: "client" | "insurance" = "client") => {
+      setBills((prev) =>
+        prev.map((b) => {
+          if (b.id !== billId) return b;
+          const owed = side === "client" ? getClientDue(b) : getInsuranceDue(b);
+          const writeOffAmt = Math.min(amount ?? owed, Math.max(owed, 0));
+          const next: Bill = {
+            ...b,
+            writeOffReason: reason,
+            writeOffNote: note || b.writeOffNote || "",
+            writeOffBy: currentProviderId,
+          };
+          if (side === "client") next.clientWriteOff = (b.clientWriteOff || 0) + writeOffAmt;
+          else next.insuranceWriteOff = (b.insuranceWriteOff || 0) + writeOffAmt;
+          next.writeOffAmount = (b.writeOffAmount || 0) + writeOffAmt;
+          if (isBillSettled(next)) {
+            next.status = "written_off";
+            next.resolutionMethod = "write_off";
+            next.resolvedAt = new Date().toISOString();
+          }
+          return next;
+        })
+      );
+    },
+    [currentProviderId]
+  );
 
   const addPriorAuthorization = useCallback((auth: Omit<PriorAuthorization, "id" | "requestedAt">) => {
     const newAuth: PriorAuthorization = {
@@ -586,6 +616,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         setBills,
         addBill,
         updateBill,
+        recordBillPayment,
         writeOffBill,
         priorAuthorizations,
         setPriorAuthorizations,

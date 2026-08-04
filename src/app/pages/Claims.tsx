@@ -126,7 +126,7 @@ export function Claims({
   const handleClientSelect = (client: Client) => {
     setShowClientSelectModal(false);
     setSearchQuery("");
-    navigate(`/billing/bills?clientId=${client.id}`);
+    navigate(`/billing/bills/create?clientId=${client.id}`);
   };
 
   const [phaseFilter, setPhaseFilter] = useState<"all" | "action_needed" | "in_progress" | "settled">("all");

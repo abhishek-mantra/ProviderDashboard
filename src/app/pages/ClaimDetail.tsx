@@ -13,6 +13,7 @@ import {
   Receipt,
   Printer,
   Ban,
+  Send,
 } from "lucide-react";
 import { useState } from "react";
 import { useClaims } from "../contexts/ClaimContext";
@@ -39,6 +40,7 @@ export function ClaimDetail() {
     claims,
     unmarkSessionsBilled,
     simulatePayerAdjudication,
+    simulateClearinghouseSubmission,
     reopenForResubmission,
   } = useClaims();
   const {
@@ -664,6 +666,24 @@ export function ClaimDetail() {
               >
                 <FileText className="size-4" />
                 View Summary
+              </button>
+            </div>
+          )}
+
+          {claim.flowType === "mantra" && claim.status === "draft" && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Submit to Clearinghouse
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Submit this claim for electronic transmission. It will be validated (Stedi edits) and then transmitted to the payer.
+              </p>
+              <button
+                onClick={() => simulateClearinghouseSubmission(claim.id)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#043570] hover:bg-[#032a57] text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Send className="size-4" />
+                Submit to Clearinghouse
               </button>
             </div>
           )}

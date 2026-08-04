@@ -586,7 +586,7 @@ export function ClientInsurance() {
 
                   {/* New Claim Button */}
                   <button
-                    onClick={() => navigate(`/billing/bills?clientId=${id}`)}
+                    onClick={() => navigate(`/billing/bills/create?clientId=${id}`)}
                     className="flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap"
                   >
                     <Plus className="size-3.5 md:size-4" />

@@ -215,11 +215,40 @@ export interface ClaimSession {
 
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
+  CAD: "C$",
+  GBP: "£",
+  EUR: "€",
 };
 
 export function getCurrencySymbol(key?: string): string {
   if (!key) return "$";
   return CURRENCY_SYMBOLS[key] || "$";
+}
+
+export function formatCurrency(amount: number, currency: string = "USD"): string {
+  return `${getCurrencySymbol(currency)}${amount.toFixed(2)}`;
+}
+
+/**
+ * Predict whether an unbilled session will be paid by insurance or out-of-pocket.
+ * Deterministic heuristic: a session already carrying a non-self-pay payer wins;
+ * otherwise a client with a plan on file (or a payer-linked claim/bill history)
+ * is treated as insurance. Falls back to self-pay.
+ */
+export function predictPayer(
+  session: { clientId: string; payerId?: string | null; payerName?: string | null },
+  clients: { id: string; insuranceCompany?: string; insurances?: string[] }[],
+  claims: { clientId: string; payerId: string | null }[],
+  bills: { clientId: string; payerId: string | null }[]
+): "insurance" | "self_pay" {
+  if (session.payerId && session.payerId !== "self-pay") return "insurance";
+  const client = clients.find((c) => c.id === session.clientId);
+  if (client && (client.insuranceCompany || (client.insurances && client.insurances.length > 0))) {
+    return "insurance";
+  }
+  if (claims.some((c) => c.clientId === session.clientId && c.payerId)) return "insurance";
+  if (bills.some((b) => b.clientId === session.clientId && b.payerId)) return "insurance";
+  return "self_pay";
 }
 
 export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
@@ -371,6 +400,12 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
     { clientId: "5", clientName: "Olivia Brown", payerId: "us-2", payerName: "Cigna" },
     { clientId: "8", clientName: "Aisha Patel", payerId: "us-4", payerName: "Blue Cross Blue Shield" },
   ];
+  // Self-pay clients (no insurance on file) so the self-pay unbilled bucket is populated.
+  const selfPayClients = [
+    { clientId: "4", clientName: "David Martinez" },
+    { clientId: "6", clientName: "Liam Garcia" },
+    { clientId: "7", clientName: "Sophia Miller" },
+  ];
   const diagnosisForClient = (clientId: string): string =>
     mockClients.find((c) => c.id === clientId)?.diagnosisCode ?? "Z03.89";
   const serviceTypes = [
@@ -395,6 +430,32 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
         dateOfService: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
         payerId: client.payerId,
         payerName: client.payerName,
+        serviceType: st.serviceType,
+        duration: st.duration,
+        notesStatus: hasNotes ? "locked" : "draft",
+        notesId: hasNotes ? `note-${idCounter}` : null,
+        cptCode: st.cptCode,
+        diagnosisCode: diagnosisForClient(client.clientId),
+        amount: getFeeForService(st.cptCode),
+        daysSinceService: Math.floor((now.getTime() - d.getTime()) / 86400000),
+        selected: false,
+      });
+    }
+  });
+  selfPayClients.forEach((client) => {
+    for (let i = 0; i < 2; i++) {
+      idCounter++;
+      const d = new Date(now);
+      d.setDate(d.getDate() - (idCounter * 4 + i * 3));
+      const st = serviceTypes[(idCounter + i) % serviceTypes.length];
+      const hasNotes = i !== 1;
+      sessions.push({
+        id: `unbilled-${idCounter}`,
+        clientId: client.clientId,
+        clientName: client.clientName,
+        dateOfService: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        payerId: "self-pay",
+        payerName: "Self-Pay",
         serviceType: st.serviceType,
         duration: st.duration,
         notesStatus: hasNotes ? "locked" : "draft",

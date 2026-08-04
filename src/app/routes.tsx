@@ -12,9 +12,9 @@ import { Earnings } from "./pages/Earnings";
 import { Billing } from "./pages/Billing";
 import { BillsHub } from "./pages/BillsHub";
 import { BillDetail } from "./pages/BillDetail";
+import { CreateBill } from "./pages/CreateBill";
 import { BillDocument } from "./pages/BillDocument";
 import { UnbilledSessions } from "./pages/UnbilledSessions";
-import { RevenueCycle } from "./pages/RevenueCycle";
 import { Profile } from "./pages/Profile";
 import { EditProfile } from "./pages/EditProfile";
 import { Verification } from "./pages/Verification";
@@ -139,11 +139,11 @@ export const router = createBrowserRouter([
       { path: "billing", element: <Billing /> },
       { path: "billing/bills", element: <BillsHub /> },
       { path: "billing/bills/superbill", element: <SuperbillDocument /> },
+      { path: "billing/bills/create", element: <CreateBill /> },
       { path: "billing/bills/:billId", element: <BillDetail /> },
       { path: "billing/bills/:billId/superbill", element: <SuperbillDocument /> },
       { path: "billing/bills/:billId/invoice", element: <BillDocument /> },
-      { path: "billing/unbilled", element: <UnbilledSessions /> },
-      { path: "revenue-cycle", element: <RevenueCycle /> },
+      { path: "billing/unbilled", element: <UnbilledSessions scope="self_pay" /> },
       { path: "profile", element: <Profile /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "verification", element: <Verification /> },

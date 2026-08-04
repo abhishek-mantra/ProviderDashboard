@@ -6,22 +6,30 @@ import {
   Receipt,
   CheckSquare,
   Square,
-  Lock,
-  Clock,
   ChevronLeft,
   Sparkles,
+  ShieldCheck,
+  Wallet,
+  Lock,
 } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
-import type { UnbilledSession } from "../types/claims";
+import { predictPayer } from "../types/claims";
 
-export function UnbilledSessions() {
+interface UnbilledSessionsProps {
+  /** Restrict the list to sessions predicted to be paid by a given side. */
+  scope?: "all" | "insurance" | "self_pay";
+}
+
+export function UnbilledSessions({ scope: scopeProp = "all" }: UnbilledSessionsProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clientFilterParam = searchParams.get("clientId");
+  const scopeParam = searchParams.get("scope");
+  const scope = scopeParam === "insurance" || scopeParam === "self_pay" ? scopeParam : scopeProp;
 
-  const { unbilledSessions } = useClaims();
-  const { bills } = usePartnerDashboard();
+  const { unbilledSessions, claims } = useClaims();
+  const { bills, clients } = usePartnerDashboard();
 
   // Sessions that already generated a invoice are excluded (including sessions
   // grouped under a multi-line bill) so the same appointment can't appear twice.
@@ -42,57 +50,61 @@ export function UnbilledSessions() {
     [unbilledSessions, clientFilterParam, billedSessionIds]
   );
 
-  const lockedCount = unbilledForClient.filter((s) => s.notesStatus === "locked").length;
-  const totalCount = unbilledForClient.length;
-  const readinessPct = totalCount > 0 ? Math.round((lockedCount / totalCount) * 100) : 0;
+  const scopedSessions = useMemo(
+    () =>
+      scope === "all"
+        ? unbilledForClient
+        : unbilledForClient.filter(
+            (s) => predictPayer(s, clients, claims, bills) === scope
+          ),
+    [unbilledForClient, scope, clients, claims, bills]
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [payerFilter, setPayerFilter] = useState("all");
-  const [notesFilter, setNotesFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const uniquePayers = useMemo(() => {
     const map = new Map<string, string>();
-    unbilledForClient.forEach((s) => map.set(s.payerId, s.payerName));
+    scopedSessions.forEach((s) => map.set(s.payerId, s.payerName));
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [unbilledForClient]);
+  }, [scopedSessions]);
 
   const filteredSessions = useMemo(
     () =>
-      unbilledForClient.filter((s) => {
+      scopedSessions.filter((s) => {
         const q = searchQuery.toLowerCase();
         const matchesSearch =
           s.clientName.toLowerCase().includes(q) ||
           s.payerName.toLowerCase().includes(q) ||
           s.cptCode.toLowerCase().includes(q);
         const matchesPayer = payerFilter === "all" || s.payerId === payerFilter;
-        const matchesNotes =
-          notesFilter === "all" ||
-          (notesFilter === "locked" && s.notesStatus === "locked") ||
-          (notesFilter === "draft" && s.notesStatus === "draft");
-        return matchesSearch && matchesPayer && matchesNotes;
+        return matchesSearch && matchesPayer;
       }),
-    [unbilledForClient, searchQuery, payerFilter, notesFilter]
+    [scopedSessions, searchQuery, payerFilter]
   );
 
-  const selectedSessions = unbilledForClient.filter((s) => selectedIds.has(s.id));
+  const selectedSessions = scopedSessions.filter((s) => selectedIds.has(s.id));
   const selectedClientIds = Array.from(new Set(selectedSessions.map((s) => s.clientId)));
   const hasMixedClients = selectedClientIds.length > 1;
 
-  const isSelectable = (session: UnbilledSession) => session.notesStatus === "locked";
-
   const openCreateBill = (clientId: string, sessionIds: string[]) =>
     navigate(
-      `/billing/bills?clientId=${clientId}&openBill=1&sessions=${sessionIds.join(",")}`
+      `/billing/bills/create?clientId=${clientId}&sessions=${sessionIds.join(",")}`
     );
 
   const handleBulkCreateBill = () => {
     if (!selectedSessions.length) return;
+    const locked = selectedSessions.filter((s) => s.notesStatus === "locked");
+    if (locked.length === 0) {
+      alert("None of the selected appointments are ready to bill yet. Sign & lock each session note first.");
+      return;
+    }
     if (hasMixedClients) {
       alert("A bill can only group appointments for a single client. Select one client's sessions.");
       return;
     }
-    openCreateBill(selectedSessions[0].clientId, selectedSessions.map((s) => s.id));
+    openCreateBill(locked[0].clientId, locked.map((s) => s.id));
   };
 
   const toggleSelect = (id: string) =>
@@ -105,36 +117,10 @@ export function UnbilledSessions() {
 
   const toggleSelectAll = () =>
     setSelectedIds((prev) =>
-      prev.size === selectableFiltered.length
+      prev.size === filteredSessions.length
         ? new Set()
-        : new Set(selectableFiltered.map((s) => s.id))
+        : new Set(filteredSessions.map((s) => s.id))
     );
-
-  const selectableFiltered = filteredSessions.filter(isSelectable);
-
-  const getNotesBadge = (session: UnbilledSession) => {
-    if (session.notesStatus === "locked") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-          <Lock className="size-3" />
-          Signed &amp; Ready
-        </span>
-      );
-    }
-    return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(`/sessions/${session.id}/notes/add?clientId=${session.clientId}`);
-        }}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 hover:bg-yellow-200 dark:hover:bg-yellow-900/60 transition-colors cursor-pointer"
-        title="Complete and sign the session note to make this appointment billable"
-      >
-        <Clock className="size-3" />
-        Not signed
-      </button>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -153,32 +139,11 @@ export function UnbilledSessions() {
               {clientFilterParam ? "Client Unbilled Sessions" : "Unbilled Sessions"}
             </h1>
             <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-              Appointments that haven't generated an invoice yet. Create a bill to charge them —
-              you can group several visits onto one invoice.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Readiness summary */}
-      <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-indigo-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 border border-blue-200/80 dark:border-gray-700 rounded-2xl p-4 md:p-6 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="size-12 rounded-2xl bg-[#043570] text-white flex items-center justify-center font-bold text-base shadow-sm flex-shrink-0">
-            {readinessPct}%
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              Ready to Bill
-            </h3>
-            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-              <strong className="text-emerald-600 dark:text-emerald-400">{lockedCount}</strong> of{" "}
-              <strong>{totalCount}</strong> unbilled appointments have signed notes.
-              {totalCount - lockedCount > 0 && (
-                <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                  {" "}
-                  ({totalCount - lockedCount} still need a signed note)
-                </span>
-              )}
+              {scope === "insurance"
+                ? "Appointments predicted to be paid by insurance that haven't generated a claim yet."
+                : scope === "self_pay"
+                  ? "Appointments predicted to be paid out-of-pocket that haven't generated an invoice yet."
+                  : "Appointments that haven't generated an invoice yet. Create a bill to charge them — you can group several visits onto one invoice."}
             </p>
           </div>
         </div>
@@ -211,15 +176,6 @@ export function UnbilledSessions() {
                   </option>
                 ))}
               </select>
-              <select
-                value={notesFilter}
-                onChange={(e) => setNotesFilter(e.target.value)}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#043570]/20"
-              >
-                <option value="all">All Notes Status</option>
-                <option value="locked">Signed / Ready</option>
-                <option value="draft">Not signed</option>
-              </select>
             </div>
           </div>
 
@@ -227,7 +183,12 @@ export function UnbilledSessions() {
           {selectedIds.size > 0 && (
             <div className="mb-4 p-3 bg-[#f3faff] dark:bg-cyan-900/10 border border-[#00c0ff]/30 rounded-lg flex items-center justify-between gap-3 flex-wrap">
               <span className="text-sm font-medium text-[#043570] dark:text-cyan-300">
-                {selectedIds.size} appointment{selectedIds.size > 1 ? "s" : ""} selected
+                {selectedSessions.length} appointment{selectedSessions.length > 1 ? "s" : ""} selected
+                {selectedSessions.some((s) => s.notesStatus !== "locked") && (
+                  <span className="ml-2 text-amber-600 dark:text-amber-400 text-xs">
+                    (draft sessions excluded — sign notes first)
+                  </span>
+                )}
                 {hasMixedClients && (
                   <span className="ml-2 text-amber-600 dark:text-amber-400 text-xs">
                     (group only one client's appointments per bill)
@@ -236,11 +197,11 @@ export function UnbilledSessions() {
               </span>
               <button
                 onClick={handleBulkCreateBill}
-                disabled={hasMixedClients}
+                disabled={hasMixedClients || !selectedSessions.some((s) => s.notesStatus === "locked")}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032554] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
               >
                 <Receipt className="size-3.5" />
-                Create Bill ({selectedIds.size})
+                Create Bill ({selectedSessions.filter((s) => s.notesStatus === "locked").length})
               </button>
             </div>
           )}
@@ -252,7 +213,7 @@ export function UnbilledSessions() {
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-3 px-2 w-10">
                     <button onClick={toggleSelectAll} className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                      {selectedIds.size === selectableFiltered.length && selectableFiltered.length > 0 ? (
+                      {selectedIds.size === filteredSessions.length && filteredSessions.length > 0 ? (
                         <CheckSquare className="size-4 text-[#043570] dark:text-[#00c0ff]" />
                       ) : (
                         <Square className="size-4 text-gray-400" />
@@ -263,7 +224,6 @@ export function UnbilledSessions() {
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Client</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Payer</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Service</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Notes</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">CPT</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">ICD-10</th>
                   <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Amount</th>
@@ -274,7 +234,7 @@ export function UnbilledSessions() {
               <tbody>
                 {filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-12">
+                    <td colSpan={10} className="text-center py-12">
                       <FileText className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         No unbilled appointments found.
@@ -283,32 +243,27 @@ export function UnbilledSessions() {
                   </tr>
                 ) : (
                   filteredSessions.map((session) => {
-                    const selectable = isSelectable(session);
                     const checked = selectedIds.has(session.id);
+                    const payer = predictPayer(session, clients, claims, bills);
+                    const isDraft = session.notesStatus !== "locked";
                     return (
                       <tr
                         key={session.id}
-                        className={`border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${
-                          selectable ? "hover:bg-gray-50 dark:hover:bg-gray-750" : "opacity-60"
+                        className={`border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750 ${
+                          isDraft ? "opacity-80" : ""
                         }`}
                       >
                         <td className="py-3 px-2">
-                          {selectable ? (
-                            <button
-                              onClick={() => toggleSelect(session.id)}
-                              className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                            >
-                              {checked ? (
-                                <CheckSquare className="size-4 text-[#043570] dark:text-[#00c0ff]" />
-                              ) : (
-                                <Square className="size-4 text-gray-400" />
-                              )}
-                            </button>
-                          ) : (
-                            <span className="inline-block p-0.5 cursor-not-allowed" title="Sign the session note first">
-                              <Square className="size-4 text-gray-300 dark:text-gray-600" />
-                            </span>
-                          )}
+                          <button
+                            onClick={() => toggleSelect(session.id)}
+                            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                          >
+                            {checked ? (
+                              <CheckSquare className="size-4 text-[#043570] dark:text-[#00c0ff]" />
+                            ) : (
+                              <Square className="size-4 text-gray-400" />
+                            )}
+                          </button>
                         </td>
                         <td className="py-3 px-2 text-gray-900 dark:text-white whitespace-nowrap">
                           {session.dateOfService}
@@ -320,14 +275,37 @@ export function UnbilledSessions() {
                           >
                             {session.clientName}
                           </button>
+                          {isDraft && (
+                            <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-bold">
+                              <Lock className="size-2.5" /> draft
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-2 text-gray-600 dark:text-gray-400">
-                          {session.payerName}
+                          <span className="inline-flex items-center gap-1">
+                            {session.payerName}
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                payer === "insurance"
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                  : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                              }`}
+                            >
+                              {payer === "insurance" ? (
+                                <>
+                                  <ShieldCheck className="size-2.5" /> Insurance
+                                </>
+                              ) : (
+                                <>
+                                  <Wallet className="size-2.5" /> Self-pay
+                                </>
+                              )}
+                            </span>
+                          </span>
                         </td>
                         <td className="py-3 px-2 text-gray-600 dark:text-gray-400">
                           {session.serviceType}
                         </td>
-                        <td className="py-3 px-2">{getNotesBadge(session)}</td>
                         <td className="py-3 px-2 text-gray-900 dark:text-white font-mono text-xs">
                           {session.cptCode}
                         </td>
@@ -341,19 +319,23 @@ export function UnbilledSessions() {
                           {session.daysSinceService}d
                         </td>
                         <td className="py-3 px-2 text-right">
-                          {selectable ? (
-                            <button
-                              onClick={() => openCreateBill(session.clientId, [session.id])}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-[#043570] hover:bg-[#032554] text-white transition-colors whitespace-nowrap"
-                            >
-                              <Sparkles className="size-3" />
-                              Create Bill
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-gray-400 whitespace-nowrap">
-                              Sign note first
-                            </span>
-                          )}
+                          <button
+                            onClick={() => openCreateBill(session.clientId, [session.id])}
+                            disabled={isDraft}
+                            title={
+                              isDraft
+                                ? "Sign & lock the session note before billing this appointment."
+                                : undefined
+                            }
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors ${
+                              isDraft
+                                ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                : "bg-[#043570] hover:bg-[#032554] text-white"
+                            }`}
+                          >
+                            <Sparkles className="size-3" />
+                            Create Bill
+                          </button>
                         </td>
                       </tr>
                     );
@@ -365,11 +347,11 @@ export function UnbilledSessions() {
 
           {/* Guide */}
           <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-wrap">
-            <Lock className="size-3.5 text-gray-400" />
+            <Sparkles className="size-3.5 text-gray-400" />
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Only <strong>Signed &amp; ready</strong> appointments can be billed. "Create Bill"
-              opens the invoice editor for that client — tick several appointments to combine them
-              into one multi-line bill.
+              "Create Bill" opens the invoice editor for that client — tick several appointments to
+              combine them into one multi-line bill. Draft sessions show an amber badge and must be
+              signed &amp; locked before billing.
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video, Check, Sparkles, MapPin } from "lucide-react";
+import { Calendar, Clock, Search, Filter, ChevronRight, Plus, Star, CheckCircle, AlertCircle, FileText, Mic, X, Pause, Play, ChevronDown, User, Video, Check, Sparkles, MapPin, Receipt } from "lucide-react";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import { RecordPastSessionModal } from "../components/RecordPastSessionModal";
 import { MissedSessionModal } from "../components/MissedSessionModal";
@@ -7,8 +7,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast, Toaster } from "sonner";
 import { useClaims } from "../contexts/ClaimContext";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { findPayerForClient } from "../types/claims";
 import { mockClients } from "../data/mockPartnerData";
+import { openBillingPanel } from "../components/billing/billingPanelStore";
 
 interface Session {
   id: string;
@@ -43,6 +45,13 @@ export function Sessions() {
   const [searchParams] = useSearchParams();
   const clientParam = searchParams.get("client");
   const { addUnbilledSession } = useClaims();
+  const { bills } = usePartnerDashboard();
+
+  // A session already linked to a bill shows "Bill #XXXXX"; otherwise "+ Bill".
+  const billForSession = (sessionId: string) =>
+    bills.find(
+      (b) => b.sessionId === sessionId || (b.sessionIds || []).includes(sessionId)
+    );
   
   const [activeTab, setActiveTab] = useState<"upcoming" | "done" | "pending" | "all">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +107,23 @@ export function Sessions() {
       serviceType: "Personal",
       requestedDateFull: "Thursday, July 23, 2026",
       credits: 0,
+    },
+    {
+      id: "sess-2-done",
+      clientId: "2",
+      clientName: "Michael Chen",
+      service: "Therapy",
+      date: "Mar 12, 2026",
+      time: "2:00 PM",
+      duration: "60 min",
+      status: "done",
+      avatar: "MC",
+      serviceType: "Personal",
+      platform: "Video",
+      hasTranscript: true,
+      aiNotetakerEnabled: true,
+      cptCode: "90834",
+      fee: 150,
     },
   ]);
 
@@ -656,7 +682,7 @@ export function Sessions() {
                   </div>
                   {session.needsAccept && (
                     <p className="text-[11px] text-[#2563EB] dark:text-blue-400 mt-2.5 font-medium italic border-t border-gray-100 dark:border-gray-700/60 pt-2">
-                      * Client requested appointment — accept to confirm
+                      * Client requested appointment - accept to confirm
                     </p>
                   )}
                 </div>
@@ -750,11 +776,41 @@ export function Sessions() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => navigate(`/sessions/${session.id}/notes`)}
-                      className="flex-1 py-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5 text-gray-700 dark:text-gray-300"
+                      className="flex-1 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
                     >
                       <FileText className="size-3.5" />
-                      <span className="text-xs font-semibold">Notes/ Transcript</span>
+                      <span className="text-xs font-bold">Notes/ Transcript</span>
                     </button>
+                    {session.serviceType !== "Mantra" && (() => {
+                      const sessionBill = billForSession(session.id);
+                      if (sessionBill) {
+                        return (
+                          <button
+                            onClick={() => openBillingPanel({ kind: "bill", id: sessionBill.id })}
+                            className="flex-1 py-2.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                          >
+                            <Receipt className="size-3.5" />
+                            <span className="text-xs font-bold">Bill #{sessionBill.billNumber}</span>
+                          </button>
+                        );
+                      }
+                      const cid = (session as { clientId?: string }).clientId;
+                      return (
+                        <button
+                          onClick={() =>
+                            navigate(
+                              cid
+                                ? `/billing/bills/create?clientId=${cid}&sessions=${session.id}`
+                                : "/billing/bills/create"
+                            )
+                          }
+                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
+                        >
+                          <Plus className="size-3.5" />
+                          <span className="text-xs font-bold">Bill</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -912,15 +968,47 @@ export function Sessions() {
                     </div>
                   </div>
 
-                  {/* Only show Session Notes button for done sessions */}
+                  {/* Only show action buttons for done sessions */}
                   {session.status === "done" && (
-                    <button
-                      onClick={() => navigate(`/sessions/${session.id}/notes`)}
-                      className="w-full py-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5 text-gray-700 dark:text-gray-300"
-                    >
-                      <FileText className="size-3.5" />
-                      <span className="text-xs font-semibold">Session Notes</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/sessions/${session.id}/notes`)}
+                        className="flex-1 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                      >
+                        <FileText className="size-3.5" />
+                        <span className="text-xs font-bold">Notes/ Transcript</span>
+                      </button>
+                      {session.serviceType !== "Mantra" && (() => {
+                        const sessionBill = billForSession(session.id);
+                        if (sessionBill) {
+                          return (
+                            <button
+                              onClick={() => openBillingPanel({ kind: "bill", id: sessionBill.id })}
+                              className="flex-1 py-2.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                            >
+                              <Receipt className="size-3.5" />
+                              <span className="text-xs font-bold">Bill #{sessionBill.billNumber}</span>
+                            </button>
+                          );
+                        }
+                        const cid = (session as { clientId?: string }).clientId;
+                        return (
+                          <button
+                            onClick={() =>
+                              navigate(
+                                cid
+                                  ? `/billing/bills/create?clientId=${cid}&sessions=${session.id}`
+                                  : "/billing/bills/create"
+                              )
+                            }
+                              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
+                          >
+                            <Plus className="size-3.5" />
+                            <span className="text-xs font-bold">Bill</span>
+                          </button>
+                        );
+                      })()}
+                    </div>
                   )}
                 </div>
               ))}
@@ -1143,7 +1231,7 @@ export function Sessions() {
               <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                    Session Transcript — {selectedSessionForTranscript.clientName}
+                    Session Transcript - {selectedSessionForTranscript.clientName}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {selectedSessionForTranscript.date} · {selectedSessionForTranscript.duration} duration
@@ -1323,7 +1411,7 @@ export function Sessions() {
               <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                    Record Session — {selectedSessionForRecording.clientName}
+                    Record Session - {selectedSessionForRecording.clientName}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {selectedSessionForRecording.service} · {selectedSessionForRecording.date} at {selectedSessionForRecording.time}
@@ -1789,7 +1877,7 @@ export function Sessions() {
                           </span>
                           {aiNotetakerForAccept ? (
                             <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-300/50 flex-shrink-0">
-                              ✨ Active
+                              âœ¨ Active
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 rounded-full border border-amber-200/80 flex-shrink-0">

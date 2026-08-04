@@ -177,6 +177,14 @@ export interface MockClient {
   insurances?: string[];
   diagnosisCode: string | null;
   referredFromClientId?: string;
+  /** Contact / coverage details shown in the billing panel. Optional for the prototype. */
+  phone?: string;
+  address?: string;
+  memberId?: string;
+  copayAmount?: number;
+  coinsuranceRate?: number;
+  /** Unapplied credit/payment on account — not yet matched to a specific bill. Shown as "Unallocated". */
+  unappliedPayment?: number;
 }
 
 export type PlanTier = "FREE" | "BASIC" | "GROWTH" | "SCALER";
@@ -451,17 +459,38 @@ export interface BillServiceLine {
   amount: number;
 }
 
+export type BillType = "insurance" | "self_pay";
+
+export type BillCurrency = "USD" | "CAD" | "GBP" | "EUR";
+
 export interface Bill {
   id: string;
   billNumber: string;              // e.g. "BILL-2026-0142"
   clientId: string;
   clientName: string;
   providerId: string;
+  /** The type of bill this is — explicit payer split vs self-pay. */
+  billType: BillType;
+  /** Insurer name (populated for insurance bills). Mirrors payerName. */
+  insurerName?: string | null;
+  /** Due date (ISO). Derived at creation (billing term) for display. */
+  dueDate: string;
+  /** Dual-payer split (copay model). Client owes AND insurance owes simultaneously. */
+  clientOwed: number;
+  clientPaid: number;
+  insuranceOwed: number;
+  insurancePaid: number;
+  /** Written-off portion on each side (money we won't collect). */
+  clientWriteOff?: number;
+  insuranceWriteOff?: number;
   sessionId: string;               // primary (first) session id
   dateOfService: string;
   cptCode: string;                 // primary (first) line cpt
   diagnosisCodes: string[];
+  /** Total amount — equals clientOwed + insuranceOwed. */
   amount: number;
+  /** ISO currency code for the bill (defaults to "USD"). */
+  currency?: BillCurrency;
   paidAmount?: number;
   writeOffAmount?: number;
   payerId: string | null;
@@ -478,6 +507,27 @@ export interface Bill {
   sessionIds?: string[];
   /** Per-line breakdown. Undefined for single-session bills. */
   serviceLines?: BillServiceLine[];
+}
+
+/** Client's remaining balance on a bill. */
+export function getClientDue(bill: Bill): number {
+  return (bill.clientOwed || 0) - (bill.clientPaid || 0) - (bill.clientWriteOff || 0);
+}
+
+/** Insurance's remaining balance on a bill. */
+export function getInsuranceDue(bill: Bill): number {
+  return (bill.insuranceOwed || 0) - (bill.insurancePaid || 0) - (bill.insuranceWriteOff || 0);
+}
+
+/** Total due across both sides. */
+export function getTotalDue(bill: Bill): number {
+  return getClientDue(bill) + getInsuranceDue(bill);
+}
+
+/** True when every dollar owed has been collected (or written off). */
+export function isBillSettled(bill: Bill): boolean {
+  if (bill.status === "written_off") return true;
+  return getTotalDue(bill) <= 0.001;
 }
 
 export interface PriorAuthorization {

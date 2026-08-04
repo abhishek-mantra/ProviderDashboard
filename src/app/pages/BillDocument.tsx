@@ -25,7 +25,7 @@ export function BillDocument() {
   const client = clients.find((c) => c.id === bill?.clientId);
   const clientEmail = client?.email || (bill ? `${bill.clientName.toLowerCase().replace(/\s+/g, ".")}@email.com` : "");
   const claim = bill?.claimId ? claims.find((c) => c.id === bill.claimId) : undefined;
-  const currency = getCurrencySymbol(bill?.payerId ?? undefined);
+  const currency = getCurrencySymbol(bill?.currency ?? "USD");
 
   if (!bill) {
     return (

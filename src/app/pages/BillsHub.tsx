@@ -637,9 +637,9 @@ export function BillsHub() {
                   {/* Sleek Compact 3-Icon Action Buttons */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      onClick={() => navigate(`/billing/bills/${b.id}`)}
+                      onClick={() => navigate(`/billing/bills/${b.id}/invoice`)}
                       className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors cursor-pointer"
-                      title="View Invoice"
+                      title="View Invoice Document"
                     >
                       <Eye className="size-4" />
                     </button>

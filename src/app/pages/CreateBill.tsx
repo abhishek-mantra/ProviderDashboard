@@ -20,6 +20,7 @@ import type { ServiceLine } from "../types/claims";
 import { generateId } from "../utils/id";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import { RecordPastSessionModal } from "../components/RecordPastSessionModal";
+import { openPaymentModal } from "../components/billing/paymentModalStore";
 
 type BillTypeMode = "self_pay" | "insurance";
 
@@ -367,13 +368,10 @@ export function CreateBill() {
       return sum + Math.max(0, qty) * Math.max(0, amt);
     }, 0);
 
-  const discount = parseFloat(discountStr || "0") || 0;
-  const taxPct = parseFloat(taxPctStr || "0") || 0;
+  const discount = 0;
+  const taxPct = 0;
 
-  const calculateTotal = () => {
-    const base = Math.max(0, calculateSubtotal() - discount);
-    return Math.round(base * (1 + taxPct / 100) * 100) / 100;
-  };
+  const calculateTotal = () => calculateSubtotal();
 
   const total = calculateTotal();
   const sym = getCurrencySymbol(currency);
@@ -475,7 +473,12 @@ export function CreateBill() {
     }
 
     markSessionsBilled(selectedSessions.map((s) => s.id));
-    navigate(`/billing/bills/${bill.id}${andAddPayment ? "?pay=1" : ""}`);
+    if (andAddPayment) {
+      openPaymentModal({ clientId: bill.clientId, billIds: [bill.id] });
+      navigate(`/billing`);
+    } else {
+      navigate(`/billing/bills/${bill.id}/invoice`);
+    }
   };
 
   return (
@@ -560,6 +563,67 @@ export function CreateBill() {
 
                 {mode === "insurance" && (
                   <>
+                    {/* Diagnosis Codes (ICD-10) — Prefilled & Editable (Insurance Only) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Diagnosis Codes (ICD-10) — Prefilled
+                      </label>
+                      <div className="flex items-center gap-2 flex-wrap p-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl min-h-[42px]">
+                        {diagnosisCodes.map((code, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-[#043570] dark:text-[#00c0ff] border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-mono font-bold"
+                          >
+                            {code}
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosisCodes((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={newDiagInput}
+                            onChange={(e) => setNewDiagInput(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newDiagInput.trim()) {
+                                e.preventDefault();
+                                const val = newDiagInput.trim().toUpperCase();
+                                if (!diagnosisCodes.includes(val)) {
+                                  setDiagnosisCodes((prev) => [...prev, val]);
+                                }
+                                setNewDiagInput("");
+                              }
+                            }}
+                            placeholder="+ Add ICD code (e.g. F41.1)"
+                            className="px-2 py-1 text-xs font-mono bg-transparent focus:outline-none text-gray-900 dark:text-white uppercase placeholder:normal-case placeholder:font-sans"
+                          />
+                          {newDiagInput.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const val = newDiagInput.trim().toUpperCase();
+                                if (!diagnosisCodes.includes(val)) {
+                                  setDiagnosisCodes((prev) => [...prev, val]);
+                                }
+                                setNewDiagInput("");
+                              }}
+                              className="px-2 py-1 bg-[#043570] text-white text-xs font-bold rounded-md hover:bg-[#032554] cursor-pointer"
+                            >
+                              Add
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Prefilled from client record. You can edit or add additional ICD-10 codes.
+                      </p>
+                    </div>
+
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs text-gray-500 dark:text-gray-400">
@@ -620,48 +684,6 @@ export function CreateBill() {
                         </select>
                       )}
                     </div>
-
-                    {/* Copay split */}
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                        Copay Split
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
-                            Client owes ({sym})
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={clientOwedVal}
-                            onChange={(e) => setClientOwedVal(e.target.value)}
-                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
-                            Insurance owes ({sym})
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={total > 0 ? insuranceOwed.toFixed(2) : ""}
-                            onChange={(e) => {
-                              const iv = parseFloat(e.target.value);
-                              const cv = isNaN(iv) ? 0 : Math.max(0, total - iv);
-                              setClientOwedVal(cv.toFixed(2));
-                            }}
-                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Client owes + insurance owes must equal the bill total.
-                      </p>
-                    </div>
                   </>
                 )}
               </div>
@@ -715,123 +737,50 @@ export function CreateBill() {
                   </div>
                 </div>
 
-                {/* Diagnosis Codes (ICD-10) — Prefilled & Editable */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Diagnosis Codes (ICD-10) — Prefilled
-                  </label>
-                  <div className="flex items-center gap-2 flex-wrap p-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl min-h-[42px]">
-                    {diagnosisCodes.map((code, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-[#043570] dark:text-[#00c0ff] border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-mono font-bold"
-                      >
-                        {code}
-                        <button
-                          type="button"
-                          onClick={() => setDiagnosisCodes((prev) => prev.filter((_, i) => i !== idx))}
-                          className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </span>
-                    ))}
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={newDiagInput}
-                        onChange={(e) => setNewDiagInput(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newDiagInput.trim()) {
-                            e.preventDefault();
-                            const val = newDiagInput.trim().toUpperCase();
-                            if (!diagnosisCodes.includes(val)) {
-                              setDiagnosisCodes((prev) => [...prev, val]);
-                            }
-                            setNewDiagInput("");
-                          }
-                        }}
-                        placeholder="+ Add ICD code (e.g. F41.1)"
-                        className="px-2 py-1 text-xs font-mono bg-transparent focus:outline-none text-gray-900 dark:text-white uppercase placeholder:normal-case placeholder:font-sans"
-                      />
-                      {newDiagInput.trim() && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = newDiagInput.trim().toUpperCase();
-                            if (!diagnosisCodes.includes(val)) {
-                              setDiagnosisCodes((prev) => [...prev, val]);
-                            }
-                            setNewDiagInput("");
+                {/* Copay split (Insurance Only) */}
+                {mode === "insurance" && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Copay Split
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                          Client owes ({sym})
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={clientOwedVal}
+                          onChange={(e) => setClientOwedVal(e.target.value)}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                          Insurance owes ({sym})
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={total > 0 ? insuranceOwed.toFixed(2) : ""}
+                          onChange={(e) => {
+                            const iv = parseFloat(e.target.value);
+                            const cv = isNaN(iv) ? 0 : Math.max(0, total - iv);
+                            setClientOwedVal(cv.toFixed(2));
                           }}
-                          className="px-2 py-1 bg-[#043570] text-white text-xs font-bold rounded-md hover:bg-[#032554] cursor-pointer"
-                        >
-                          Add
-                        </button>
-                      )}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Prefilled from client record. You can edit or add additional ICD-10 codes.
-                  </p>
-                </div>
-                {mode === "insurance" ? (
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      Copay Collected ({sym})
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={copayCollected}
-                      onChange={(e) => setCopayCollected(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      Amount Received ({sym})
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
-                    />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Client owes + insurance owes must equal the bill total.
+                    </p>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      Discount ({sym})
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={discountStr}
-                      onChange={(e) => setDiscountStr(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Tax (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={taxPctStr}
-                      onChange={(e) => setTaxPctStr(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
-                    />
-                  </div>
-                </div>
+
               </div>
             </div>
           </div>
@@ -934,9 +883,6 @@ export function CreateBill() {
                       Qty
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 w-28">
-                      Discount (%)
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 w-28">
                       Amount
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 w-16"></th>
@@ -945,7 +891,7 @@ export function CreateBill() {
                 <tbody>
                   {lineItems.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                      <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                         No line items yet - attach a session above or add one manually.
                       </td>
                     </tr>
@@ -967,15 +913,6 @@ export function CreateBill() {
                           min="0"
                           value={item.quantity}
                           onChange={(e) => handleLineChange(item.key, "quantity", e.target.value)}
-                          className="w-full px-2 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#4169E1] dark:text-white"
-                        />
-                      </td>
-                      <td className="px-4 py-3 w-28">
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.discount}
-                          onChange={(e) => handleLineChange(item.key, "discount", e.target.value)}
                           className="w-full px-2 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#4169E1] dark:text-white"
                         />
                       </td>
@@ -1022,22 +959,10 @@ export function CreateBill() {
                     {sym}{calculateSubtotal().toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Discount</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    -{sym}{discount.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Tax</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {sym}{Math.round(Math.max(0, calculateSubtotal() - discount) * (taxPct / 100) * 100) / 100}
-                  </span>
-                </div>
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <span className="text-base font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="text-base font-semibold text-gray-900 dark:text-white">
-                    {sym}{total.toFixed(2)}
+                  <span className="text-base font-bold text-gray-900 dark:text-white">Total</span>
+                  <span className="text-base font-bold text-gray-900 dark:text-white">
+                    {sym}{calculateSubtotal().toFixed(2)}
                   </span>
                 </div>
               </div>

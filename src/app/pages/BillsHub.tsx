@@ -30,10 +30,9 @@ import {
   getTotalDue,
 } from "../types/partnerDashboard";
 import { getCurrencySymbol } from "../types/claims";
-import { openBillingPanel } from "../components/billing/billingPanelStore";
-import { usePaymentModalTarget } from "../components/billing/paymentModalStore";
+import { usePaymentModalTarget, openPaymentModal } from "../components/billing/paymentModalStore";
 
-type ListTab = "all" | "unpaid" | "claim_pending" | "sent" | "draft";
+type ListTab = "all" | "unpaid" | "sent" | "draft";
 type PaymentType = "client" | "insurance" | "write_off";
 
 interface BatchRow {
@@ -50,6 +49,9 @@ export function BillsHub() {
     isCurrentUserAdmin,
     recordBillPayment,
     writeOffBill,
+    getClientCredit,
+    addClientCredit,
+    useClientCredit,
   } = usePartnerDashboard();
 
   const [searchParams] = useSearchParams();
@@ -70,21 +72,25 @@ export function BillsHub() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // -- Derived ---------------------------------------------------------------
-  const openBills = useMemo(
-    () =>
-      bills
-        .filter((b) => b.status !== "draft")
-        .filter((b) => getClientDue(b) > 0 || getInsuranceDue(b) > 0),
+  // Filter self-pay bills for main Bills hub — insurance claims live strictly under Insurance > Claims
+  const selfPayBills = useMemo(
+    () => bills.filter((b) => b.billType !== "insurance"),
     [bills]
   );
 
+  const openBills = useMemo(
+    () =>
+      selfPayBills
+        .filter((b) => b.status !== "draft")
+        .filter((b) => getClientDue(b) > 0),
+    [selfPayBills]
+  );
+
   const filteredBills = useMemo(() => {
-    return bills.filter((b) => {
+    return selfPayBills.filter((b) => {
       if (activeTab === "draft" && b.status !== "draft") return false;
       if (activeTab === "sent" && b.status === "draft") return false;
-      if (activeTab === "unpaid" && getTotalDue(b) <= 0) return false;
-      if (activeTab === "claim_pending" && !(b.billType === "insurance" && (getInsuranceDue(b) > 0 || b.claimId))) return false;
+      if (activeTab === "unpaid" && getClientDue(b) <= 0) return false;
 
       if (clientFilter !== "all" && b.clientId !== clientFilter) return false;
 
@@ -99,29 +105,28 @@ export function BillsHub() {
       }
       return true;
     });
-  }, [bills, activeTab, clientFilter, searchQuery]);
+  }, [selfPayBills, activeTab, clientFilter, searchQuery]);
 
   const tabCounts = useMemo(
     () => ({
-      all: bills.length,
-      unpaid: bills.filter((b) => getTotalDue(b) > 0).length,
-      claim_pending: bills.filter((b) => b.billType === "insurance" && (getInsuranceDue(b) > 0 || b.claimId)).length,
-      sent: bills.filter((b) => b.status !== "draft").length,
-      draft: bills.filter((b) => b.status === "draft").length,
+      all: selfPayBills.length,
+      unpaid: selfPayBills.filter((b) => getClientDue(b) > 0).length,
+      sent: selfPayBills.filter((b) => b.status !== "draft").length,
+      draft: selfPayBills.filter((b) => b.status === "draft").length,
     }),
-    [bills]
+    [selfPayBills]
   );
 
   // -- Summary scoped to the selected client (Step 2) ------------------------
   const scopedBills = useMemo(
     () =>
-      clientFilter === "all" ? bills : bills.filter((b) => b.clientId === clientFilter),
-    [bills, clientFilter]
+      clientFilter === "all" ? selfPayBills : selfPayBills.filter((b) => b.clientId === clientFilter),
+    [selfPayBills, clientFilter]
   );
   const scopedOpenBills = useMemo(
     () =>
       scopedBills.filter(
-        (b) => b.status !== "draft" && (getClientDue(b) > 0 || getInsuranceDue(b) > 0)
+        (b) => b.status !== "draft" && getClientDue(b) > 0
       ),
     [scopedBills]
   );
@@ -129,8 +134,8 @@ export function BillsHub() {
   const summaryTotals = useMemo(
     () => ({
       billed: scopedBills.reduce((s, b) => s + b.amount, 0),
-      received: scopedBills.reduce((s, b) => s + (b.clientPaid || 0) + (b.insurancePaid || 0), 0),
-      outstanding: scopedOpenBills.reduce((s, b) => s + getTotalDue(b), 0),
+      received: scopedBills.reduce((s, b) => s + (b.clientPaid || 0), 0),
+      outstanding: scopedOpenBills.reduce((s, b) => s + getClientDue(b), 0),
     }),
     [scopedBills, scopedOpenBills]
   );
@@ -168,30 +173,55 @@ export function BillsHub() {
 
   const modalTarget = usePaymentModalTarget();
 
+  const clientsWithOpenBills = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; openCount: number }>();
+    bills
+      .filter((b) => b.status !== "draft" && getTotalDue(b) > 0)
+      .forEach((b) => {
+        const existing = map.get(b.clientId);
+        if (existing) {
+          existing.openCount += 1;
+        } else {
+          map.set(b.clientId, { id: b.clientId, name: b.clientName, openCount: 1 });
+        }
+      });
+    return Array.from(map.values());
+  }, [bills]);
+
   const openBatchModal = useCallback((targetClientId?: string, preSelectedBillIds?: string[]) => {
-    const targetBills = targetClientId
-      ? openBills.filter((b) => b.clientId === targetClientId)
-      : openBills;
+    const firstClientWithBills = clientsWithOpenBills[0]?.id || clients[0]?.id || null;
+    const activeClientId = targetClientId || firstClientWithBills;
+    setModalClientId(activeClientId);
+
+    const clientBills = activeClientId
+      ? bills.filter((b) => b.clientId === activeClientId && b.status !== "draft" && getTotalDue(b) > 0)
+      : [];
+
     const hasSelections = preSelectedBillIds && preSelectedBillIds.length > 0;
-    const initial: Record<string, boolean> = {};
-    const amounts: Record<string, string> = {};
-    targetBills.forEach((b) => {
-      initial[b.id] = hasSelections ? preSelectedBillIds.includes(b.id) : true;
-      amounts[b.id] = getTotalDue(b).toFixed(2);
+    const initialSelected: Record<string, boolean> = {};
+    const initialAmounts: Record<string, string> = {};
+
+    clientBills.forEach((b) => {
+      initialSelected[b.id] = hasSelections ? preSelectedBillIds.includes(b.id) : true;
+      initialAmounts[b.id] = getTotalDue(b).toFixed(2);
     });
-    setBatchSelected(initial);
-    setBatchRows(amounts);
+
+    setBatchSelected(initialSelected);
+    setBatchRows(initialAmounts);
     setPayMethod("direct");
     setPayType("client");
+    setPaymentOption("cash");
     setReceiptNumber("");
     setWriteOffReason("bad_debt");
     setWriteOffNote("");
     setFileNames([]);
     setBatchError("");
-    setModalClientId(targetClientId || null);
+    setTotalPaymentInput("");
+    setIsManualPaymentInput(false);
+    setApplyCredit(true);
     setShowPastPayments(false);
     setBatchOpen(true);
-  }, [openBills]);
+  }, [bills, clients, clientsWithOpenBills]);
 
   useEffect(() => {
     if (modalTarget) {
@@ -200,27 +230,24 @@ export function BillsHub() {
   }, [modalTarget, openBatchModal]);
 
   const toggleBatchBill = (id: string) => {
-    setBatchSelected((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const clientsWithOpenBills = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; openCount: number }>();
-    openBills.forEach((b) => {
-      const existing = map.get(b.clientId);
-      if (existing) {
-        existing.openCount += 1;
-      } else {
-        map.set(b.clientId, { id: b.clientId, name: b.clientName, openCount: 1 });
+    setBatchSelected((prev) => {
+      const nextState = !prev[id];
+      if (nextState) {
+        const b = bills.find((item) => item.id === id);
+        if (b && (!batchRows[id] || parseFloat(batchRows[id]) === 0)) {
+          setBatchRows((rPrev) => ({ ...rPrev, [id]: getTotalDue(b).toFixed(2) }));
+        }
       }
+      return { ...prev, [id]: nextState };
     });
-    return Array.from(map.values());
-  }, [openBills]);
+    setIsManualPaymentInput(false);
+  };
 
   const modalBills = useMemo(() => {
     return modalClientId
-      ? openBills.filter((b) => b.clientId === modalClientId)
+      ? bills.filter((b) => b.clientId === modalClientId && b.status !== "draft" && getTotalDue(b) > 0)
       : [];
-  }, [modalClientId, openBills]);
+  }, [modalClientId, bills]);
 
   const pastPayments = useMemo(() => {
     if (!modalClientId) return [];
@@ -255,26 +282,59 @@ export function BillsHub() {
 
   const subtotal = useMemo(() => {
     return selectedBatchBills.reduce((sum, b) => {
-      const v = parseFloat(batchRows[b.id] ?? "0");
-      return sum + (isNaN(v) ? 0 : Math.max(0, v));
+      const rawVal = batchRows[b.id];
+      const val = rawVal !== undefined && rawVal !== "" ? parseFloat(rawVal) : getTotalDue(b);
+      return sum + (isNaN(val) ? 0 : Math.max(0, val));
     }, 0);
   }, [selectedBatchBills, batchRows]);
 
+  // -- Unified Payment & Credit Calculations ---------------------------------
+  const [applyCredit, setApplyCredit] = useState(true);
+  const [paymentOption, setPaymentOption] = useState<"card_on_file" | "cash" | "check" | "external_card">("cash");
+  const [cashDate, setCashDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [checkNumber, setCheckNumber] = useState("");
+  const [totalPaymentInput, setTotalPaymentInput] = useState("");
+  const [isManualPaymentInput, setIsManualPaymentInput] = useState(false);
+
+  const clientName = modalClientId ? (clients.find((c) => c.id === modalClientId)?.name || "Client") : "Client";
+  const [customLinkMessage, setCustomLinkMessage] = useState("");
+
+  useEffect(() => {
+    setCustomLinkMessage(
+      `Hi ${clientName},\n\nHimanshu Jain has requested a payment for your balance.\n\nPlease visit the link to make a secure payment from your client portal:\n[Payment link will appear here]`
+    );
+  }, [clientName]);
+
+  const availableCredit = modalClientId ? getClientCredit(modalClientId) : 0;
+  const appliedCredit =
+    applyCredit && availableCredit > 0 && selectedBatchBills.length > 0
+      ? Math.min(availableCredit, subtotal)
+      : 0;
+  const basePaymentNeeded = Math.max(0, subtotal - appliedCredit);
+
+  // Sync default input value when selections change if not manually edited
+  const effectivePaymentAmount = isManualPaymentInput
+    ? parseFloat(totalPaymentInput || "0")
+    : basePaymentNeeded;
+  const newCreditAmount = Math.max(0, effectivePaymentAmount - basePaymentNeeded);
+
   const applyBatchSave = () => {
     setBatchError("");
+
+    if (effectivePaymentAmount <= 0) {
+      setBatchError("Please enter a payment amount greater than $0.00.");
+      return;
+    }
+
     const rows = selectedBatchBills.filter((b) => {
       const v = parseFloat(batchRows[b.id] ?? "0");
       return v > 0;
     });
-    if (rows.length === 0) {
-      setBatchError("Select at least one bill with an amount greater than $0.00.");
-      return;
-    }
 
     if (payMethod === "link") {
       setBatchOpen(false);
       showToast(
-        `Payment link sent to ${rows.length} client${rows.length > 1 ? "s" : ""} - email/SMS confirmation mocked for the prototype.`
+        `Payment link sent for $${effectivePaymentAmount.toFixed(2)} - email/SMS confirmation mocked.`
       );
       return;
     }
@@ -294,6 +354,10 @@ export function BillsHub() {
       if (blocked) return;
     }
 
+    if (appliedCredit > 0 && modalClientId) {
+      useClientCredit(modalClientId, appliedCredit);
+    }
+
     rows.forEach((b) => {
       const amount = parseFloat(batchRows[b.id]) || 0;
       if (payType === "write_off") {
@@ -303,10 +367,17 @@ export function BillsHub() {
       }
     });
 
+    if (newCreditAmount > 0 && modalClientId) {
+      addClientCredit(modalClientId, newCreditAmount);
+    }
+
     setBatchOpen(false);
-    const verb =
-      payType === "write_off" ? "written off" : `payment of $${subtotal.toFixed(2)} recorded`;
-    showToast(`${verb} across ${rows.length} bill${rows.length > 1 ? "s" : ""}.`);
+    const clientName = clients.find((c) => c.id === modalClientId)?.name || "client";
+    const msg =
+      newCreditAmount > 0
+        ? `Payment of $${effectivePaymentAmount.toFixed(2)} recorded ($${subtotal.toFixed(2)} applied, +$${newCreditAmount.toFixed(2)} added as credit for ${clientName}).`
+        : `Payment of $${effectivePaymentAmount.toFixed(2)} recorded across ${rows.length} bill${rows.length > 1 ? "s" : ""}.`;
+    showToast(msg);
   };
 
   // -- Single-bill Add Payment (Step 4) --------------------------------------
@@ -346,7 +417,6 @@ export function BillsHub() {
   const TABS: { id: ListTab; label: string; count: number }[] = [
     { id: "all", label: "All", count: tabCounts.all },
     { id: "unpaid", label: "Unpaid", count: tabCounts.unpaid },
-    { id: "claim_pending", label: "Claim Pending", count: tabCounts.claim_pending },
     { id: "sent", label: "Sent", count: tabCounts.sent },
     { id: "draft", label: "Draft", count: tabCounts.draft },
   ];
@@ -516,14 +586,14 @@ export function BillsHub() {
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center flex-wrap gap-2">
                     <button
-                      onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
+                      onClick={() => navigate(`/billing/bills/${b.id}/invoice`)}
                       className="font-mono font-bold text-sm text-[#043570] dark:text-[#00c0ff] hover:underline"
                     >
                       {b.billNumber}
                     </button>
                     <span className="text-gray-300 dark:text-gray-600">•</span>
                     <button
-                      onClick={() => openBillingPanel({ kind: "client", id: b.clientId })}
+                      onClick={() => navigate(`/clients/${b.clientId}`)}
                       className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#043570] dark:hover:text-[#00c0ff] truncate max-w-[200px]"
                     >
                       {b.clientName}
@@ -644,9 +714,9 @@ export function BillsHub() {
                       <Eye className="size-4" />
                     </button>
                     <button
-                      onClick={() => openBillingPanel({ kind: "bill", id: b.id })}
+                      onClick={() => openPaymentModal({ clientId: b.clientId, billIds: [b.id] })}
                       className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 transition-colors cursor-pointer"
-                      title="View Payments & Side Panel"
+                      title="Add Payment for this client"
                     >
                       <Wallet className="size-4" />
                     </button>
@@ -831,33 +901,33 @@ export function BillsHub() {
         </div>
       )}
 
-      {/* -- BATCH PAYMENT MODAL (Step 6) --------------------------------------- */}
       {batchOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full shadow-2xl border border-gray-200 dark:border-gray-700 space-y-4 max-h-[90vh] overflow-y-auto p-6">
-            {/* Modal Header with Select Client in top right */}
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="size-9 rounded-xl bg-[#F1F5F9] dark:bg-gray-700 flex items-center justify-center text-[#043570] dark:text-[#00c0ff] shrink-0">
-                  <CheckSquare className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white">Add Payment</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    Select open bills and how they're paid
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-3xl w-full shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col my-auto max-h-[90vh]">
+            
+            {/* Top Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Payment for {modalClientId ? (clients.find((c) => c.id === modalClientId)?.name || "Client") : "Client"}
+                </h2>
+                {availableCredit > 0 && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
+                    ${availableCredit.toFixed(2)} credit on account
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-3">
                 <select
                   value={modalClientId || ""}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    const newId = val === "" ? null : val;
+                    const newId = e.target.value || null;
                     setModalClientId(newId);
+                    setIsManualPaymentInput(false);
+                    setTotalPaymentInput("");
                     if (newId) {
-                      const newBills = openBills.filter((b) => b.clientId === newId);
+                      const newBills = bills.filter((b) => b.clientId === newId && b.status !== "draft" && getTotalDue(b) > 0);
                       const initial: Record<string, boolean> = {};
                       const amounts: Record<string, string> = {};
                       newBills.forEach((b) => {
@@ -871,266 +941,509 @@ export function BillsHub() {
                       setBatchRows({});
                     }
                   }}
-                  className="bg-gray-50 dark:bg-gray-700 text-xs font-bold text-gray-900 dark:text-white px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none cursor-pointer max-w-[200px] truncate"
+                  className="bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-800 dark:text-white px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none cursor-pointer"
                 >
                   <option value="" disabled={!!modalClientId}>
                     Select Client
                   </option>
-                  {clientsWithOpenBills.map((c) => (
+                  {clients.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} ({c.openCount} open)
+                      {c.name}
                     </option>
                   ))}
                 </select>
-                <button onClick={() => setBatchOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
+                <button
+                  onClick={() => setBatchOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                >
                   <X className="size-5" />
                 </button>
               </div>
             </div>
 
-            {!modalClientId ? (
-              <p className="py-8 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                Please select a client from the dropdown in the top right to view open bills and add payments.
-              </p>
-            ) : modalBills.length === 0 ? (
-              <p className="py-8 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                No open bills with an outstanding balance for this client.
-              </p>
-            ) : (
-              <>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {modalBills.map((b) => {
-                    const due = getTotalDue(b);
-                    const checked = !!batchSelected[b.id];
-                    return (
-                      <div
-                        key={b.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-                          checked
-                            ? "bg-[#043570]/5 border-[#043570] dark:border-[#00c0ff]"
-                            : "bg-gray-50 dark:bg-gray-750 border-gray-200 dark:border-gray-600"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleBatchBill(b.id)}
-                          className="rounded border-gray-300 dark:border-gray-600 text-[#043570] focus:ring-0 cursor-pointer"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">
-                            {b.billNumber} - {b.clientName}
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            {b.billType === "insurance" ? "Insurance" : "Self-pay"} · Balance{" "}
-                            <span className="font-semibold text-gray-900 dark:text-white">
-                              ${due.toFixed(2)}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">$</span>
-                          <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={batchRows[b.id] ?? ""}
-                            onChange={(e) =>
-                              setBatchRows((prev) => ({ ...prev, [b.id]: e.target.value }))
-                            }
-                            className="w-28 px-2.5 py-1.5 text-xs font-mono bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {!modalClientId ? (
+                <div className="py-12 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Please select a client from the top dropdown to manage payments.
                 </div>
-
-                {/* Subtotal (Right-aligned compact inline) */}
-                <div className="flex items-center justify-end text-xs pt-1">
-                  <span className="text-gray-500 dark:text-gray-400 font-semibold mr-2">Subtotal</span>
-                  <span className="font-mono text-sm font-extrabold text-gray-900 dark:text-white">
-                    ${subtotal.toFixed(2)}
-                  </span>
-                </div>
-
-                {/* Direct Payment Fields (Horizontal 3-column layout) */}
-                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              ) : (
+                <>
+                  {/* STEP 1 */}
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        1
+                      </span>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">
-                          Payment Type
-                        </label>
-                        <select
-                          value={payType}
-                          onChange={(e) => setPayType(e.target.value as PaymentType)}
-                          className="w-full px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white font-semibold"
-                        >
-                          <option value="client">Client payment</option>
-                          <option value="insurance">Insurance payment</option>
-                          <option value="write_off">Write-off</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">
-                          Receipt # (optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={receiptNumber}
-                          onChange={(e) => setReceiptNumber(e.target.value)}
-                          placeholder="e.g. #8921"
-                          className="w-full px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">
-                          Receipt Upload
-                        </label>
-                        <label className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer text-gray-500 dark:text-gray-400 hover:border-[#043570] truncate">
-                          <Upload className="size-3.5 shrink-0" />
-                          <span className="truncate text-xs">
-                            {fileNames.length ? fileNames.join(", ") : "Attach file"}
-                          </span>
-                          <input
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={(e) =>
-                              setFileNames(Array.from(e.target.files || []).map((f) => f.name))
-                            }
-                          />
-                        </label>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                          Select invoices and confirm payment amount
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          You can make partial payments on new invoices
+                        </p>
                       </div>
                     </div>
 
-                    {payType === "write_off" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <select
-                          value={writeOffReason}
-                          onChange={(e) => setWriteOffReason(e.target.value as WriteOffReason)}
-                          className="w-full px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white"
+                    {/* Invoices Table Container */}
+                    <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-900">
+                      {modalBills.length === 0 ? (
+                        <div className="p-4 text-xs text-gray-500 dark:text-gray-400 text-center italic">
+                          No open invoices found for this client. You can enter an unlinked payment below.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 font-semibold">
+                                <th className="py-2.5 px-3 w-10 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={modalBills.length > 0 && selectedBatchBills.length === modalBills.length}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      const updated: Record<string, boolean> = {};
+                                      const amounts: Record<string, string> = { ...batchRows };
+                                      modalBills.forEach((b) => {
+                                        updated[b.id] = checked;
+                                        if (checked && (!amounts[b.id] || parseFloat(amounts[b.id]) === 0)) {
+                                          amounts[b.id] = getTotalDue(b).toFixed(2);
+                                        }
+                                      });
+                                      setBatchSelected(updated);
+                                      setBatchRows(amounts);
+                                      setIsManualPaymentInput(false);
+                                    }}
+                                    className="rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-0 cursor-pointer"
+                                  />
+                                </th>
+                                <th className="py-2.5 px-3">Invoice</th>
+                                <th className="py-2.5 px-3">Details</th>
+                                <th className="py-2.5 px-3">Type</th>
+                                <th className="py-2.5 px-3 text-right">Balance</th>
+                                <th className="py-2.5 px-3 text-right w-32">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              {modalBills.map((b) => {
+                                const due = getTotalDue(b);
+                                const checked = !!batchSelected[b.id];
+                                const rowValStr = batchRows[b.id] !== undefined && batchRows[b.id] !== ""
+                                  ? batchRows[b.id]
+                                  : checked
+                                  ? due.toFixed(2)
+                                  : "";
+                                return (
+                                  <tr
+                                    key={b.id}
+                                    className={`transition-colors ${
+                                      checked
+                                        ? "bg-blue-50/20 dark:bg-blue-950/10"
+                                        : "hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
+                                    }`}
+                                  >
+                                    <td className="py-3 px-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => toggleBatchBill(b.id)}
+                                        className="rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-0 cursor-pointer"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-3 font-semibold text-gray-900 dark:text-white">
+                                      {b.billNumber}
+                                    </td>
+                                    <td className="py-3 px-3 text-gray-600 dark:text-gray-400">
+                                      {formatDate(b.dateOfService || b.createdAt)} Professional Services
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+                                        {b.billType === "insurance" ? "Insurance" : "Self-pay"}
+                                        <span className="text-red-500 font-normal">(Unpaid)</span>
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3 text-right font-mono font-medium text-gray-900 dark:text-white">
+                                      ${due.toFixed(2)}
+                                    </td>
+                                    <td className="py-3 px-3 text-right">
+                                      <div className="flex items-center justify-end gap-1">
+                                        <span className="text-gray-400 font-mono">$</span>
+                                        <input
+                                          type="number"
+                                          min="0.01"
+                                          step="0.01"
+                                          value={rowValStr}
+                                          onChange={(e) => {
+                                            setBatchRows((prev) => ({ ...prev, [b.id]: e.target.value }));
+                                            setIsManualPaymentInput(false);
+                                          }}
+                                          className="w-24 px-2 py-1 text-xs text-right font-mono bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                        />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Subtotal & Payment amount footer section */}
+                      <div className="p-4 bg-gray-50/70 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-800 space-y-3">
+                        <div className="flex justify-between items-center text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          <span>Subtotal</span>
+                          <span className="font-mono text-sm text-gray-900 dark:text-white">${subtotal.toFixed(2)}</span>
+                        </div>
+
+                        {availableCredit > 0 && (
+                          <div className="flex justify-between items-center text-xs text-emerald-700 dark:text-emerald-400 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+                            <label className="flex items-center gap-2 cursor-pointer font-medium">
+                              <input
+                                type="checkbox"
+                                checked={applyCredit}
+                                onChange={(e) => setApplyCredit(e.target.checked)}
+                                className="rounded border-emerald-400 text-emerald-600 focus:ring-0 cursor-pointer"
+                              />
+                              <span>Apply available credit (${availableCredit.toFixed(2)})</span>
+                            </label>
+                            <span className="font-mono font-bold">-${appliedCredit.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-200/80 dark:border-gray-700">
+                          <label className="font-bold text-gray-900 dark:text-white text-xs">
+                            Payment amount ($)
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400 font-mono text-xs">$</span>
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={isManualPaymentInput ? totalPaymentInput : basePaymentNeeded ? basePaymentNeeded.toFixed(2) : ""}
+                                onChange={(e) => {
+                                  setIsManualPaymentInput(true);
+                                  setTotalPaymentInput(e.target.value);
+                                }}
+                                placeholder="0.00"
+                                className="w-32 px-3 py-1.5 text-sm font-mono font-bold bg-white dark:bg-gray-900 border border-blue-400 dark:border-blue-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {newCreditAmount > 0 && (
+                          <div className="mt-2 p-2.5 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/80 rounded-lg flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+                            <span>Payment will result in a new credit on account</span>
+                            <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                              +${newCreditAmount.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* STEP 2 */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-start gap-3">
+                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                          Choose payment method
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          A payment method is required
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Payment Method Container Box */}
+                    <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
+                      
+                      {/* Selector Tabs (Add payment vs Send payment link) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPayMethod("direct")}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            payMethod === "direct"
+                              ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
+                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                          }`}
                         >
-                          {Object.entries(WRITE_OFF_REASON_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          value={writeOffNote}
-                          onChange={(e) => setWriteOffNote(e.target.value)}
-                          placeholder="Write-off note (optional)"
-                          className="w-full px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white"
-                        />
+                          <span className="font-bold text-xs text-gray-900 dark:text-white block">
+                            Add payment
+                          </span>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                            Enter payment details yourself
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPayMethod("link")}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            payMethod === "link"
+                              ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
+                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-gray-900 dark:text-white">
+                              Send payment link
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-bold uppercase">
+                              New
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                            Collect payment via a secure link sent to contact (email or SMS)
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Direct Payment Radio List */}
+                      {payMethod === "direct" && (
+                        <div className="space-y-2 pt-2">
+                          {/* Card on file option */}
+                          <label
+                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
+                              paymentOption === "card_on_file"
+                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="paymentOption"
+                                value="card_on_file"
+                                checked={paymentOption === "card_on_file"}
+                                onChange={() => setPaymentOption("card_on_file")}
+                                className="text-blue-600 focus:ring-0 size-4"
+                              />
+                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                Online card on file
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-70">
+                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">VISA</span>
+                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">MC</span>
+                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">AMEX</span>
+                            </div>
+                          </label>
+
+                          {/* Cash Option */}
+                          <div
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                              paymentOption === "cash"
+                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                            }`}
+                          >
+                            <label className="flex items-center gap-3 cursor-pointer flex-1">
+                              <input
+                                type="radio"
+                                name="paymentOption"
+                                value="cash"
+                                checked={paymentOption === "cash"}
+                                onChange={() => setPaymentOption("cash")}
+                                className="text-blue-600 focus:ring-0 size-4"
+                              />
+                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                Cash
+                              </span>
+                            </label>
+                            {paymentOption === "cash" && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                  Payment Date
+                                </label>
+                                <input
+                                  type="date"
+                                  value={cashDate}
+                                  onChange={(e) => setCashDate(e.target.value)}
+                                  className="px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Check Option */}
+                          <div
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                              paymentOption === "check"
+                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                            }`}
+                          >
+                            <label className="flex items-center gap-3 cursor-pointer flex-1">
+                              <input
+                                type="radio"
+                                name="paymentOption"
+                                value="check"
+                                checked={paymentOption === "check"}
+                                onChange={() => setPaymentOption("check")}
+                                className="text-blue-600 focus:ring-0 size-4"
+                              />
+                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                Check
+                              </span>
+                            </label>
+                            {paymentOption === "check" && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                  Check #
+                                </label>
+                                <input
+                                  type="text"
+                                  value={checkNumber}
+                                  onChange={(e) => setCheckNumber(e.target.value)}
+                                  placeholder="Enter check #"
+                                  className="w-36 px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* External Card Option */}
+                          <label
+                            className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
+                              paymentOption === "external_card"
+                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="paymentOption"
+                                value="external_card"
+                                checked={paymentOption === "external_card"}
+                                onChange={() => setPaymentOption("external_card")}
+                                className="text-blue-600 focus:ring-0 size-4"
+                              />
+                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                External terminal
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-7 mt-0.5">
+                              Record a payment collected using an external payment processor
+                            </span>
+                          </label>
+                        </div>
+                      )}
+
+                      {payMethod === "link" && (
+                        <div className="pt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                              Message preview (Editable):
+                            </span>
+                            <span className="text-[11px] text-gray-400">
+                              You can customize this message before sending
+                            </span>
+                          </div>
+                          <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-gray-50/60 dark:bg-gray-800/40 p-3">
+                            <textarea
+                              value={customLinkMessage}
+                              onChange={(e) => setCustomLinkMessage(e.target.value)}
+                              rows={5}
+                              className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-sans leading-relaxed resize-y"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Past Payments History Trigger */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPastPayments((v) => !v)}
+                      className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      <History className="size-4" />
+                      <span>Past Payments ({pastPayments.length} settled)</span>
+                      <ChevronDown className={`size-3.5 transition-transform ${showPastPayments ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {showPastPayments && (
+                      <div className="mt-3 p-3 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-gray-800/40 space-y-2 max-h-40 overflow-y-auto animate-fade-in">
+                        {pastPayments.length === 0 ? (
+                          <p className="text-xs text-gray-500 text-center py-2">No past settled payments.</p>
+                        ) : (
+                          pastPayments.map((p) => (
+                            <div key={p.id} className="flex justify-between items-center text-xs p-2 bg-white dark:bg-gray-800 rounded border border-gray-200/60 dark:border-gray-700">
+                              <div>
+                                <span className="font-semibold text-gray-900 dark:text-white">{p.billNumber}</span>
+                                <span className="text-gray-500 ml-2">{p.date} · {p.method}</span>
+                              </div>
+                              <span className="font-mono font-bold text-emerald-600">${p.paidAmount.toFixed(2)}</span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
+                </>
+              )}
+            </div>
 
-                {batchError && (
-                  <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 font-semibold">
+            {/* Modal Bottom Footer (Replaces Right Sidebar) */}
+            <div className="p-4 px-6 bg-gray-50 dark:bg-gray-800/60 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between gap-4">
+              <div>
+                {batchError ? (
+                  <span className="text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1.5">
                     <AlertCircle className="size-4 shrink-0" />
-                    <span>{batchError}</span>
-                  </div>
+                    {batchError}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    {effectivePaymentAmount > 0 ? (
+                      <>
+                        Total to charge: <strong className="text-gray-900 dark:text-white font-mono">${effectivePaymentAmount.toFixed(2)}</strong>
+                      </>
+                    ) : (
+                      "No payment amount specified"
+                    )}
+                  </span>
                 )}
+              </div>
 
-                <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
-                  {/* Footer Row: Past Payments accordion on Left, Cancel & Save on Right */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="border border-blue-200 dark:border-blue-800 rounded-xl overflow-hidden bg-blue-50/40 dark:bg-blue-950/20">
-                      <button
-                        type="button"
-                        onClick={() => setShowPastPayments((v) => !v)}
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:bg-blue-100/50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                      >
-                        <History className="size-3.5 text-[#043570] dark:text-[#00c0ff]" />
-                        <span>Past Payments</span>
-                        {modalClientId && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-mono text-[#043570] dark:text-[#00c0ff]">
-                            {pastPayments.length} settled
-                          </span>
-                        )}
-                        <span className="text-[11px] font-normal text-gray-500 ml-1">
-                          {showPastPayments ? "Hide" : "Show history"}
-                        </span>
-                        <ChevronDown
-                          className={`size-3.5 text-[#043570] dark:text-[#00c0ff] transition-transform duration-200 ${
-                            showPastPayments ? "rotate-180" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setBatchOpen(false)}
-                        className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={applyBatchSave}
-                        className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-[#043570] hover:bg-[#032554] text-white rounded-xl shadow-xs transition-colors cursor-pointer"
-                      >
-                        {payMethod === "link" ? (
-                          <>
-                            <Send className="size-3.5" /> Send Payment Link
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="size-3.5" /> Save Payment
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expanded Past Payments History Panel */}
-                  {showPastPayments && (
-                    <div className="p-3 border border-blue-200/60 dark:border-blue-800/60 rounded-xl bg-blue-50/20 dark:bg-blue-950/20 space-y-2 max-h-48 overflow-y-auto animate-fade-in">
-                      {!modalClientId ? (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 py-3 text-center">
-                          Please select a client above to view past payment records.
-                        </p>
-                      ) : pastPayments.length === 0 ? (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 py-3 text-center">
-                          No past settled payments found for this client.
-                        </p>
-                      ) : (
-                        pastPayments.map((p) => (
-                          <div
-                            key={p.id}
-                            className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 text-xs"
-                          >
-                            <div>
-                              <p className="font-mono font-bold text-[#043570] dark:text-[#00c0ff]">
-                                {p.billNumber}
-                              </p>
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                {p.date} · {p.method}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                ${p.paidAmount.toFixed(2)}
-                              </span>
-                              <p className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
-                                Settled
-                              </p>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBatchOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={applyBatchSave}
+                  disabled={!modalClientId}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1868db] hover:bg-[#1255b8] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {payMethod === "link" ? (
+                    <>
+                      <Send className="size-4" /> Send Payment Link for ${effectivePaymentAmount.toFixed(2)}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="size-4" /> Save ${effectivePaymentAmount.toFixed(2)} Payment
+                    </>
                   )}
-                </div>
-              </>
-            )}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

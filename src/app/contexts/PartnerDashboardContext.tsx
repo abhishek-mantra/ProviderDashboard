@@ -68,10 +68,14 @@ interface PartnerDashboardContextType {
   unlockDiagnosisPlan: (planId: string) => void;
   bills: Bill[];
   setBills: React.Dispatch<React.SetStateAction<Bill[]>>;
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "billNumber"> & { billNumber?: string }) => Bill;
-  updateBill: (billId: string, updates: Partial<Bill>) => void;
-  recordBillPayment: (billId: string, side: "client" | "insurance", amount: number) => Bill | undefined;
-  writeOffBill: (billId: string, reason: WriteOffReason, note?: string, amount?: number, side?: "client" | "insurance") => void;
+  addBill: (bill: Omit<Bill, "id" | "createdAt">) => Bill;
+  updateBill: (id: string, updates: Partial<Bill>) => void;
+  recordBillPayment: (id: string, type: "client" | "insurance", amount: number) => void;
+  writeOffBill: (id: string, reason: WriteOffReason, note?: string, amount?: number, target?: "client" | "insurance") => void;
+  clientCredits: Record<string, number>;
+  getClientCredit: (clientId: string) => number;
+  addClientCredit: (clientId: string, amount: number) => void;
+  useClientCredit: (clientId: string, amount: number) => void;
   priorAuthorizations: PriorAuthorization[];
   setPriorAuthorizations: React.Dispatch<React.SetStateAction<PriorAuthorization[]>>;
   addPriorAuthorization: (auth: Omit<PriorAuthorization, "id" | "requestedAt">) => PriorAuthorization;
@@ -533,6 +537,29 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     return newId;
   }, [clients, practices]);
 
+  const [clientCredits, setClientCredits] = useState<Record<string, number>>({
+    "1": 70, // Seed $70 credit for Sarah Johnson as shown in reference screenshot!
+  });
+
+  const getClientCredit = useCallback(
+    (clientId: string) => clientCredits[clientId] || 0,
+    [clientCredits]
+  );
+
+  const addClientCredit = useCallback((clientId: string, amount: number) => {
+    setClientCredits((prev) => ({
+      ...prev,
+      [clientId]: (prev[clientId] || 0) + amount,
+    }));
+  }, []);
+
+  const useClientCredit = useCallback((clientId: string, amount: number) => {
+    setClientCredits((prev) => ({
+      ...prev,
+      [clientId]: Math.max(0, (prev[clientId] || 0) - amount),
+    }));
+  }, []);
+
   const getLinkedClientRecords = useCallback(
     (clientId: string): MockClient[] => {
       const result: MockClient[] = [];
@@ -618,6 +645,10 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         updateBill,
         recordBillPayment,
         writeOffBill,
+        clientCredits,
+        getClientCredit,
+        addClientCredit,
+        useClientCredit,
         priorAuthorizations,
         setPriorAuthorizations,
         addPriorAuthorization,

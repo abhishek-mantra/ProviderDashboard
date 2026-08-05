@@ -34,7 +34,7 @@ export function Claims({
 }) {
   const navigate = useNavigate();
   const { claims, simulateClearinghouseSubmission } = useClaims();
-  const { clients: contextClients, currentPracticeId } = usePartnerDashboard();
+  const { clients: contextClients, currentPracticeId, bills = [] } = usePartnerDashboard();
   const [internalShowModal, setInternalShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [claimSearchQuery, setClaimSearchQuery] = useState("");
@@ -137,9 +137,58 @@ export function Claims({
 
 
 
-  // Guaranteed claims list (ensures ready_to_submit mock claims exist even if state was initialized prior to hot reload)
+  // Guaranteed claims list (includes all claims + insurance bills awaiting submission)
   const allClaims = useMemo(() => {
     const list = [...claims];
+
+    // Include any insurance bills from bills context that haven't been submitted
+    bills.forEach((b) => {
+      if (b.billType === "insurance") {
+        const claimId = b.claimId || `claim-${b.id}`;
+        const exists = list.some((c) => c.id === claimId || c.claimNumber === b.billNumber || c.id === b.id);
+        if (!exists) {
+          list.push({
+            id: claimId,
+            claimNumber: b.billNumber.replace("BILL-", "CLM-"),
+            flowType: "mantra",
+            status: "ready_to_submit",
+            clientId: b.clientId,
+            clientName: b.clientName,
+            practiceId: "practice-1",
+            providerId: b.providerId || "prov-1",
+            payerId: b.insurerName?.toLowerCase().replace(/\s+/g, "-") || "insurance",
+            payerName: b.insurerName || "Insurance",
+            region: "US",
+            sessionIds: b.sessionId ? [b.sessionId] : [],
+            diagnosisCodes: ["F41.1"],
+            serviceLines: [
+              {
+                id: `sl-${b.id}`,
+                sessionId: b.sessionId || "sess-1",
+                dateOfService: b.dateOfService || "Feb 24, 2026",
+                serviceCode: b.cptCode || "90834",
+                units: 1,
+                chargeAmount: b.amount,
+              },
+            ],
+            eligibilityCheck: null,
+            authorizationCode: null,
+            submittedDate: null,
+            statusHistory: [{ status: "ready_to_submit", timestamp: b.createdAt || new Date().toISOString() }],
+            totalAmount: b.amount,
+            currency: b.currency || "USD",
+            pccn: null,
+            claimFrequencyCode: "1",
+            patientControlNumber: `PCN-${b.id}`,
+            isMedicare: false,
+            payment: null,
+            createdAt: b.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
     const hasReady = list.some((c) => ["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(c.status));
     if (!hasReady) {
       list.push(
@@ -212,7 +261,7 @@ export function Claims({
       );
     }
     return list;
-  }, [claims]);
+  }, [claims, bills]);
 
   // Filter claims
   const filteredClaims = useMemo(() => {

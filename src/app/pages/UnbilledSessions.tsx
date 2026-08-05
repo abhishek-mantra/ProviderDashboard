@@ -93,7 +93,7 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
 
   const openCreateBill = (clientId: string, sessionIds: string[]) =>
     navigate(
-      `/billing/bills/create?clientId=${clientId}&sessions=${sessionIds.join(",")}`
+      `/billing/bills/create?clientId=${clientId}&sessions=${sessionIds.join(",")}${scope === "insurance" ? "&mode=insurance" : ""}`
     );
 
   const handleBulkCreateBill = () => {
@@ -195,7 +195,7 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032554] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
               >
                 <Receipt className="size-3.5" />
-                Create Bill ({selectedSessions.length})
+                {scope === "insurance" ? "Create Claim" : "Create Bill"} ({selectedSessions.length})
               </button>
             </div>
           )}
@@ -300,15 +300,20 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Notes Icon Button */}
                             <button
-                              onClick={() => navigate(`/clients/${session.clientId}`)}
-                              title={isDraft ? "Notes: Draft — click to complete & sign" : "Notes: Signed & locked"}
-                              className={`size-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                              onClick={() => navigate(`/clients/${session.clientId}/notes`)}
+                              title={isDraft ? "Note Missing / Draft — click to complete & sign note" : "Session Note Signed & Locked — click to view"}
+                              className={`size-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs relative ${
                                 isDraft
-                                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
                                   : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
                               }`}
                             >
                               <FileText className="size-4" />
+                              {isDraft && (
+                                <span className="absolute -top-1 -right-1 size-3.5 bg-red-600 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs border border-white dark:border-gray-800">
+                                  !
+                                </span>
+                              )}
                             </button>
 
                             {/* Bill Icon Button */}

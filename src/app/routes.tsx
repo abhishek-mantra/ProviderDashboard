@@ -143,6 +143,7 @@ export const router = createBrowserRouter([
       { path: "billing/bills/:billId", element: <BillDetail /> },
       { path: "billing/bills/:billId/superbill", element: <SuperbillDocument /> },
       { path: "billing/bills/:billId/invoice", element: <BillDocument /> },
+      { path: "billing/bills/:billId/cms1500", element: <CMS1500Form /> },
       { path: "billing/unbilled", element: <UnbilledSessions scope="self_pay" /> },
       { path: "profile", element: <Profile /> },
       { path: "edit-profile", element: <EditProfile /> },

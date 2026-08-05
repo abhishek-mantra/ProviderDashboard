@@ -13,12 +13,15 @@ import {
   CreditCard,
   Plus,
   ExternalLink,
+  FileText,
+  Send,
 } from "lucide-react";
 import { usePartnerDashboard } from "../../contexts/PartnerDashboardContext";
 import { useClaims } from "../../contexts/ClaimContext";
 import {
-  getTotalDue,
+  getClientDue,
   getInsuranceDue,
+  getTotalDue,
 } from "../../types/partnerDashboard";
 import { getCurrencySymbol } from "../../types/claims";
 import {
@@ -30,6 +33,8 @@ import { openPaymentModal } from "./paymentModalStore";
 function statusPill(bill: {
   status: string;
   due: number;
+  billType?: string;
+  claimId?: string;
 }): { label: string; cls: string } {
   if (bill.status === "draft")
     return {
@@ -40,6 +45,11 @@ function statusPill(bill: {
     return {
       label: "Written Off",
       cls: "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600",
+    };
+  if (bill.billType === "insurance" && bill.due > 0)
+    return {
+      label: "Claim Pending",
+      cls: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-bold",
     };
   if (bill.due > 0)
     return {
@@ -96,7 +106,7 @@ export function BillingPanel() {
   const target = useBillingPanelTarget();
   const navigate = useNavigate();
   const { clients, bills } = usePartnerDashboard();
-  const { unbilledSessions } = useClaims();
+  const { unbilledSessions, simulateClearinghouseSubmission } = useClaims();
 
   const [lastTarget, setLastTarget] = useState(target);
   useEffect(() => {
@@ -164,25 +174,26 @@ export function BillingPanel() {
   }, [clientBills, selectedBills]);
 
   const summary = useMemo(() => {
-    const clientBalance = clientBills.reduce((s, b) => s + getTotalDue(b), 0);
+    const clientDueTotal = clientBills.reduce((s, b) => s + Math.max(0, getClientDue(b)), 0);
+    const insuranceDueTotal = clientBills.reduce((s, b) => s + Math.max(0, getInsuranceDue(b)), 0);
+    const totalOutstandingBalance = clientDueTotal + insuranceDueTotal;
     const unpaidBills = clientBills.filter((b) => getTotalDue(b) > 0);
-    const unpaidTotal = unpaidBills.reduce((s, b) => s + getTotalDue(b), 0);
-    const insuranceBalance = clientBills.reduce(
-      (s, b) => s + getInsuranceDue(b),
-      0
-    );
-    const uninvoiced = (client
-      ? unbilledSessions
-          .filter((s) => s.clientId === client.id && s.notesStatus === "locked")
-          .reduce((sum, s) => sum + (s.amount || 0), 0)
-      : 0);
+
+    const unbilledFiltered = client
+      ? unbilledSessions.filter((s) => s.clientId === client.id && s.notesStatus === "locked")
+      : [];
+    const uninvoiced = unbilledFiltered.reduce((sum, s) => sum + (s.amount || 0), 0);
     const unallocated = client?.unappliedPayment || 0;
+
     return {
-      clientBalance,
+      totalOutstandingBalance,
+      clientDueTotal,
+      insuranceDueTotal,
+      clientBalance: clientDueTotal,
+      insuranceBalance: insuranceDueTotal,
       unpaidCount: unpaidBills.length,
-      unpaidTotal,
-      insuranceBalance,
       uninvoiced,
+      unbilledCount: unbilledFiltered.length,
       unallocated,
     };
   }, [clientBills, client, unbilledSessions]);
@@ -244,9 +255,9 @@ export function BillingPanel() {
                 </p>
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Outstanding Balance</p>
                     <p className="text-3xl font-black text-gray-900 dark:text-white">
-                      ${summary.clientBalance.toFixed(2)}
+                      ${summary.totalOutstandingBalance.toFixed(2)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -259,50 +270,75 @@ export function BillingPanel() {
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-4">
+                  {/* Card 1: Client Due */}
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-bold">
-                      Unpaid
+                      Client Due
                     </p>
                     <p className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                      {summary.unpaidCount}
+                      ${summary.clientDueTotal.toFixed(2)}
                     </p>
-                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-200">
-                      ${summary.unpaidTotal.toFixed(2)}
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {summary.unpaidCount} unpaid bill{summary.unpaidCount === 1 ? "" : "s"}
                     </p>
                   </div>
+
+                  {/* Card 2: Insurance Due */}
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-bold">
-                      Uninvoiced
+                      Insurance Due
+                    </p>
+                    <p className="text-sm font-extrabold text-blue-600 dark:text-blue-400">
+                      ${summary.insuranceDueTotal.toFixed(2)}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">pending claims</p>
+                  </div>
+
+                  {/* Card 3: Unbilled Sessions */}
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-bold">
+                      Unbilled
                     </p>
                     <p className="text-sm font-extrabold text-gray-900 dark:text-white">
                       ${summary.uninvoiced.toFixed(2)}
                     </p>
-                    <p className="text-[11px] text-gray-400">from sessions</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-bold">
-                      Invoices
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {summary.unbilledCount} session{summary.unbilledCount === 1 ? "" : "s"}
                     </p>
-                    <p className="text-sm font-extrabold text-gray-900 dark:text-white">
-                      {clientBills.length}
-                    </p>
-                    <p className="text-[11px] text-gray-400">on file</p>
                   </div>
                 </div>
 
-                {/* Add Payment Button - Launches Add Payment modal pre-filtered to this client & selected invoices */}
-                <button
-                  onClick={() => {
-                    openPaymentModal({
-                      clientId: client.id,
-                      billIds: selectedBillIds,
-                    });
-                  }}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
-                >
-                  <CreditCard className="size-3.5" />
-                  Add Payment {selectedTotal > 0 ? `($${selectedTotal.toFixed(2)})` : ""}
-                </button>
+                {/* Action Buttons: Add Payment & Superbill */}
+                <div className="flex items-center gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      openPaymentModal({
+                        clientId: client.id,
+                        billIds: selectedBillIds,
+                      });
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                  >
+                    <CreditCard className="size-3.5" />
+                    Add Payment {selectedTotal > 0 ? `($${selectedTotal.toFixed(2)})` : ""}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedBillIds.length > 0) {
+                        goToBills(`/billing/bills/superbill?billIds=${selectedBillIds.join(",")}`);
+                      } else if (clientBills.length > 0) {
+                        goToBills(`/billing/bills/${clientBills[0].id}/superbill`);
+                      } else {
+                        goToBills(`/billing/bills/superbill`);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                    title="Generate Superbill for client / selected invoices"
+                  >
+                    <FileText className="size-3.5" />
+                    Superbill
+                  </button>
+                </div>
               </div>
 
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
@@ -333,18 +369,49 @@ export function BillingPanel() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        const targetBill = clientBills.find((b) => b.billType === "insurance") || clientBills[0];
-                        openPaymentModal({
-                          clientId: client.id,
-                          billIds: targetBill ? [targetBill.id] : undefined,
-                        });
-                      }}
-                      className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#00c0ff]/10 text-[#043570] dark:text-[#00c0ff] border border-[#00c0ff]/30 rounded-xl text-xs font-bold hover:bg-[#00c0ff]/20 transition-colors cursor-pointer"
-                    >
-                      <CreditCard className="size-3.5" /> Add insurance payment
-                    </button>
+
+
+                    {clientBills.some((b) => b.billType === "insurance") && (
+                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                            <ShieldCheck className="size-3.5 text-blue-600 dark:text-blue-400" />
+                            Claim Pending Submission
+                          </span>
+                          <span className="px-2 py-0.5 text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-full">
+                            Ready
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                          Submit electronically via clearinghouse or generate a prefilled CMS-1500 form.
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => {
+                              const targetBill = clientBills.find((b) => b.billType === "insurance") || clientBills[0];
+                              const claimId = targetBill?.claimId || "seed-ready-1";
+                              simulateClearinghouseSubmission(claimId);
+                              goToBills(`/claims/${claimId}`);
+                            }}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-[#043570] hover:bg-[#032554] text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                          >
+                            <Send className="size-3" />
+                            Submit Clearinghouse
+                          </button>
+                          <button
+                            onClick={() => {
+                              const targetBill = clientBills.find((b) => b.billType === "insurance") || clientBills[0];
+                              const billId = targetBill?.id || "BILL-2026-001";
+                              goToBills(`/billing/bills/${billId}/cms1500`);
+                            }}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-white dark:bg-gray-800 text-[#043570] dark:text-[#00c0ff] border border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                          >
+                            <FileText className="size-3 text-blue-600 dark:text-blue-400" />
+                            Submit Manually
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="flex items-center justify-between">
@@ -423,9 +490,16 @@ export function BillingPanel() {
                           >
                             {pill.label}
                           </span>
-                          <span className="font-mono text-xs font-bold text-gray-900 dark:text-white min-w-[60px] text-right">
-                            {getCurrencySymbol(b.currency ?? "USD")}{b.amount.toFixed(2)}
-                          </span>
+                          <div className="text-right shrink-0 min-w-[70px]">
+                            <span className="font-mono text-xs font-bold text-gray-900 dark:text-white block">
+                              {getCurrencySymbol(b.currency ?? "USD")}{b.amount.toFixed(2)}
+                            </span>
+                            {due > 0 && due < b.amount && (
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block font-mono">
+                                Due: {getCurrencySymbol(b.currency ?? "USD")}{due.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

@@ -175,66 +175,164 @@ function createEmptyData(): CMS1500Data {
 }
 
 export function CMS1500Form() {
-  const { claimId } = useParams();
-  const { providers, clients, currentProviderId } = usePartnerDashboard();
+  const { claimId, billId } = useParams();
+  const { providers, clients, currentProviderId, bills } = usePartnerDashboard();
   const { claims, updateClaim } = useClaims();
 
-  const rawClaim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
-  const currentProvider = providers.find((p) => p.id === (rawClaim?.providerId || currentProviderId)) || providers[0];
-  const client = rawClaim ? clients.find((c) => c.id === rawClaim.clientId) : undefined;
+  const idParam = claimId || billId;
+  const targetBill = idParam
+    ? bills.find((b) => b.id === idParam || b.billNumber === idParam || b.claimId === idParam)
+    : undefined;
+  const rawClaim = idParam
+    ? claims.find((c) => c.id === idParam || c.claimNumber === idParam || (targetBill && c.id === targetBill.claimId))
+    : claims[0];
+
+  const client = (rawClaim ? clients.find((c) => c.id === rawClaim.clientId) : undefined) ||
+                 (targetBill ? clients.find((c) => c.id === targetBill.clientId) : undefined) ||
+                 clients.find((c) => c.name.toLowerCase().includes("michael")) || clients[0];
+
+  const currentProvider = providers.find((p) => p.id === (rawClaim?.providerId || targetBill?.providerId || currentProviderId)) || providers[0];
 
   const [data, setData] = useState<CMS1500Data>(createEmptyData);
 
   useEffect(() => {
-    if (!rawClaim) return;
-    const sl = rawClaim.serviceLines[0];
+    const today = new Date();
+    const todayStr = `${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}/${today.getFullYear()}`;
+
+    const nameParts = (rawClaim?.clientName || client?.name || "Michael Chen").trim().split(" ");
+    const firstName = nameParts[0] || "Michael";
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "Chen";
+    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
+
+    const carrier = client?.insuranceCompany || rawClaim?.payerName || targetBill?.insurerName || "Cigna";
+    const memberId = client?.memberId || "UHC-482-7731";
+    const diagCodes = rawClaim?.diagnosisCodes || targetBill?.diagnosisCodes || ["F41.1", "F33.1"];
+    const totalAmountVal = rawClaim?.totalAmount || targetBill?.amount || 190;
+    const clientPaidVal = targetBill?.clientPaid || 100;
+    const dueVal = targetBill?.insuranceOwed || (totalAmountVal - clientPaidVal > 0 ? totalAmountVal - clientPaidVal : 90);
+
+    const mainServiceCode = targetBill?.cptCode || rawClaim?.serviceLines[0]?.serviceCode || "90834";
+    const mainDos = targetBill?.dateOfService || rawClaim?.serviceLines[0]?.dateOfService || "Mar 12, 2026";
+    
+    // Format DOS
+    const dosDate = new Date(mainDos);
+    const dosMM = isNaN(dosDate.getTime()) ? "03" : String(dosDate.getMonth() + 1).padStart(2, "0");
+    const dosDD = isNaN(dosDate.getTime()) ? "12" : String(dosDate.getDate()).padStart(2, "0");
+    const dosYY = isNaN(dosDate.getTime()) ? "26" : String(dosDate.getFullYear()).slice(-2);
+    const formattedDos = `${dosMM}/${dosDD}/20${dosYY}`;
+
     setData((prev) => ({
       ...prev,
-      payerId: rawClaim.payerId || "",
-      carrierName: rawClaim.payerName || "",
-      insuredIdNumber: client?.id || "",
-      patientLastName: rawClaim.clientName.split(" ").slice(-1).join(" ") || "",
-      patientFirstName: rawClaim.clientName.split(" ")[0] || "",
-      diagnosisA: rawClaim.diagnosisCodes[0] || "",
-      diagnosisB: rawClaim.diagnosisCodes[1] || "",
-      diagnosisC: rawClaim.diagnosisCodes[2] || "",
-      diagnosisD: rawClaim.diagnosisCodes[3] || "",
-      priorAuthNumber: rawClaim.authorizationCode || "",
+      payerId: rawClaim?.payerId || "62308",
+      carrierName: carrier,
+      carrierAddress1: "P.O. Box 188007",
+      carrierAddress2: "Chattanooga, TN 37422",
+      insuranceType: ["Group Health Plan"],
+      insuredIdNumber: memberId,
+      patientLastName: lastName,
+      patientFirstName: firstName,
+      patientMiddleName: middleName,
+      patientBirthMM: "05",
+      patientBirthDD: "14",
+      patientBirthYY: "88",
+      patientSex: "M",
+      insuredLastName: lastName,
+      insuredFirstName: firstName,
+      insuredMiddleName: middleName,
+      patientAddress: "742 Evergreen Terrace",
+      patientCity: "San Francisco",
+      patientState: "CA",
+      patientZip: "94105",
+      patientPhone: "+1 (555) 234-5678",
+      patientRelationship: "Self",
+      insuredAddress: "742 Evergreen Terrace",
+      insuredCity: "San Francisco",
+      insuredState: "CA",
+      insuredZip: "94105",
+      insuredPhone: "+1 (555) 234-5678",
+      conditionEmployment: "NO",
+      conditionAuto: "NO",
+      conditionOther: "NO",
+      insuredPolicyGroup: "GRP-90834",
+      insuredDobMM: "05",
+      insuredDobDD: "14",
+      insuredDobYY: "88",
+      insuredSex: "M",
+      insurancePlanName: carrier,
+      anotherHealthPlan: "NO",
+      patientSignature: "SIGNATURE ON FILE",
+      patientSignatureDate: todayStr,
+      insuredSignature: "SIGNATURE ON FILE",
+      dateCurrentIllnessMM: dosMM,
+      dateCurrentIllnessDD: dosDD,
+      dateCurrentIllnessYY: dosYY,
+      dateCurrentIllnessQual: "431",
+      referringProvider: "Dr. Sarah Jenkins, MD",
+      referringProviderNpi: "1829304918",
+      diagnosisA: diagCodes[0] || "F41.1",
+      diagnosisB: diagCodes[1] || "F33.1",
+      diagnosisC: diagCodes[2] || "",
+      diagnosisD: diagCodes[3] || "",
+      priorAuthNumber: rawClaim?.authorizationCode || "AUTH-98241",
       serviceLines: Array.from({ length: 6 }, (_, i) => {
-        const service = rawClaim.serviceLines[i];
-        return {
-          dateFrom: service?.dateOfService || "",
-          dateTo: service?.dateOfService || "",
-          placeOfService: "11",
-          emg: "",
-          cpt: service?.serviceCode || "",
-          modifier: service?.modifiers?.join(",") || "",
-          diagnosisPointer: "A",
-          charges: service?.chargeAmount ? `$${service.chargeAmount.toFixed(2)}` : "",
-          daysUnits: String(service?.units || ""),
-          epsdt: "",
-          idQual: "",
-          renderingNpi: "",
-          renderingOther: "",
-        };
+        const service = rawClaim?.serviceLines[i];
+        if (i === 0) {
+          return {
+            dateFrom: formattedDos,
+            dateTo: formattedDos,
+            placeOfService: "11",
+            emg: "",
+            cpt: mainServiceCode,
+            modifier: service?.modifiers?.join(",") || "95",
+            diagnosisPointer: "A",
+            charges: `$${totalAmountVal.toFixed(2)}`,
+            daysUnits: "1",
+            epsdt: "",
+            idQual: "",
+            renderingNpi: "1982736405",
+            renderingOther: "",
+          };
+        }
+        if (service) {
+          return {
+            dateFrom: service.dateOfService || formattedDos,
+            dateTo: service.dateOfService || formattedDos,
+            placeOfService: "11",
+            emg: "",
+            cpt: service.serviceCode || "",
+            modifier: service.modifiers?.join(",") || "",
+            diagnosisPointer: "A",
+            charges: `$${service.chargeAmount.toFixed(2)}`,
+            daysUnits: String(service.units || "1"),
+            epsdt: "",
+            idQual: "",
+            renderingNpi: "1982736405",
+            renderingOther: "",
+          };
+        }
+        return { ...emptyServiceLine };
       }),
-      totalCharge: `$${rawClaim.totalAmount.toFixed(2)}`,
-      billingProviderName: currentProvider?.name || "",
-      billingProviderNpi: "1982736405",
-      billingProviderOtherId: "LIC-PSY9402",
-      billingProviderAddress: "100 Healthcare Plaza, Suite 400",
-      billingProviderCityState: "San Francisco, CA 94103",
-      billingProviderPhone: "+1 (800) 555-0199",
+      federalTaxId: "94-3829104",
+      taxType: "EIN",
+      patientAccountNo: rawClaim?.claimNumber || targetBill?.billNumber || "CLM-2026-642",
+      acceptAssignment: "YES",
+      totalCharge: `$${totalAmountVal.toFixed(2)}`,
+      amountPaid: `$${clientPaidVal.toFixed(2)}`,
+      signaturePhysician: currentProvider?.name || "Dr. Admin Owner",
+      signatureDate: todayStr,
       serviceFacilityName: "Mantra Behavioral Health Suite 400",
       serviceFacilityAddress: "100 Healthcare Plaza",
       serviceFacilityCityState: "San Francisco, CA 94103",
       serviceFacilityNpi: "1982736405",
       serviceFacilityOtherId: "FAC-94103",
-      federalTaxId: "XX-XXXXXXX",
-      taxType: "EIN",
-      patientAccountNo: rawClaim.claimNumber || "",
+      billingProviderName: currentProvider?.name || "Dr. Admin Owner",
+      billingProviderAddress: "100 Healthcare Plaza, Suite 400",
+      billingProviderCityState: "San Francisco, CA 94103",
+      billingProviderPhone: "+1 (800) 555-0199",
+      billingProviderNpi: "1982736405",
+      billingProviderOtherId: "LIC-PSY9402",
     }));
-  }, [rawClaim, currentProvider, client]);
+  }, [rawClaim, targetBill, currentProvider, client]);
 
   const updateField = <K extends keyof CMS1500Data>(key: K, value: CMS1500Data[K]) => {
     setData((prev) => ({ ...prev, [key]: value }));

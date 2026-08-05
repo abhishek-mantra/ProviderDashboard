@@ -67,7 +67,8 @@ export function CreateBill() {
   const [clientId, setClientId] = useState(deepClientId);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [mode, setMode] = useState<BillTypeMode>("self_pay");
+  const deepMode = searchParams.get("mode") || searchParams.get("billType");
+  const [mode, setMode] = useState<BillTypeMode>(deepMode === "insurance" ? "insurance" : "self_pay");
   const [issuedDate, setIssuedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState(
     () => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
@@ -80,6 +81,10 @@ export function CreateBill() {
   const [discountStr, setDiscountStr] = useState("0");
   const [taxPctStr, setTaxPctStr] = useState("0");
   const [error, setError] = useState("");
+
+  // Prefilled & editable diagnosis codes
+  const [diagnosisCodes, setDiagnosisCodes] = useState<string[]>(["F41.1", "F33.1"]);
+  const [newDiagInput, setNewDiagInput] = useState("");
 
   // Inline add-appointment / add-session
   const [addSessionActionOpen, setAddSessionActionOpen] = useState(false);
@@ -233,7 +238,10 @@ export function CreateBill() {
     setClientId(value);
     setSelectedSessionIds([]);
     setLineItems([]);
-    setSelectedPayerName(clients.find((c) => c.id === value)?.insuranceCompany || "");
+    const found = clients.find((c) => c.id === value);
+    setSelectedPayerName(found?.insuranceCompany || "");
+    const initialDiag = found?.diagnosisCode || "F41.1";
+    setDiagnosisCodes(Array.from(new Set([initialDiag, "F33.1"])));
     setAppointmentJustAdded(false);
   };
 
@@ -430,7 +438,7 @@ export function CreateBill() {
       serviceLines: selectedSessions.length > 1 ? lines : undefined,
       dateOfService: session.dateOfService,
       cptCode: session.cptCode,
-      diagnosisCodes: session.diagnosisCode ? [session.diagnosisCode] : [],
+      diagnosisCodes: diagnosisCodes.length ? diagnosisCodes : [session.diagnosisCode || "F41.1"],
       amount: total,
       paidAmount: received,
       writeOffAmount: 0,
@@ -705,6 +713,67 @@ export function CreateBill() {
                       className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
                     />
                   </div>
+                </div>
+
+                {/* Diagnosis Codes (ICD-10) — Prefilled & Editable */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Diagnosis Codes (ICD-10) — Prefilled
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap p-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl min-h-[42px]">
+                    {diagnosisCodes.map((code, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-[#043570] dark:text-[#00c0ff] border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-mono font-bold"
+                      >
+                        {code}
+                        <button
+                          type="button"
+                          onClick={() => setDiagnosisCodes((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={newDiagInput}
+                        onChange={(e) => setNewDiagInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newDiagInput.trim()) {
+                            e.preventDefault();
+                            const val = newDiagInput.trim().toUpperCase();
+                            if (!diagnosisCodes.includes(val)) {
+                              setDiagnosisCodes((prev) => [...prev, val]);
+                            }
+                            setNewDiagInput("");
+                          }
+                        }}
+                        placeholder="+ Add ICD code (e.g. F41.1)"
+                        className="px-2 py-1 text-xs font-mono bg-transparent focus:outline-none text-gray-900 dark:text-white uppercase placeholder:normal-case placeholder:font-sans"
+                      />
+                      {newDiagInput.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = newDiagInput.trim().toUpperCase();
+                            if (!diagnosisCodes.includes(val)) {
+                              setDiagnosisCodes((prev) => [...prev, val]);
+                            }
+                            setNewDiagInput("");
+                          }}
+                          className="px-2 py-1 bg-[#043570] text-white text-xs font-bold rounded-md hover:bg-[#032554] cursor-pointer"
+                        >
+                          Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Prefilled from client record. You can edit or add additional ICD-10 codes.
+                  </p>
                 </div>
                 {mode === "insurance" ? (
                   <div>

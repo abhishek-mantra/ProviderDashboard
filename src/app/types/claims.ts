@@ -9,6 +9,7 @@ import { mockClients } from "../data/mockPartnerData";
 // payer's acknowledgment.
 export type ClaimStatus =
   | "draft"
+  | "ready_to_submit"
   | "eligibility_pending"
   | "eligibility_confirmed"
   | "eligibility_failed"
@@ -253,6 +254,7 @@ export function predictPayer(
 
 export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   draft: "Draft",
+  ready_to_submit: "Ready to Submit",
   eligibility_pending: "Eligibility Check Pending",
   eligibility_confirmed: "Eligibility Confirmed",
   eligibility_failed: "Eligibility Failed",

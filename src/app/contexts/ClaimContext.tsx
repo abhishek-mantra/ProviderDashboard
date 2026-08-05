@@ -285,6 +285,92 @@ function createInitialClaims(): Claim[] {
       createdAt: "2026-03-14T09:00:00Z",
       updatedAt: "2026-03-20T14:00:00Z",
     },
+    {
+      id: "seed-ready-1",
+      claimNumber: "CLM-2026-088",
+      flowType: "mantra",
+      status: "ready_to_submit",
+      clientId: "2",
+      clientName: "Michael Chen",
+      practiceId: "practice-1",
+      providerId: "prov-1",
+      payerId: "bupa",
+      payerName: "Bupa",
+      region: "US",
+      sessionIds: ["sess-2-done"],
+      diagnosisCodes: ["F41.1"],
+      serviceLines: [
+        { id: "sl-ready-1", sessionId: "sess-2-done", dateOfService: "Mar 12, 2026", serviceCode: "90834", units: 1, chargeAmount: 210 },
+      ],
+      eligibilityCheck: {
+        requestedAt: "2026-03-12T10:00:00Z",
+        status: "confirmed",
+        responseAt: "2026-03-12T10:03:00Z",
+        coverageActive: true,
+        copayAmount: 20,
+        deductibleRemaining: 150,
+        authorizationRequired: false,
+        rawNote: "[MOCK] Coverage active. Ready for submission.",
+      },
+      authorizationCode: null,
+      submittedDate: null,
+      statusHistory: [
+        { status: "draft", timestamp: "2026-03-12T09:00:00Z" },
+        { status: "ready_to_submit", timestamp: "2026-03-12T10:05:00Z", note: "Session notes signed & billed. Ready for clearinghouse submission." },
+      ],
+      totalAmount: 210,
+      currency: "USD",
+      pccn: null,
+      claimFrequencyCode: "1",
+      patientControlNumber: "PCN-READY1A2B3C4D5E",
+      isMedicare: false,
+      payment: null,
+      createdAt: "2026-03-12T09:00:00Z",
+      updatedAt: "2026-03-12T10:05:00Z",
+    },
+    {
+      id: "seed-ready-2",
+      claimNumber: "CLM-2026-089",
+      flowType: "mantra",
+      status: "ready_to_submit",
+      clientId: "1",
+      clientName: "Sarah Johnson",
+      practiceId: "practice-1",
+      providerId: "prov-1",
+      payerId: "us-1",
+      payerName: "UnitedHealthcare",
+      region: "US",
+      sessionIds: ["unbilled-1"],
+      diagnosisCodes: ["F41.1"],
+      serviceLines: [
+        { id: "sl-ready-2", sessionId: "unbilled-1", dateOfService: "Jul 31, 2026", serviceCode: "90834", units: 1, chargeAmount: 150 },
+      ],
+      eligibilityCheck: {
+        requestedAt: "2026-07-31T10:00:00Z",
+        status: "confirmed",
+        responseAt: "2026-07-31T10:03:00Z",
+        coverageActive: true,
+        copayAmount: 30,
+        deductibleRemaining: 400,
+        authorizationRequired: false,
+        rawNote: "[MOCK] Coverage active. Ready for submission.",
+      },
+      authorizationCode: null,
+      submittedDate: null,
+      statusHistory: [
+        { status: "draft", timestamp: "2026-07-31T09:00:00Z" },
+        { status: "ready_to_submit", timestamp: "2026-07-31T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
+      ],
+      totalAmount: 150,
+      currency: "USD",
+      pccn: null,
+      claimFrequencyCode: "1",
+      patientControlNumber: "PCN-READY2F3G4H5I6J",
+      isMedicare: false,
+      payment: null,
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T10:05:00Z",
+    },
   ];
 }
 
@@ -298,9 +384,12 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateClaimStatus = useCallback((claimId: string, status: ClaimStatus, note?: string) => {
-    setClaims((prev) =>
-      prev.map((c) => {
-        if (c.id !== claimId) return c;
+    setClaims((prev) => {
+      const exists = prev.some((c) => c.id === claimId || c.claimNumber === claimId);
+      const source = exists ? prev : [...prev, ...createInitialClaims().filter(ic => !prev.some(p => p.id === ic.id))];
+      
+      return source.map((c) => {
+        if (c.id !== claimId && c.claimNumber !== claimId) return c;
         const event: ClaimStatusEvent = {
           status,
           timestamp: new Date().toISOString(),
@@ -309,23 +398,30 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         return {
           ...c,
           status,
-          statusHistory: [...c.statusHistory, event],
+          statusHistory: [...(c.statusHistory || []), event],
           updatedAt: new Date().toISOString(),
         };
-      })
-    );
+      });
+    });
   }, []);
 
   const updateClaim = useCallback((claimId: string, updates: Partial<Claim>) => {
-    setClaims((prev) =>
-      prev.map((c) =>
-        c.id === claimId ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-      )
-    );
+    setClaims((prev) => {
+      const exists = prev.some((c) => c.id === claimId || c.claimNumber === claimId);
+      const source = exists ? prev : [...prev, ...createInitialClaims().filter(ic => !prev.some(p => p.id === ic.id))];
+      return source.map((c) =>
+        c.id === claimId || c.claimNumber === claimId ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+      );
+    });
   }, []);
 
   const getClaim = useCallback(
-    (claimId: string) => claims.find((c) => c.id === claimId || c.claimNumber === claimId),
+    (claimId: string) => {
+      const found = claims.find((c) => c.id === claimId || c.claimNumber === claimId);
+      if (found) return found;
+      const initial = createInitialClaims();
+      return initial.find((c) => c.id === claimId || c.claimNumber === claimId);
+    },
     [claims]
   );
 
@@ -377,32 +473,33 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
       const finalServiceLines: ServiceLine[] =
         params.serviceLines && params.serviceLines.length > 0
           ? params.serviceLines
-          : (params.sessionIds || []).map((sessionId, idx) => ({
-              id: generateId("sl"),
-              sessionId,
-              dateOfService: new Date().toISOString().split("T")[0],
-              serviceCode: "90834",
-              units: 1,
-              chargeAmount: 100,
-            }));
+          : [
+              {
+                id: generateId("sl"),
+                sessionId: params.sessionIds?.[0] || generateId("sess"),
+                dateOfService: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                serviceCode: "90834",
+                units: 1,
+                chargeAmount: 150,
+              },
+            ];
 
-      const totalAmount = finalServiceLines.reduce((sum, sl) => sum + sl.chargeAmount, 0);
-      const targetPracticeId = params.practiceId || "practice-1";
+      const totalAmount = finalServiceLines.reduce((acc, sl) => acc + (sl.chargeAmount || 0), 0);
 
       const newClaim: Claim = {
         id: generateId("claim"),
         claimNumber: generateClaimNumber(),
         flowType: params.flowType,
-        status: "draft",
+        status: "ready_to_submit",
         clientId: params.clientId,
         clientName: params.clientName,
-        practiceId: targetPracticeId,
+        practiceId: params.practiceId || "practice-1",
         providerId: params.providerId,
-        payerId: params.payerId || null,
-        payerName: params.payerName || null,
+        payerId: params.payerId ?? null,
+        payerName: params.payerName ?? null,
         region: "US",
         sessionIds: params.sessionIds || [],
-        diagnosisCodes: params.diagnosisCodes || [],
+        diagnosisCodes: params.diagnosisCodes || ["Z03.89"],
         serviceLines: finalServiceLines,
         eligibilityCheck: null,
         authorizationCode: null,
@@ -429,21 +526,26 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
   // in_adjudication with PCCN). Timed to feel like real async processing.
   const simulateClearinghouseSubmission = useCallback((claimId: string) => {
     const stage = (c: Claim, status: ClaimStatus, note?: string, extra: Partial<Claim> = {}) => {
-      setClaims((prev) =>
-        prev.map((x) => {
-          if (x.id !== c.id) return x;
+      setClaims((prev) => {
+        const exists = prev.some((x) => x.id === c.id || x.claimNumber === c.claimNumber);
+        const source = exists ? prev : [...prev, ...createInitialClaims().filter(ic => !prev.some(p => p.id === ic.id))];
+        return source.map((x) => {
+          if (x.id !== c.id && x.claimNumber !== c.claimNumber) return x;
           const event: ClaimStatusEvent = {
             status,
             timestamp: new Date().toISOString(),
             ...(note ? { note } : {}),
           };
-          return { ...x, ...extra, status, statusHistory: [...x.statusHistory, event], updatedAt: new Date().toISOString() };
-        })
-      );
+          return { ...x, ...extra, status, statusHistory: [...(x.statusHistory || []), event], updatedAt: new Date().toISOString() };
+        });
+      });
     };
 
     // Pull the latest claim state at each step so staging is accurate.
-    const current = () => claims.find((c) => c.id === claimId);
+    const current = () => {
+      const all = createInitialClaims();
+      return claims.find((c) => c.id === claimId || c.claimNumber === claimId) || all.find((c) => c.id === claimId || c.claimNumber === claimId);
+    };
 
     updateClaimStatus(claimId, "submitted", "[MOCK] Claim accepted by clearinghouse.");
     setTimeout(() => {

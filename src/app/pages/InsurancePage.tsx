@@ -35,13 +35,23 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl text-gray-900 dark:text-white mb-2">Insurance & Claims</h1>
-          <p className="text-gray-500 dark:text-gray-400">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">Insurance & Claims</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Manage your unbilled sessions and submitted claims
           </p>
         </div>
+
+        {activeTab === "claims" && (
+          <button
+            onClick={() => setShowClientSelectModal(true)}
+            className="px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm cursor-pointer shrink-0"
+          >
+            <Plus className="size-4" />
+            New Claim
+          </button>
+        )}
       </div>
 
       {/* Pill-Style Tabs */}
@@ -73,25 +83,14 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
       {/* Tab Content */}
       <div>
         {activeTab === "unbilled" && (
-          <UnbilledSessions scope="insurance" />
+          <UnbilledSessions scope="insurance" hideHeader />
         )}
         {activeTab === "claims" && (
-          <div>
-            <div className="flex justify-end mb-6">
-              <button
-                onClick={() => setShowClientSelectModal(true)}
-                className="px-4 py-2.5 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
-              >
-                <Plus className="size-5" />
-                New Claim
-              </button>
-            </div>
-            <Claims
-              hideHeader
-              showClientSelectModal={showClientSelectModal}
-              setShowClientSelectModal={setShowClientSelectModal}
-            />
-          </div>
+          <Claims
+            hideHeader
+            showClientSelectModal={showClientSelectModal}
+            setShowClientSelectModal={setShowClientSelectModal}
+          />
         )}
       </div>
     </div>

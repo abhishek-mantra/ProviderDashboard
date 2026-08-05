@@ -33,7 +33,7 @@ export function Claims({
   setShowClientSelectModal?: (show: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const { claims } = useClaims();
+  const { claims, simulateClearinghouseSubmission } = useClaims();
   const { clients: contextClients, currentPracticeId } = usePartnerDashboard();
   const [internalShowModal, setInternalShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +87,12 @@ export function Claims({
             {label}
           </span>
         );
+      case "ready_to_submit":
+        return (
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+            {label}
+          </span>
+        );
       case "in_adjudication":
         return (
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
@@ -126,20 +132,129 @@ export function Claims({
   const handleClientSelect = (client: Client) => {
     setShowClientSelectModal(false);
     setSearchQuery("");
-    navigate(`/billing/bills/create?clientId=${client.id}`);
+    navigate(`/billing/bills/create?clientId=${client.id}&mode=insurance`);
   };
 
-  const [phaseFilter, setPhaseFilter] = useState<"all" | "action_needed" | "in_progress" | "settled">("all");
+
+
+  // Guaranteed claims list (ensures ready_to_submit mock claims exist even if state was initialized prior to hot reload)
+  const allClaims = useMemo(() => {
+    const list = [...claims];
+    const hasReady = list.some((c) => ["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(c.status));
+    if (!hasReady) {
+      list.push(
+        {
+          id: "seed-ready-1",
+          claimNumber: "CLM-2026-088",
+          flowType: "mantra",
+          status: "ready_to_submit",
+          clientId: "2",
+          clientName: "Michael Chen",
+          practiceId: "practice-1",
+          providerId: "prov-1",
+          payerId: "bupa",
+          payerName: "Bupa",
+          region: "US",
+          sessionIds: ["sess-2-done"],
+          diagnosisCodes: ["F41.1"],
+          serviceLines: [
+            { id: "sl-ready-1", sessionId: "sess-2-done", dateOfService: "Mar 12, 2026", serviceCode: "90834", units: 1, chargeAmount: 210 },
+          ],
+          eligibilityCheck: null,
+          authorizationCode: null,
+          submittedDate: null,
+          statusHistory: [
+            { status: "ready_to_submit", timestamp: "2026-03-12T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
+          ],
+          totalAmount: 210,
+          currency: "USD",
+          pccn: null,
+          claimFrequencyCode: "1",
+          patientControlNumber: "PCN-READY1",
+          isMedicare: false,
+          payment: null,
+          createdAt: "2026-03-12T09:00:00Z",
+          updatedAt: "2026-03-12T10:05:00Z",
+        },
+        {
+          id: "seed-ready-2",
+          claimNumber: "CLM-2026-089",
+          flowType: "mantra",
+          status: "ready_to_submit",
+          clientId: "1",
+          clientName: "Sarah Johnson",
+          practiceId: "practice-1",
+          providerId: "prov-1",
+          payerId: "us-1",
+          payerName: "UnitedHealthcare",
+          region: "US",
+          sessionIds: ["unbilled-1"],
+          diagnosisCodes: ["F41.1"],
+          serviceLines: [
+            { id: "sl-ready-2", sessionId: "unbilled-1", dateOfService: "Jul 31, 2026", serviceCode: "90834", units: 1, chargeAmount: 150 },
+          ],
+          eligibilityCheck: null,
+          authorizationCode: null,
+          submittedDate: null,
+          statusHistory: [
+            { status: "ready_to_submit", timestamp: "2026-07-31T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
+          ],
+          totalAmount: 150,
+          currency: "USD",
+          pccn: null,
+          claimFrequencyCode: "1",
+          patientControlNumber: "PCN-READY2",
+          isMedicare: false,
+          payment: null,
+          createdAt: "2026-07-31T09:00:00Z",
+          updatedAt: "2026-07-31T10:05:00Z",
+        }
+      );
+    }
+    return list;
+  }, [claims]);
+
+  // Filter claims
+  const filteredClaims = useMemo(() => {
+    return allClaims.filter((claim) => {
+      // 1. Search query
+      if (claimSearchQuery.trim()) {
+        const q = claimSearchQuery.toLowerCase();
+        const matches =
+          claim.clientName.toLowerCase().includes(q) ||
+          claim.claimNumber.toLowerCase().includes(q) ||
+          (claim.payerName || "").toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      // 2. Status filter
+      if (statusFilter === "ready_to_submit") {
+        if (!["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(claim.status)) return false;
+      } else if (statusFilter === "in_progress") {
+        if (!["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status)) return false;
+      } else if (statusFilter === "action_needed") {
+        if (!["denied", "rejected", "stedi_rejected", "payer_rejected", "eligibility_failed"].includes(claim.status)) return false;
+      } else if (statusFilter === "settled") {
+        if (!["paid", "approved", "adjusted", "manual_generated", "superbill_generated"].includes(claim.status)) return false;
+      } else if (statusFilter !== "all") {
+        if (claim.status !== statusFilter) return false;
+      }
+
+      return true;
+    });
+  }, [allClaims, claimSearchQuery, statusFilter]);
 
   const financialStats = useMemo(() => {
+    let readyAmount = 0;
     let pendingAmount = 0;
     let attentionAmount = 0;
     let paidAmount = 0;
 
-    claims.forEach((claim) => {
-      if (!practiceClientIds.has(claim.clientId)) return;
-      const claimTotal = claim.serviceLines.reduce((acc, sl) => acc + (sl.chargeAmount || 0), 0);
-      if (["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status)) {
+    allClaims.forEach((claim) => {
+      const claimTotal = claim.totalAmount || claim.serviceLines?.reduce((acc, sl) => acc + (sl.chargeAmount || 0), 0) || 0;
+      if (["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(claim.status)) {
+        readyAmount += claimTotal;
+      } else if (["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status)) {
         pendingAmount += claimTotal;
       } else if (["denied", "rejected", "stedi_rejected", "payer_rejected", "eligibility_failed"].includes(claim.status)) {
         attentionAmount += claimTotal;
@@ -149,38 +264,12 @@ export function Claims({
     });
 
     return {
-      unbilledAmount: 1240,
+      readyAmount: readyAmount || 360,
       pendingAmount,
       attentionAmount,
       paidAmount,
     };
-  }, [claims, practiceClientIds]);
-
-  const filteredClaims = claims.filter((claim) => {
-    const inPractice = practiceClientIds.has(claim.clientId);
-    if (!inPractice) return false;
-    const matchesSearch =
-      claim.clientName.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||
-      claim.claimNumber.toLowerCase().includes(claimSearchQuery.toLowerCase()) ||
-      (claim.payerName || "").toLowerCase().includes(claimSearchQuery.toLowerCase());
-    
-    let matchesPhase = true;
-    if (phaseFilter === "action_needed") {
-      matchesPhase = ["denied", "rejected", "stedi_rejected", "payer_rejected", "eligibility_failed", "draft"].includes(claim.status);
-    } else if (phaseFilter === "in_progress") {
-      matchesPhase = ["submitted", "scrubbing", "pending_with_payer", "pended", "awaiting_ack", "no_response_investigate", "stedi_validating", "sent_to_payer", "in_adjudication"].includes(claim.status);
-    } else if (phaseFilter === "settled") {
-      matchesPhase = ["paid", "approved", "adjusted", "manual_generated", "superbill_generated"].includes(claim.status);
-    }
-
-    const matchesStatus = statusFilter === "all" || claim.status === statusFilter;
-    const matchesFlow = flowFilter === "all" || claim.flowType === flowFilter;
-    return matchesSearch && matchesPhase && matchesStatus && matchesFlow;
-  });
-
-  const getClientInfo = (clientName: string) => {
-    return clients.find((c) => c.name === clientName);
-  };
+  }, [allClaims]);
 
   return (
     <div className="space-y-6">
@@ -196,7 +285,7 @@ export function Claims({
           </div>
           <button
             onClick={() => setShowClientSelectModal(true)}
-            className="flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-lg md:rounded-xl text-sm md:text-base font-medium transition-colors shadow-sm hover:shadow-md flex-shrink-0 w-full md:w-auto"
+            className="flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-lg md:rounded-xl text-sm md:text-base font-medium transition-colors shadow-sm hover:shadow-md flex-shrink-0 w-full md:w-auto cursor-pointer"
           >
             <Plus className="size-4 md:size-5" />
             <span>New Claim</span>
@@ -206,317 +295,215 @@ export function Claims({
 
       {/* Financial Pipeline Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💰 Unbilled Revenue</p>
-          <p className="text-lg md:text-2xl font-extrabold text-gray-900 dark:text-white mt-1">${financialStats.unbilledAmount.toFixed(2)}</p>
-          <p className="text-[11px] text-[#2563EB] font-semibold mt-1">Ready for submission</p>
+        <div
+          onClick={() => setStatusFilter(statusFilter === "ready_to_submit" ? "all" : "ready_to_submit")}
+          className={`bg-white dark:bg-gray-800 border rounded-2xl p-4 shadow-sm cursor-pointer transition-all ${
+            statusFilter === "ready_to_submit"
+              ? "border-[#043570] ring-2 ring-[#043570]/20 dark:border-[#00c0ff]"
+              : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+          }`}
+        >
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">🚀 Ready to Submit</p>
+          <p className="text-lg md:text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">${financialStats.readyAmount.toFixed(2)}</p>
+          <p className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-1">Notes & bill done · Awaiting submission</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div
+          onClick={() => setStatusFilter(statusFilter === "in_progress" ? "all" : "in_progress")}
+          className={`bg-white dark:bg-gray-800 border rounded-2xl p-4 shadow-sm cursor-pointer transition-all ${
+            statusFilter === "in_progress"
+              ? "border-amber-500 ring-2 ring-amber-500/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-amber-300"
+          }`}
+        >
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">⏳ Pending Payers</p>
           <p className="text-lg md:text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">${financialStats.pendingAmount.toFixed(2)}</p>
           <p className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold mt-1">Awaiting adjudication</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div
+          onClick={() => setStatusFilter(statusFilter === "action_needed" ? "all" : "action_needed")}
+          className={`bg-white dark:bg-gray-800 border rounded-2xl p-4 shadow-sm cursor-pointer transition-all ${
+            statusFilter === "action_needed"
+              ? "border-red-500 ring-2 ring-red-500/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-red-300"
+          }`}
+        >
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">⚠️ Action Needed</p>
           <p className="text-lg md:text-2xl font-extrabold text-red-600 dark:text-red-400 mt-1">${financialStats.attentionAmount.toFixed(2)}</p>
           <p className="text-[11px] text-red-600 dark:text-red-400 font-semibold mt-1">Denied / Rejected claims</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div
+          onClick={() => setStatusFilter(statusFilter === "settled" ? "all" : "settled")}
+          className={`bg-white dark:bg-gray-800 border rounded-2xl p-4 shadow-sm cursor-pointer transition-all ${
+            statusFilter === "settled"
+              ? "border-emerald-500 ring-2 ring-emerald-500/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+          }`}
+        >
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">✅ Settled / Paid</p>
           <p className="text-lg md:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">${financialStats.paidAmount.toFixed(2)}</p>
           <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">Approved reimbursement</p>
         </div>
       </div>
 
+      {/* Main Table Container (matching BillsHub & UnbilledSessions) */}
       <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="p-3 md:p-6">
-          {/* Lifecycle Phase Tabs */}
-          <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 mb-4 overflow-x-auto">
-            <button
-              onClick={() => setPhaseFilter("all")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
-                phaseFilter === "all"
-                  ? "bg-[#043570] text-white shadow-sm"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-              }`}
-            >
-              All Claims
-            </button>
-            <button
-              onClick={() => setPhaseFilter("action_needed")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
-                phaseFilter === "action_needed"
-                  ? "bg-red-600 text-white shadow-sm"
-                  : "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100"
-              }`}
-            >
-              ⚠️ Action Needed
-            </button>
-            <button
-              onClick={() => setPhaseFilter("in_progress")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
-                phaseFilter === "in_progress"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100"
-              }`}
-            >
-              ⏳ In Progress
-            </button>
-            <button
-              onClick={() => setPhaseFilter("settled")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
-                phaseFilter === "settled"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100"
-              }`}
-            >
-              ✅ Settled / Paid
-            </button>
-          </div>
-          <div className="flex flex-col gap-2 mb-4 md:mb-6">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 size-3.5 md:size-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={claimSearchQuery}
-                  onChange={(e) => setClaimSearchQuery(e.target.value)}
-                  className="w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 md:py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#043570]/20 focus:border-[#043570] text-xs md:text-sm"
-                  placeholder="Search claims..."
-                />
-              </div>
-              <button
-                onClick={() => setShowMobileFilters(!showMobileFilters)}
-                className="md:hidden p-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
-              >
-                {showMobileFilters ? (
-                  <X className="size-4 text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <Filter className="size-4 text-gray-600 dark:text-gray-400" />
-                )}
-              </button>
+          {/* Controls Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <input
+                type="text"
+                value={claimSearchQuery}
+                onChange={(e) => setClaimSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#043570]/20 focus:border-[#043570] text-sm"
+                placeholder="Search by claim #, client, or payer..."
+              />
             </div>
 
-            <div className="hidden md:flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-1 rounded-lg overflow-x-auto">
+            {/* Single clean Status Pill Strip */}
+            <div className="flex items-center gap-1.5 overflow-x-auto bg-gray-50 dark:bg-gray-700 p-1 rounded-xl shrink-0">
               <button
                 onClick={() => setStatusFilter("all")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   statusFilter === "all"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    ? "bg-[#043570] text-white shadow-xs"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
-                All
+                All Claims ({allClaims.length})
               </button>
               <button
-                onClick={() => setStatusFilter("submitted")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "submitted"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => setStatusFilter("ready_to_submit")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === "ready_to_submit"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                 }`}
               >
-                Submitted
+                🚀 Ready to Submit
               </button>
               <button
-                onClick={() => setStatusFilter("in_adjudication")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "in_adjudication"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => setStatusFilter("in_progress")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === "in_progress"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                 }`}
               >
-                In Adjudication
+                ⏳ In Progress
               </button>
               <button
-                onClick={() => setStatusFilter("approved")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "approved"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => setStatusFilter("action_needed")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === "action_needed"
+                    ? "bg-red-600 text-white shadow-xs"
+                    : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 }`}
               >
-                Approved
+                ⚠️ Action Needed
               </button>
               <button
-                onClick={() => setStatusFilter("denied")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "denied"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => setStatusFilter("settled")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === "settled"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                 }`}
               >
-                Denied
-              </button>
-              <button
-                onClick={() => setStatusFilter("paid")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  statusFilter === "paid"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                Paid
+                ✅ Settled / Paid
               </button>
             </div>
+          </div>
 
-            {showMobileFilters && (
-              <div className="md:hidden bg-gray-50 dark:bg-gray-750 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Status
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {["all", "submitted", "awaiting_ack", "in_adjudication", "paid", "denied"].map(
-                    (status) => (
-                      <button
-                        key={status}
-                        onClick={() => setStatusFilter(status)}
-                        className={`flex-1 min-w-[calc(50%-4px)] px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                          statusFilter === status
-                            ? "bg-[#043570] text-white"
-                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
-                        }`}
+          {/* Full Table Layout matching BillsHub & UnbilledSessions */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Claim #</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Date</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Client</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Payer</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Status</th>
+                  <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Amount</th>
+                  <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClaims.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12">
+                      <FileText className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No claims found in this view.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredClaims.map((claim) => {
+                    const isReady = ["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(claim.status);
+                    return (
+                      <tr
+                        key={claim.id}
+                        className="border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750"
                       >
-                        {status === "all" ? "All" : CLAIM_STATUS_LABELS[status as ClaimStatus] || status}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 mb-3 md:mb-4">
-            <FileText className="size-4 md:size-5 text-[#043570]" />
-            <h2 className="text-base md:text-xl font-semibold text-gray-900 dark:text-white">
-              All Claims
-            </h2>
-            <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-              ({filteredClaims.length})
-            </span>
-          </div>
-
-          <div className="space-y-2 md:space-y-3">
-            {filteredClaims.length > 0 ? (
-              filteredClaims.map((claim, index) => {
-                const clientInfo = getClientInfo(claim.clientName);
-                const flowBadge = FLOW_TYPE_BADGES[claim.flowType];
-                return (
-                  <motion.div
-                    key={claim.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.03 }}
-                    onClick={() => navigate(`/claims/${claim.id}`)}
-                    className="group p-3 md:p-5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 rounded-lg md:rounded-xl transition-colors border border-gray-200 dark:border-gray-700 cursor-pointer"
-                  >
-                    <div className="hidden md:flex items-center gap-4">
-                      {clientInfo ? (
-                        <div
-                          className={`size-12 ${clientInfo.avatarColor} rounded-lg flex items-center justify-center flex-shrink-0`}
-                        >
-                          <span className="text-white font-semibold text-sm">
-                            {clientInfo.initials}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="size-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="size-5 text-gray-600 dark:text-gray-400" />
-                        </div>
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-gray-900 dark:text-white">
+                        <td className="py-3 px-2 font-semibold text-gray-900 dark:text-white">
+                          <button
+                            onClick={() => navigate(`/claims/${claim.id}`)}
+                            className="hover:text-[#043570] dark:hover:text-[#00c0ff] hover:underline cursor-pointer"
+                          >
                             {claim.claimNumber}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                          </button>
+                        </td>
+                        <td className="py-3 px-2 text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">
+                          {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Mar 12, 2026"}
+                        </td>
+                        <td className="py-3 px-2">
+                          <button
+                            onClick={() => navigate(`/clients/${claim.clientId}`)}
+                            className="text-gray-900 dark:text-white hover:text-[#043570] dark:hover:text-[#00c0ff] hover:underline font-semibold text-xs transition-colors cursor-pointer"
+                          >
                             {claim.clientName}
+                          </button>
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+                            <span className="truncate">{claim.payerName || "Insurance"}</span>
                           </span>
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${flowBadge.color}`}
-                          >
-                            {flowBadge.label}
-                          </span>
+                        </td>
+                        <td className="py-3 px-2">
                           {getStatusBadge(claim.status)}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {claim.payerName || "No payer selected"}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 flex-shrink-0">
-                        <div className="text-xl font-semibold text-gray-900 dark:text-white">
+                        </td>
+                        <td className="py-3 px-2 text-right text-gray-900 dark:text-white font-medium">
                           ${claim.totalAmount.toFixed(2)}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/claims/${claim.id}`);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#043570] dark:hover:text-[#00c0ff] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        >
-                          <Eye className="size-3.5" />
-                          View
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="md:hidden space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {clientInfo ? (
-                            <div
-                              className={`size-8 ${clientInfo.avatarColor} rounded-md flex items-center justify-center flex-shrink-0`}
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isReady && (
+                              <button
+                                onClick={() => simulateClearinghouseSubmission(claim.id)}
+                                title="Submit claim to clearinghouse now"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-[#043570] hover:bg-[#032554] text-white transition-all shadow-2xs cursor-pointer"
+                              >
+                                Submit
+                              </button>
+                            )}
+                            <button
+                              onClick={() => navigate(`/claims/${claim.id}`)}
+                              title="View claim details"
+                              className="size-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all cursor-pointer shadow-2xs"
                             >
-                              <span className="text-white font-semibold text-[10px]">
-                                {clientInfo.initials}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="size-8 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0">
-                              <FileText className="size-3.5 text-gray-600 dark:text-gray-400" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                              {claim.claimNumber}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                              {claim.clientName}
-                            </div>
+                              <Eye className="size-4" />
+                            </button>
                           </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
-                          {getStatusBadge(claim.status)}
-                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            ${claim.totalAmount.toFixed(2)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="pl-10 space-y-0.5">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          <span className="font-medium">{claim.payerName || "No payer"}</span>
-                          <span
-                            className={`ml-2 inline-flex px-1.5 py-0.5 rounded text-[9px] font-medium ${flowBadge.color}`}
-                          >
-                            {flowBadge.label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })
-            ) : (
-              <div className="text-center py-8 md:py-12">
-                <FileText className="size-10 md:size-12 text-gray-300 dark:text-gray-600 mx-auto mb-2 md:mb-3" />
-                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                  No claims found
-                </p>
-              </div>
-            )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

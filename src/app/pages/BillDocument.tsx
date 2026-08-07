@@ -4,7 +4,7 @@ import { ArrowLeft, Printer, Send, CheckCircle } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
 import { useGoBack } from "../utils/useGoBack";
-import { WRITE_OFF_REASON_LABELS } from "../types/partnerDashboard";
+import { WRITE_OFF_REASON_LABELS, getClientDue, getInsuranceDue } from "../types/partnerDashboard";
 import {
   getServiceDescription,
   formatDateOfService,
@@ -130,14 +130,14 @@ export function BillDocument() {
               {(bill.serviceLines && bill.serviceLines.length > 1
                 ? bill.serviceLines
                 : [
-                    {
-                      sessionId: bill.sessionId,
-                      cptCode: bill.cptCode,
-                      dateOfService: bill.dateOfService,
-                      description: getServiceDescription(bill.cptCode),
-                      amount: bill.amount,
-                    },
-                  ]
+                  {
+                    sessionId: bill.sessionId,
+                    cptCode: bill.cptCode,
+                    dateOfService: bill.dateOfService,
+                    description: getServiceDescription(bill.cptCode),
+                    amount: bill.amount,
+                  },
+                ]
               ).map((line, i) => (
                 <tr key={i} className="border-b border-gray-200 dark:border-gray-700">
                   <td className="py-2 text-gray-900 dark:text-white">
@@ -169,37 +169,60 @@ export function BillDocument() {
           </table>
 
           <div className="flex justify-end mb-6">
-            <div className="w-64 space-y-1.5">
+            <div className="w-80 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Charge</span>
-                <span className="text-gray-900 dark:text-white">{currency}{bill.amount.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Total Charge</span>
+                <span className="text-gray-900 dark:text-white font-mono font-semibold">{currency}{bill.amount.toFixed(2)}</span>
               </div>
-              {paid > 0 && (
+
+              {bill.billType === "insurance" && (bill.insuranceOwed || 0) > 0 && (
+                <>
+                  <div className="flex justify-between text-xs text-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-2.5 py-1 rounded-lg">
+                    <span>Insurance Billed ({bill.payerName || "Payer"})</span>
+                    <span className="font-mono font-semibold">-{currency}{(bill.insuranceOwed || 0).toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-sm pt-1 border-t border-gray-100 dark:border-gray-700">
+                    <span className="text-gray-700 dark:text-gray-300 font-semibold">Client Copay / Responsibility</span>
+                    <span className="text-gray-900 dark:text-white font-mono font-bold">{currency}{(bill.clientOwed !== undefined ? bill.clientOwed : (bill.amount - (bill.insuranceOwed || 0))).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+
+              {(bill.clientPaid || 0) > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Paid</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">-{currency}{paid.toFixed(2)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Client Paid</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono font-semibold">-{currency}{(bill.clientPaid || 0).toFixed(2)}</span>
                 </div>
               )}
+
               {writtenOff > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
                     Written off ({bill.writeOffReason ? WRITE_OFF_REASON_LABELS[bill.writeOffReason] : "adjustment"})
                   </span>
-                  <span className="text-gray-500">-{currency}{writtenOff.toFixed(2)}</span>
+                  <span className="text-gray-500 font-mono">-{currency}{writtenOff.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-bold border-t border-gray-200 dark:border-gray-700 pt-2">
-                <span className="text-gray-900 dark:text-white">Balance Due</span>
-                <span className="text-gray-900 dark:text-white">{currency}{Math.max(balance, 0).toFixed(2)}</span>
+
+              <div className="flex justify-between text-sm font-bold border-t-2 border-gray-300 dark:border-gray-600 pt-2 text-gray-900 dark:text-white">
+                <span>{bill.billType === "insurance" ? "Client Copay Due" : "Balance Due"}</span>
+                <span className="font-mono text-base text-blue-600 dark:text-blue-400">{currency}{Math.max(0, bill.billType === "insurance" ? getClientDue(bill) : balance).toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {bill.payerName && (
-            <p className="text-xs text-gray-500 mb-2">
-              Payer: <span className="font-semibold text-gray-700 dark:text-gray-300">{bill.payerName}</span>
-              {claim ? ` · Claim: ${claim.claimNumber}` : bill.claimId ? ` · Claim: ${bill.claimId}` : ""}
-            </p>
+            <div className="p-3.5 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-xl mb-4 text-xs space-y-1.5">
+              <p className="text-blue-900 dark:text-blue-200 font-semibold">
+                Insurance Payer: <span className="font-bold">{bill.payerName}</span>
+                {claim ? ` · Claim #: ${claim.claimNumber}` : bill.claimId ? ` · Claim ID: ${bill.claimId}` : ""}
+              </p>
+              <div className="flex items-center gap-4 text-[11px] text-gray-600 dark:text-gray-400">
+                <span>Insurance Pending: <strong className="text-gray-900 dark:text-white font-mono">{currency}{(getInsuranceDue(bill)).toFixed(2)}</strong></span>
+                <span>Client Copay Responsibility: <strong className="text-gray-900 dark:text-white font-mono">{currency}{(bill.clientOwed !== undefined ? bill.clientOwed : (bill.amount - (bill.insuranceOwed || 0))).toFixed(2)}</strong></span>
+              </div>
+            </div>
           )}
 
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 text-xs text-gray-500">

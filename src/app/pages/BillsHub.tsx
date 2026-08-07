@@ -72,9 +72,9 @@ export function BillsHub() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Filter self-pay bills for main Bills hub — insurance claims live strictly under Insurance > Claims
+  // Filter bills for main Bills hub — include self-pay bills AND insurance bills that have client copay / responsibility
   const selfPayBills = useMemo(
-    () => bills.filter((b) => b.billType !== "insurance"),
+    () => bills.filter((b) => b.billType !== "insurance" || (b.clientOwed && b.clientOwed > 0) || getClientDue(b) > 0),
     [bills]
   );
 
@@ -658,7 +658,7 @@ export function BillsHub() {
                     <span>•</span>
                     <span className="inline-flex items-center gap-1 text-[11px]">
                       <Link2 className="size-3" />
-                      {b.billType === "insurance" ? `${b.insurerName || "Insurance"} · copay` : "Self-pay"}
+                      {b.billType === "insurance" ? "Insurance" : "Self-pay"}
                     </span>
                   </div>
                 </div>
@@ -683,7 +683,7 @@ export function BillsHub() {
                         Paid
                       </span>
                       <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-300">
-                        {sym}{received.toFixed(2)}
+                        {sym}{(b.clientPaid || 0).toFixed(2)}
                       </span>
                     </div>
 
@@ -699,7 +699,7 @@ export function BillsHub() {
                       <span className={`font-mono font-bold text-xs ${
                         pending > 0 ? "text-amber-700 dark:text-amber-300" : "text-gray-500 dark:text-gray-400"
                       }`}>
-                        {sym}{Math.max(0, pending).toFixed(2)}
+                        {sym}{Math.max(0, b.billType === "insurance" ? getClientDue(b) : pending).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -1146,7 +1146,7 @@ export function BillsHub() {
                     </div>
                   </div>
 
-                  {/* STEP 2 */}
+                  {/* STEP 2: Select payment type */}
                   <div className="space-y-4 pt-2">
                     <div className="flex items-start gap-3">
                       <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
@@ -1154,213 +1154,431 @@ export function BillsHub() {
                       </span>
                       <div>
                         <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                          Choose payment method
+                          What is this payment for?
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          A payment method is required
+                          Select payment type (Self-pay, Insurance, or Write-off)
                         </p>
                       </div>
                     </div>
 
-                    {/* Payment Method Container Box */}
-                    <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
-                      
-                      {/* Selector Tabs (Add payment vs Send payment link) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setPayMethod("direct")}
-                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                            payMethod === "direct"
-                              ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
-                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                          }`}
-                        >
-                          <span className="font-bold text-xs text-gray-900 dark:text-white block">
-                            Add payment
-                          </span>
-                          <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
-                            Enter payment details yourself
-                          </span>
-                        </button>
+                    {/* Payment Type Options */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPayType("client")}
+                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                          payType === "client"
+                            ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        <Wallet className={`size-5 ${payType === "client" ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`} />
+                        <span className="font-bold text-xs text-gray-900 dark:text-white">
+                          Self-pay
+                        </span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                          Patient payment
+                        </span>
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={() => setPayMethod("link")}
-                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                            payMethod === "link"
-                              ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
-                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-gray-900 dark:text-white">
-                              Send payment link
-                            </span>
-                            <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-bold uppercase">
-                              New
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
-                            Collect payment via a secure link sent to contact (email or SMS)
-                          </span>
-                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setPayType("insurance")}
+                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                          payType === "insurance"
+                            ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        <FileText className={`size-5 ${payType === "insurance" ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`} />
+                        <span className="font-bold text-xs text-gray-900 dark:text-white">
+                          Insurance
+                        </span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                          Payer EOB / ERA
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPayType("write_off")}
+                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                          payType === "write_off"
+                            ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        <Ban className={`size-5 ${payType === "write_off" ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`} />
+                        <span className="font-bold text-xs text-gray-900 dark:text-white">
+                          Write-off
+                        </span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                          Adjustment / Discount
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* STEP 3: Details based on selected payment type */}
+                  {payType === "client" && (
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-start gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          3
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                            Choose payment method
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            A payment method is required
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Direct Payment Radio List */}
-                      {payMethod === "direct" && (
-                        <div className="space-y-2 pt-2">
-                          {/* Card on file option */}
-                          <label
-                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
-                              paymentOption === "card_on_file"
-                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
-                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                      {/* Payment Method Container Box */}
+                      <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
+                        
+                        {/* Selector Tabs (Add payment vs Send payment link) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setPayMethod("direct")}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              payMethod === "direct"
+                                ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
+                                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
                             }`}
                           >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="paymentOption"
-                                value="card_on_file"
-                                checked={paymentOption === "card_on_file"}
-                                onChange={() => setPaymentOption("card_on_file")}
-                                className="text-blue-600 focus:ring-0 size-4"
-                              />
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                                Online card on file
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-70">
-                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">VISA</span>
-                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">MC</span>
-                              <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">AMEX</span>
-                            </div>
-                          </label>
-
-                          {/* Cash Option */}
-                          <div
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
-                              paymentOption === "cash"
-                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
-                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
-                            }`}
-                          >
-                            <label className="flex items-center gap-3 cursor-pointer flex-1">
-                              <input
-                                type="radio"
-                                name="paymentOption"
-                                value="cash"
-                                checked={paymentOption === "cash"}
-                                onChange={() => setPaymentOption("cash")}
-                                className="text-blue-600 focus:ring-0 size-4"
-                              />
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                                Cash
-                              </span>
-                            </label>
-                            {paymentOption === "cash" && (
-                              <div className="flex items-center gap-2">
-                                <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                                  Payment Date
-                                </label>
-                                <input
-                                  type="date"
-                                  value={cashDate}
-                                  onChange={(e) => setCashDate(e.target.value)}
-                                  className="px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Check Option */}
-                          <div
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
-                              paymentOption === "check"
-                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
-                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
-                            }`}
-                          >
-                            <label className="flex items-center gap-3 cursor-pointer flex-1">
-                              <input
-                                type="radio"
-                                name="paymentOption"
-                                value="check"
-                                checked={paymentOption === "check"}
-                                onChange={() => setPaymentOption("check")}
-                                className="text-blue-600 focus:ring-0 size-4"
-                              />
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                                Check
-                              </span>
-                            </label>
-                            {paymentOption === "check" && (
-                              <div className="flex items-center gap-2">
-                                <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                                  Check #
-                                </label>
-                                <input
-                                  type="text"
-                                  value={checkNumber}
-                                  onChange={(e) => setCheckNumber(e.target.value)}
-                                  placeholder="Enter check #"
-                                  className="w-36 px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* External Card Option */}
-                          <label
-                            className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
-                              paymentOption === "external_card"
-                                ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
-                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="paymentOption"
-                                value="external_card"
-                                checked={paymentOption === "external_card"}
-                                onChange={() => setPaymentOption("external_card")}
-                                className="text-blue-600 focus:ring-0 size-4"
-                              />
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                                External terminal
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-7 mt-0.5">
-                              Record a payment collected using an external payment processor
+                            <span className="font-bold text-xs text-gray-900 dark:text-white block">
+                              Add payment
                             </span>
-                          </label>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                              Enter payment details yourself
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPayMethod("link")}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              payMethod === "link"
+                                ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
+                                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-xs text-gray-900 dark:text-white">
+                                Send payment link
+                              </span>
+                              <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-bold uppercase">
+                                New
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                              Collect payment via a secure link sent to contact (email or SMS)
+                            </span>
+                          </button>
                         </div>
-                      )}
 
-                      {payMethod === "link" && (
-                        <div className="pt-2 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                              Message preview (Editable):
-                            </span>
-                            <span className="text-[11px] text-gray-400">
-                              You can customize this message before sending
-                            </span>
+                        {/* Direct Payment Radio List */}
+                        {payMethod === "direct" && (
+                          <div className="space-y-2 pt-2">
+                            {/* Card on file option */}
+                            <label
+                              className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
+                                paymentOption === "card_on_file"
+                                  ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name="paymentOption"
+                                  value="card_on_file"
+                                  checked={paymentOption === "card_on_file"}
+                                  onChange={() => setPaymentOption("card_on_file")}
+                                  className="text-blue-600 focus:ring-0 size-4"
+                                />
+                                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                  Online card on file
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-70">
+                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">VISA</span>
+                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">MC</span>
+                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">AMEX</span>
+                              </div>
+                            </label>
+
+                            {/* Cash Option */}
+                            <div
+                              className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                                paymentOption === "cash"
+                                  ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                              }`}
+                            >
+                              <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                <input
+                                  type="radio"
+                                  name="paymentOption"
+                                  value="cash"
+                                  checked={paymentOption === "cash"}
+                                  onChange={() => setPaymentOption("cash")}
+                                  className="text-blue-600 focus:ring-0 size-4"
+                                />
+                                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                  Cash
+                                </span>
+                              </label>
+                              {paymentOption === "cash" && (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                    Payment Date
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={cashDate}
+                                    onChange={(e) => setCashDate(e.target.value)}
+                                    className="px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Check Option */}
+                            <div
+                              className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                                paymentOption === "check"
+                                  ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                              }`}
+                            >
+                              <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                <input
+                                  type="radio"
+                                  name="paymentOption"
+                                  value="check"
+                                  checked={paymentOption === "check"}
+                                  onChange={() => setPaymentOption("check")}
+                                  className="text-blue-600 focus:ring-0 size-4"
+                                />
+                                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                  Check
+                                </span>
+                              </label>
+                              {paymentOption === "check" && (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                                    Check #
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={checkNumber}
+                                    onChange={(e) => setCheckNumber(e.target.value)}
+                                    placeholder="Enter check #"
+                                    className="w-36 px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* External Card Option */}
+                            <label
+                              className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
+                                paymentOption === "external_card"
+                                  ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20"
+                                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name="paymentOption"
+                                  value="external_card"
+                                  checked={paymentOption === "external_card"}
+                                  onChange={() => setPaymentOption("external_card")}
+                                  className="text-blue-600 focus:ring-0 size-4"
+                                />
+                                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                                  External terminal
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-7 mt-0.5">
+                                Record a payment collected using an external payment processor
+                              </span>
+                            </label>
                           </div>
-                          <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-gray-50/60 dark:bg-gray-800/40 p-3">
-                            <textarea
-                              value={customLinkMessage}
-                              onChange={(e) => setCustomLinkMessage(e.target.value)}
-                              rows={5}
-                              className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-sans leading-relaxed resize-y"
+                        )}
+
+                        {payMethod === "link" && (
+                          <div className="pt-2 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                Message preview (Editable):
+                              </span>
+                              <span className="text-[11px] text-gray-400">
+                                You can customize this message before sending
+                              </span>
+                            </div>
+                            <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-gray-50/60 dark:bg-gray-800/40 p-3">
+                              <textarea
+                                value={customLinkMessage}
+                                onChange={(e) => setCustomLinkMessage(e.target.value)}
+                                rows={5}
+                                className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-sans leading-relaxed resize-y"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Insurance Details */}
+                  {payType === "insurance" && (
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-start gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          3
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                            Insurance payment details
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Enter insurance claim remittance information
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                              Insurance Payer / Carrier
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. BlueCross BlueShield, Aetna"
+                              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                              Check / EFT Reference #
+                            </label>
+                            <input
+                              type="text"
+                              value={checkNumber}
+                              onChange={(e) => setCheckNumber(e.target.value)}
+                              placeholder="e.g. EFT-9840281"
+                              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
                             />
                           </div>
                         </div>
-                      )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                              EOB Date
+                            </label>
+                            <input
+                              type="date"
+                              value={cashDate}
+                              onChange={(e) => setCashDate(e.target.value)}
+                              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                              Attach EOB / Remittance (Optional)
+                            </label>
+                            <label className="flex items-center gap-2 px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-pointer text-gray-500 dark:text-gray-400 hover:border-blue-500">
+                              <Upload className="size-4 text-gray-400" />
+                              <span className="truncate">{fileNames.length ? fileNames.join(", ") : "Upload file"}</span>
+                              <input
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => setFileNames(Array.from(e.target.files || []).map((f) => f.name))}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* STEP 3: Write-off Details */}
+                  {payType === "write_off" && (
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-start gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          3
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                            Write-off details
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Specify reason code and notes for writing off balance
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            Reason Code
+                          </label>
+                          <select
+                            value={writeOffReason}
+                            onChange={(e) => setWriteOffReason(e.target.value as WriteOffReason)}
+                            className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                          >
+                            {Object.entries(WRITE_OFF_REASON_LABELS).map(([key, label]) => (
+                              <option key={key} value={key}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            Note / Justification (optional)
+                          </label>
+                          <textarea
+                            value={writeOffNote}
+                            onChange={(e) => setWriteOffNote(e.target.value)}
+                            rows={3}
+                            placeholder="Reason for write off..."
+                            className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 resize-y"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            Attach Supporting Document (optional)
+                          </label>
+                          <label className="flex items-center gap-2 px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-pointer text-gray-500 dark:text-gray-400 hover:border-blue-500">
+                            <Upload className="size-4 text-gray-400" />
+                            <span className="truncate">{fileNames.length ? fileNames.join(", ") : "Upload document"}</span>
+                            <input
+                              type="file"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => setFileNames(Array.from(e.target.files || []).map((f) => f.name))}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Past Payments History Trigger */}
                   <div className="pt-2">
@@ -1431,7 +1649,15 @@ export function BillsHub() {
                   disabled={!modalClientId}
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1868db] hover:bg-[#1255b8] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {payMethod === "link" ? (
+                  {payType === "write_off" ? (
+                    <>
+                      <Ban className="size-4" /> Save ${effectivePaymentAmount.toFixed(2)} Write-off
+                    </>
+                  ) : payType === "insurance" ? (
+                    <>
+                      <CheckCircle className="size-4" /> Save ${effectivePaymentAmount.toFixed(2)} Insurance Payment
+                    </>
+                  ) : payMethod === "link" ? (
                     <>
                       <Send className="size-4" /> Send Payment Link for ${effectivePaymentAmount.toFixed(2)}
                     </>

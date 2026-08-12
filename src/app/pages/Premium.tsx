@@ -1,74 +1,40 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { 
-  Sparkles, 
-  ChevronDown, 
-  HelpCircle, 
-  TrendingUp, 
-  Users, 
-  RefreshCw, 
-  CheckCircle2,
-  AlertCircle,
+import { motion } from "motion/react";
+import {
+  Sparkles,
+  ChevronDown,
+  HelpCircle,
   Info,
   Crown,
   DollarSign,
-  BarChart3,
   Building2,
   FileText,
   Award,
-  CheckCircle
+  CheckCircle,
+  TrendingDown,
+  ArrowRight,
 } from "lucide-react";
+import { computeProviderHealth, getBandColor } from "../utils/providerHealth";
+import { mockProviderHealthMetrics } from "../data/providerHealth";
+import { HealthScoreHero } from "../components/premium/HealthScoreHero";
+import { SubScoreCards } from "../components/premium/SubScoreCards";
+import { WhyScoreIsLow } from "../components/premium/WhyScoreIsLow";
+import { MetricsBreakdown } from "../components/premium/MetricsBreakdown";
+import { PreferencesPanel } from "../components/premium/PreferencesPanel";
+
+const PREMIUM_THRESHOLD = 80;
 
 export function Premium() {
   const [premiumStatus, setPremiumStatus] = useState<"Premium" | "Non Premium">("Non Premium");
+  const [view, setView] = useState<PremiumViewVariant>("tabs");
   const [category, setCategory] = useState("Therapy");
-  const [getClientsFromMantra, setGetClientsFromMantra] = useState(true);
-  const [fixedRate] = useState("0.01");
-  const [minimumRate, setMinimumRate] = useState("0");
 
-  // Account health metrics
-  const renewalRate = 0;
-  const switchRate = 64.29;
-  const requestsAnswered = 12;
-  const requestsRenewedInPremium = 26;
-
-  // Points achievement for Non Premium
-  const currentPoints = 120;
-  const requiredPoints = 250;
-  const pointsProgress = (currentPoints / requiredPoints) * 100;
-  const canApplyPremium = currentPoints >= requiredPoints;
-
-  // Determine account health status
-  const getAccountHealthStatus = () => {
-    if (renewalRate < 30 || switchRate > 50) {
-      return { 
-        label: "Poor", 
-        color: "text-red-600 dark:text-red-400",
-        bgColor: "bg-red-50 dark:bg-red-900/20",
-        borderColor: "border-red-200 dark:border-red-800",
-        icon: AlertCircle
-      };
-    } else if (renewalRate < 60 || switchRate > 30) {
-      return { 
-        label: "Fair", 
-        color: "text-yellow-600 dark:text-yellow-400",
-        bgColor: "bg-yellow-50 dark:bg-yellow-900/20",
-        borderColor: "border-yellow-200 dark:border-yellow-800",
-        icon: AlertCircle
-      };
-    } else {
-      return { 
-        label: "Good", 
-        color: "text-green-600 dark:text-green-400",
-        bgColor: "bg-green-50 dark:bg-green-900/20",
-        borderColor: "border-green-200 dark:border-green-800",
-        icon: CheckCircle2
-      };
-    }
-  };
-
-  const accountHealth = getAccountHealthStatus();
-  const HealthIcon = accountHealth.icon;
+  // Provider health score — computed from mock metrics (see utils/providerHealth.ts)
+  const healthResult = computeProviderHealth(mockProviderHealthMetrics);
+  const canApplyPremium = healthResult.premiumQualified;
+  const progressToPremium = Math.min((healthResult.health / PREMIUM_THRESHOLD) * 100, 100);
+  const topBlockers = healthResult.flagged.slice(0, 3);
 
   return (
     <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen md:p-6">
@@ -79,21 +45,19 @@ export function Premium() {
           <div className="flex items-center gap-1 md:gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-md md:rounded-lg p-0.5 md:p-1">
             <button
               onClick={() => setPremiumStatus("Premium")}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all ${
-                premiumStatus === "Premium"
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all ${premiumStatus === "Premium"
                   ? "bg-[#043570] text-white shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              }`}
+                }`}
             >
               Premium
             </button>
             <button
               onClick={() => setPremiumStatus("Non Premium")}
-              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all ${
-                premiumStatus === "Non Premium"
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md md:rounded-lg transition-all ${premiumStatus === "Non Premium"
                   ? "bg-[#043570] text-white shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              }`}
+                }`}
             >
               Non Premium
             </button>
@@ -114,8 +78,8 @@ export function Premium() {
                   Premium Provider
                 </h1>
                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                  {premiumStatus === "Premium" 
-                    ? "Manage your premium profile settings and preferences"
+                  {premiumStatus === "Premium"
+                    ? "Your provider health, performance and premium profile settings"
                     : "Unlock premium benefits and access to exclusive features"
                   }
                 </p>
@@ -208,7 +172,7 @@ export function Premium() {
               </div>
             </div>
 
-            {/* Points Achievement Card */}
+            {/* Health Score to Premium Card */}
             <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-8">
               <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-6">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-[#F59E0B] flex items-center justify-center flex-shrink-0 shadow-md">
@@ -219,7 +183,7 @@ export function Premium() {
                     Complete Your Journey to Premium
                   </h3>
                   <p className="text-xs md:text-sm text-gray-900 dark:text-white leading-relaxed">
-                    Achieve <span className="font-bold text-[#2563EB]">250 points</span> to qualify and be invited as a credible, premium provider.
+                    Reach a <span className="font-bold text-[#2563EB]">Health Score of {PREMIUM_THRESHOLD}+</span> (Top Performer band) to qualify and be invited as a credible, premium provider.
                   </p>
                 </div>
               </div>
@@ -227,26 +191,59 @@ export function Premium() {
               {/* Progress Bar */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs md:text-sm mb-2">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Progress</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Health Score</span>
                   <span className="font-bold text-gray-900 dark:text-white">
-                    {currentPoints} / {requiredPoints} points
+                    {healthResult.health} / {PREMIUM_THRESHOLD}
                   </span>
                 </div>
                 <div className="relative">
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 md:h-4 overflow-hidden shadow-inner">
-                    <div 
+                    <motion.div
                       className="bg-[#2563EB] h-3 md:h-4 rounded-full transition-all duration-500"
-                      style={{ width: `${pointsProgress}%` }}
-                    ></div>
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressToPremium}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
                   </div>
                 </div>
+                <div className="flex justify-center mt-2 md:mt-3">
+                  <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-bold ${getBandColor(healthResult.band)}`}>
+                    Current band: {healthResult.bandLabel}
+                  </span>
+                </div>
                 <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 text-center mt-2 md:mt-3">
-                  {canApplyPremium 
-                    ? "🎉 Congratulations! You've qualified for premium status" 
-                    : `${requiredPoints - currentPoints} more points needed to unlock premium status`
+                  {canApplyPremium
+                    ? "🎉 Congratulations! You've qualified for premium status"
+                    : `${PREMIUM_THRESHOLD - healthResult.health} more score points needed to reach 80+ and unlock premium status`
                   }
                 </p>
               </div>
+
+              {/* What's holding you back */}
+              {!canApplyPremium && topBlockers.length > 0 && (
+                <div className="mt-4 md:mt-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg md:rounded-xl p-3 md:p-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
+                    <TrendingDown className="size-4 md:size-5 text-red-500" />
+                    <p className="text-xs md:text-sm font-bold text-red-700 dark:text-red-300">What's holding your score down</p>
+                  </div>
+                  <div className="space-y-2 md:space-y-2.5">
+                    {topBlockers.map((metric) => (
+                      <div key={metric.key} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[11px] md:text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{metric.label}</span>
+                          <span className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">({metric.displayValue})</span>
+                        </div>
+                        <Link
+                          to={metric.actionTarget}
+                          className="inline-flex items-center gap-1 text-[10px] md:text-xs font-bold text-[#2563EB] hover:text-[#1d4ed8] flex-shrink-0"
+                        >
+                          Fix <ArrowRight className="size-3" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Improve Provider Score Button */}
@@ -257,15 +254,14 @@ export function Premium() {
             </Link>
 
             {/* Action Button */}
-            <button 
-              className={`w-full py-3 md:py-4 rounded-lg md:rounded-xl font-bold text-sm md:text-base transition-all duration-300 shadow-lg ${
-                canApplyPremium
+            <button
+              className={`w-full py-3 md:py-4 rounded-lg md:rounded-xl font-bold text-sm md:text-base transition-all duration-300 shadow-lg ${canApplyPremium
                   ? "bg-[#3665E0] hover:bg-[#2952C0] text-white hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
                   : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed opacity-60"
-              }`}
+                }`}
               disabled={!canApplyPremium}
             >
-              {canApplyPremium ? "Apply as Premium Provider" : "Apply as Premium Provider"}
+              Apply as Premium Provider
             </button>
 
             {/* Help Text */}
@@ -275,10 +271,10 @@ export function Premium() {
                   <Info className="size-4 md:size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs md:text-sm text-blue-900 dark:text-blue-200 font-medium mb-0.5 md:mb-1">
-                      How to earn points?
+                      How to raise your score?
                     </p>
                     <p className="text-xs md:text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-                      Complete your profile, verify credentials, attend training sessions, and maintain high session quality to earn points towards premium status.
+                      Your health score blends quality (retention, reviews, completion), engagement (trainings, tasks, profile, activity) and business (sessions, renewals, revenue). Complete tasks, finish trainings and maintain high session quality to reach 80+.
                     </p>
                   </div>
                 </div>
@@ -294,203 +290,26 @@ export function Premium() {
           </div>
         )}
 
-        {/* Premium View - Original Content */}
+        {/* Premium View */}
         {premiumStatus === "Premium" && (
-          <div className="px-3 md:px-0 pb-3 md:pb-0">
-            {/* Account Health Status Banner */}
-            <div className={`${accountHealth.bgColor} border ${accountHealth.borderColor} md:border-2 rounded-xl md:rounded-2xl p-3 md:p-6 mb-4 md:mb-6 shadow-sm`}>
-              <div className="flex items-start md:items-center gap-3 md:gap-4">
-                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl ${accountHealth.bgColor} border ${accountHealth.borderColor} md:border-2 flex items-center justify-center flex-shrink-0`}>
-                  <HealthIcon className={`size-6 md:size-7 ${accountHealth.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-sm md:text-lg font-bold text-gray-900 dark:text-white">Account Health Status</h3>
-                    <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-bold ${accountHealth.bgColor} ${accountHealth.color} border ${accountHealth.borderColor}`}>
-                      {accountHealth.label}
-                    </span>
-                  </div>
-                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-                    {accountHealth.label === "Poor" && "Your account needs attention. Improve renewal rate and reduce switch rate."}
-                    {accountHealth.label === "Fair" && "Your account is performing adequately. Focus on improving key metrics."}
-                    {accountHealth.label === "Good" && "Great job! Your account is in excellent standing."}
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-4 md:space-y-6 px-3 md:px-0 pb-3 md:pb-0">
+            {/* Health Score Hero */}
+            <HealthScoreHero result={healthResult} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
-              {/* Preferences Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-7">
-                <div className="flex items-center gap-2 md:gap-3 mb-5 md:mb-7">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-[#00c0ff] flex items-center justify-center shadow-md">
-                    <Sparkles className="size-4 md:size-5 text-white" />
-                  </div>
-                  <h2 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Preferences</h2>
-                </div>
-                
-                {/* Get Clients from Mantra */}
-                <div className="mb-5 md:mb-7 p-3 md:p-4 rounded-lg md:rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-                  <label className="flex items-center gap-2 md:gap-3 cursor-pointer group">
-                    <div className="relative flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={getClientsFromMantra}
-                        onChange={(e) => setGetClientsFromMantra(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 md:w-12 md:h-7 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#00c0ff] transition-all shadow-inner"></div>
-                      <div className="absolute left-0.5 top-0.5 bg-white w-5 h-5 md:w-6 md:h-6 rounded-full transition-transform peer-checked:translate-x-5 shadow-md"></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm md:text-base font-bold text-gray-900 dark:text-white block">
-                        Get Clients from Mantra
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 italic font-normal">
-                        Allow new client requests to be received
-                      </span>
-                    </div>
-                  </label>
-                </div>
+            {/* Sub-scores */}
+            <SubScoreCards result={healthResult} />
 
-                {/* Fixed Rate */}
-                <div className="mb-5 md:mb-7 bg-gray-50 dark:bg-gray-900 rounded-lg md:rounded-xl p-3 md:p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm">
-                        <DollarSign className="size-4 md:size-5 text-[#00c0ff]" />
-                      </div>
-                      <label className="text-sm md:text-base font-bold text-gray-900 dark:text-white">Fixed Rate</label>
-                    </div>
-                    <span className="text-xl md:text-2xl font-bold text-[#00c0ff] bg-white dark:bg-gray-800 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border border-gray-200 dark:border-gray-700">${fixedRate}</span>
-                  </div>
-                </div>
+            {/* Why is my score low */}
+            <WhyScoreIsLow flagged={healthResult.flagged} />
 
-                {/* Minimum Rate */}
-                <div>
-                  <div className="flex items-start gap-2 md:gap-3 mb-2 md:mb-3">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
-                      <BarChart3 className="size-4 md:size-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <label className="text-sm md:text-base font-bold text-gray-900 dark:text-white block">Minimum Rate</label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                        You will only be shown requests above this rate
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 md:gap-3">
-                    <div className="flex items-center border border-gray-300 dark:border-gray-600 md:border-2 rounded-lg md:rounded-xl px-2 py-2 md:px-4 md:py-3 bg-white dark:bg-gray-900 flex-1 focus-within:border-[#00c0ff] focus-within:ring-2 focus-within:ring-[#00c0ff]/20 transition-all">
-                      <span className="text-sm md:text-base text-gray-600 dark:text-gray-400 mr-1 md:mr-2 font-bold">$</span>
-                      <input
-                        type="number"
-                        value={minimumRate}
-                        onChange={(e) => setMinimumRate(e.target.value)}
-                        className="flex-1 bg-transparent text-sm md:text-base text-gray-900 dark:text-white outline-none font-bold min-w-0"
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <button className="px-2.5 py-2 md:px-6 md:py-3 bg-[#00c0ff] hover:bg-[#0099cc] text-white rounded-lg md:rounded-xl text-xs md:text-sm font-bold transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex-shrink-0">
-                      Update
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {/* Full metric breakdown */}
+            <MetricsBreakdown result={healthResult} />
 
-              {/* Performance Metrics Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-7">
-                <div className="flex items-center gap-2 md:gap-3 mb-5 md:mb-7">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-[#8B5CF6] flex items-center justify-center shadow-md">
-                    <BarChart3 className="size-4 md:size-5 text-white" />
-                  </div>
-                  <h2 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Performance Metrics</h2>
-                </div>
-                
-                {/* Metrics Grid */}
-                <div className="space-y-4 md:space-y-6">
-                  {/* Renewal Rate */}
-                  <div className="p-3 md:p-4 rounded-lg md:rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
-                    <div className="flex items-center justify-between mb-2 md:mb-3">
-                      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-green-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                          <RefreshCw className="size-4 md:size-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">Renewal Rate</p>
-                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 italic font-normal">Users who renewed your plans</p>
-                        </div>
-                      </div>
-                      <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white ml-2">{renewalRate}%</p>
-                    </div>
-                    <div className="w-full bg-green-200 dark:bg-green-900/40 rounded-full h-2.5 md:h-3 overflow-hidden shadow-inner">
-                      <div 
-                        className="bg-green-500 h-2.5 md:h-3 rounded-full transition-all"
-                        style={{ width: `${renewalRate}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Switch Rate */}
-                  <div className="p-3 md:p-4 rounded-lg md:rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800">
-                    <div className="flex items-center justify-between mb-2 md:mb-3">
-                      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-red-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                          <TrendingUp className="size-4 md:size-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">Switch Rate</p>
-                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 italic font-normal">Users who moved to another expert</p>
-                        </div>
-                      </div>
-                      <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white ml-2">{switchRate}%</p>
-                    </div>
-                    <div className="w-full bg-red-200 dark:bg-red-900/40 rounded-full h-2.5 md:h-3 overflow-hidden shadow-inner">
-                      <div 
-                        className="bg-red-500 h-2.5 md:h-3 rounded-full transition-all"
-                        style={{ width: `${switchRate}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Requests Answered */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-blue-100 dark:border-blue-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-blue-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                          <CheckCircle2 className="size-4 md:size-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">Requests Answered</p>
-                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 italic font-normal">Client requests you accepted</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white ml-2">{requestsAnswered}</p>
-                    </div>
-                  </div>
-
-                  {/* Requests Renewed in Premium */}
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-purple-100 dark:border-purple-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-purple-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                          <Users className="size-4 md:size-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">Renewed in Premium</p>
-                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 italic font-normal">Renewals after becoming premium</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white ml-2">{requestsRenewedInPremium}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Preferences Card */}
+            <PreferencesPanel />
 
             {/* Contact Support */}
-            <button className="w-full py-3 md:py-4 bg-[#3665E0] hover:bg-[#2952C0] text-white rounded-lg md:rounded-xl text-sm md:text-base font-semibold transition-all flex items-center justify-center gap-2 md:gap-2.5 shadow-md hover:shadow-lg mb-4 md:mb-6">
+            <button className="w-full py-3 md:py-4 bg-[#3665E0] hover:bg-[#2952C0] text-white rounded-lg md:rounded-xl text-sm md:text-base font-semibold transition-all flex items-center justify-center gap-2 md:gap-2.5 shadow-md hover:shadow-lg">
               <HelpCircle className="size-4 md:size-5" />
               <span>Facing Issues? Contact Support</span>
             </button>
@@ -504,8 +323,8 @@ export function Premium() {
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm md:text-lg font-bold text-blue-900 dark:text-blue-200 mb-1 md:mb-2">Premium Benefits</h3>
                   <p className="text-xs md:text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-                    Premium providers receive priority placement in client matching and access to exclusive features. 
-                    Maintain good account health metrics to maximize your visibility and earnings potential.
+                    Premium providers receive priority placement in client matching and access to exclusive features.
+                    Keep your health score in the Top Performer band to maximize visibility and earnings.
                   </p>
                 </div>
               </div>

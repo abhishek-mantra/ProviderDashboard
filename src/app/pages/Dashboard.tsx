@@ -956,7 +956,7 @@ export function Dashboard() {
                     </span>
                   </div>
                   <p className="text-[12px] md:text-[14px] text-gray-600 dark:text-gray-400 font-medium leading-snug">
-                    Steps to increase visibility & unlock premium access
+                    Complete tasks, finish trainings and raise your Provider Health Score to unlock premium access
                   </p>
                 </div>
               </div>

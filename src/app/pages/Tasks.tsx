@@ -1,6 +1,16 @@
 import { useState } from "react";
-import { CheckCircle2, Circle, ChevronRight, Clock, ChevronDown, ChevronUp, ChevronLeft, Calendar, Award, Trophy, Video, FileText, Play, Zap, BookOpen, Headphones, BarChart3 } from "lucide-react";
+import { CheckCircle2, Circle, ChevronRight, Clock, ChevronDown, ChevronUp, ChevronLeft, Calendar, Award, Trophy, Video, FileText, Play, Zap, BookOpen, Headphones, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
 import { motion } from "motion/react";
+import { computeProviderHealth } from "../utils/providerHealth";
+import { mockProviderHealthMetrics } from "../data/providerHealth";
+import type { HealthBand } from "../types/providerHealth";
+
+const BAND_GRADIENT: Record<HealthBand, string> = {
+  green: "from-[#10b981] to-[#059669]",
+  yellow: "from-[#f59e0b] to-[#d97706]",
+  red: "from-[#ef4444] to-[#dc2626]",
+  critical: "from-[#e11d48] to-[#be123c]",
+};
 
 interface TodayTask {
   id: string;
@@ -18,6 +28,8 @@ export function Tasks() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedService, setSelectedService] = useState("All Services");
   const totalPages = 13;
+
+  const healthResult = computeProviderHealth(mockProviderHealthMetrics);
 
   const services = [
     "All Services",
@@ -189,18 +201,21 @@ export function Tasks() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="bg-gradient-to-br from-[#00b4d8] to-[#0096c7] rounded-lg md:rounded-xl p-2 md:p-4 relative overflow-hidden"
+            className={`bg-gradient-to-br ${BAND_GRADIENT[healthResult.band]} rounded-lg md:rounded-xl p-2 md:p-4 relative overflow-hidden`}
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
             <div className="relative">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2 md:mb-3">
-                <div className="text-[8px] md:text-xs font-semibold text-white/80 uppercase tracking-wide mb-1 md:mb-0 leading-tight">Provider Score</div>
+                <div className="text-[8px] md:text-xs font-semibold text-white/80 uppercase tracking-wide mb-1 md:mb-0 leading-tight">Health Score</div>
                 <div className="size-5 md:size-7 bg-white/15 backdrop-blur-sm rounded-md md:rounded-lg flex items-center justify-center hidden md:flex">
                   <Award className="size-2.5 md:size-3.5 text-white" />
                 </div>
               </div>
-              <div className="text-xl md:text-3xl font-bold text-white mb-0.5">471</div>
-              <div className="text-[9px] md:text-xs text-white/70">Premium</div>
+              <div className="text-xl md:text-3xl font-bold text-white mb-0.5">{healthResult.health}</div>
+              <div className="text-[9px] md:text-xs text-white/70">
+                {healthResult.bandLabel}
+                {(healthResult.band === "red" || healthResult.band === "critical") && " · Needs attention"}
+              </div>
             </div>
           </motion.div>
 
@@ -220,10 +235,13 @@ export function Tasks() {
                 </div>
               </div>
               <div className="flex items-baseline gap-1 md:gap-2 mb-0.5">
-                <div className="text-xl md:text-3xl font-bold text-white">#2</div>
-                <div className="px-1 md:px-1.5 py-0.5 bg-white/20 rounded text-[9px] md:text-xs font-bold text-white">↑1</div>
+                <div className="text-xl md:text-3xl font-bold text-white">{healthResult.rank.rank}</div>
+                <div className={`px-1 md:px-1.5 py-0.5 bg-white/20 rounded text-[9px] md:text-xs font-bold text-white inline-flex items-center gap-0.5`}>
+                  {healthResult.trend >= 0 ? <TrendingUp className="size-2.5" /> : <TrendingDown className="size-2.5" />}
+                  {healthResult.trend >= 0 ? "+" : ""}{healthResult.trend}
+                </div>
               </div>
-              <div className="text-[9px] md:text-xs text-white/70">Top 3%</div>
+              <div className="text-[9px] md:text-xs text-white/70">{healthResult.rank.top}</div>
             </div>
           </motion.div>
 
@@ -301,7 +319,7 @@ export function Tasks() {
                   </div>
                   <div className="flex-1 text-xs md:text-sm">
                     <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                      Your profile rank on Mantra depends on your provider score. <span className="font-semibold text-blue-600 dark:text-blue-400">Only premium providers (500+ score)</span> get referrals to corporate and individual clients. Complete the quick tasks below to earn points & unlock premium status.
+                      Your profile rank on Mantra depends on your provider health score. <span className="font-semibold text-blue-600 dark:text-blue-400">Only premium providers (80+ Health Score — Top Performer band)</span> get referrals to corporate and individual clients. Complete the quick tasks below to raise your score & unlock premium status.
                     </p>
                   </div>
                 </div>

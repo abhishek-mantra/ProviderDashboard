@@ -60,7 +60,7 @@ const faqs = [
   },
   {
     q: "Do all listed providers receive client referrals?",
-    a: "Not immediately. All providers begin with a Basic Listing, which is completely free and allows you to create your professional profile and be discoverable on the platform.\n\nAs you build your profile, complete training programs, receive positive reviews, and demonstrate engagement, you earn a Provider Trust Score. Providers with strong trust scores may be invited to become Premium Providers.\n\nPremium Providers receive priority visibility and may become eligible for client referrals, insurance opportunities, EAP programs, and other growth initiatives.",
+    a: "Not immediately. All providers begin with a Basic Listing, which is completely free and allows you to create your professional profile and be discoverable on the platform.\n\nAs you build your profile, complete training programs, receive positive reviews, and demonstrate engagement, you earn a Provider Health Score (out of 100). Providers in the Top Performer band (80+) may be invited to become Premium Providers.\n\nPremium Providers receive priority visibility and may become eligible for client referrals, insurance opportunities, EAP programs, and other growth initiatives.",
   },
   {
     q: "Is there a cost to get listed?",

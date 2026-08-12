@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Eye, EyeOff, Shield, Globe, ChevronDown, ChevronLeft,
   Globe as GlobeIcon, Briefcase, LayoutDashboard, Building2, Zap, ShieldCheck,
@@ -136,13 +136,41 @@ function LanguageToggle() {
 
 export function GetStarted() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [signupMode, setSignupMode] = useState<SignupMode>("provider");
+  const [hasPresetMode, setHasPresetMode] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [countryCode, setCountryCode] = useState(COUNTRY_CODES[1]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", password: "" });
+
+  useEffect(() => {
+    const urlType = (
+      searchParams.get("type") ||
+      searchParams.get("mode") ||
+      searchParams.get("role") ||
+      ""
+    ).toLowerCase();
+
+    if (urlType.includes("ehr") || urlType.includes("scribe") || urlType.includes("practice")) {
+      setSignupMode("full-ehr");
+      setHasPresetMode(true);
+    } else if (urlType.includes("provider") || urlType.includes("freelance")) {
+      setSignupMode("provider");
+      setHasPresetMode(true);
+    }
+  }, [searchParams]);
+
+  const handleModeSwitch = (mode: SignupMode) => {
+    setSignupMode(mode);
+    setHasPresetMode(true);
+  };
+
+  const handleProceedToVerify = () => {
+    navigate("/verify", { state: { signupMode, email, hasPresetMode } });
+  };
 
   const content = modeContent[signupMode];
 
@@ -196,7 +224,7 @@ export function GetStarted() {
               {(["provider", "full-ehr"] as SignupMode[]).map((mode) => (
                 <button
                   key={mode}
-                  onClick={() => setSignupMode(mode)}
+                  onClick={() => handleModeSwitch(mode)}
                   className="rounded-full px-4 py-1.5 transition-all"
                   style={{
                     fontSize: 13,
@@ -380,7 +408,7 @@ export function GetStarted() {
                 </div>
 
                 <button
-                  onClick={() => navigate("/verify", { state: { signupMode, email } })}
+                  onClick={handleProceedToVerify}
                   className="w-full bg-[#043570] text-white rounded-xl flex items-center justify-center transition-opacity hover:opacity-90"
                   style={{ height: 52, fontSize: 15, fontWeight: 700 }}
                 >
@@ -396,7 +424,7 @@ export function GetStarted() {
 
               <button
                 type="button"
-                onClick={() => navigate("/verify", { state: { signupMode, email } })}
+                onClick={handleProceedToVerify}
                 className="w-full bg-white border border-[#e5e7eb] rounded-xl flex items-center justify-center gap-3 hover:bg-[#f8fbff] transition-colors"
                 style={{ height: 52, fontSize: 14, fontWeight: 600, color: "#0F172A" }}
               >

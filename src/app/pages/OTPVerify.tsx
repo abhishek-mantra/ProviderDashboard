@@ -1,6 +1,31 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router";
-import { ChevronLeft, Shield, Globe, ShieldCheck, Headphones, Users, CreditCard, FileText, CalendarDays, Pill, ClipboardCheck, Mic, Bot, Brain, Timer, Briefcase, LayoutDashboard, Building2, Zap, Globe as GlobeIcon, Megaphone } from "lucide-react";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
+import {
+  ChevronLeft,
+  Shield,
+  Globe,
+  ShieldCheck,
+  Headphones,
+  Users,
+  CreditCard,
+  FileText,
+  CalendarDays,
+  Pill,
+  ClipboardCheck,
+  Mic,
+  Bot,
+  Brain,
+  Timer,
+  Briefcase,
+  LayoutDashboard,
+  Building2,
+  Zap,
+  Globe as GlobeIcon,
+  Megaphone,
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
+} from "lucide-react";
 
 type SignupMode = "provider" | "full-ehr" | "ai-scribe";
 
@@ -86,6 +111,7 @@ const modeContent: Record<SignupMode, {
   },
   "ai-scribe": {
     headline: "Let AI handle your notes so you can focus on your clients.",
+    subheadline: "Auto-generate notes and streamline documentation.",
     planLabel: "50% OFF — LIMITED TIME",
     planPrice: "From $15 / month · ~25 sessions",
     benefits: [
@@ -103,13 +129,37 @@ const modeContent: Record<SignupMode, {
 export function OTPVerify() {
   const navigate = useNavigate();
   const location = useLocation();
-  const signupMode: SignupMode = (location.state as any)?.signupMode ?? "provider";
+  const [searchParams] = useSearchParams();
+
+  const initialSignupMode: SignupMode = (location.state as any)?.signupMode ?? "provider";
+  const initialHasPreset: boolean = (location.state as any)?.hasPresetMode ?? false;
   const email: string = (location.state as any)?.email ?? "user@example.com";
+
+  const [signupMode, setSignupMode] = useState<SignupMode>(initialSignupMode);
+  const [hasPresetMode, setHasPresetMode] = useState<boolean>(initialHasPreset);
+  const [showProductSelection, setShowProductSelection] = useState(false);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(45);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    const urlType = (
+      searchParams.get("type") ||
+      searchParams.get("mode") ||
+      searchParams.get("role") ||
+      ""
+    ).toLowerCase();
+
+    if (urlType.includes("ehr") || urlType.includes("scribe") || urlType.includes("practice")) {
+      setSignupMode("full-ehr");
+      setHasPresetMode(true);
+    } else if (urlType.includes("provider") || urlType.includes("freelance")) {
+      setSignupMode("provider");
+      setHasPresetMode(true);
+    }
+  }, [searchParams]);
 
   const content = modeContent[signupMode];
 
@@ -147,12 +197,23 @@ export function OTPVerify() {
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If URL params or explicit dev toggle preset a mode, redirect directly.
+    if (hasPresetMode) {
+      completeLoginAndNavigate(signupMode);
+    } else {
+      // Edge Case: No URL params specified -> prompt user to pick how they want to sign in / use Mantra!
+      setShowProductSelection(true);
+    }
+  };
+
+  const completeLoginAndNavigate = (mode: SignupMode) => {
     localStorage.setItem("mantra_logged_in", "true");
-    localStorage.setItem("mantra_signup_mode", signupMode);
-    if (signupMode === "provider") {
+    localStorage.setItem("mantra_signup_mode", mode);
+    if (mode === "provider") {
       navigate("/onboarding");
     } else {
-      navigate("/onboarding-ehr-ai-scribe", { state: { signupMode, email } });
+      navigate("/onboarding-ehr-ai-scribe", { state: { signupMode: mode, email } });
     }
   };
 
@@ -203,104 +264,235 @@ export function OTPVerify() {
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 bg-[#F8FAFC] flex items-start justify-center px-8 py-12 overflow-y-auto min-h-screen">
-        <div className="w-full max-w-[420px]">
-          {/* Back */}
-          <button
-            onClick={() => navigate("/get-started")}
-            className="flex items-center gap-1 text-[#64748B] hover:text-[#0F172A] mb-6 transition-colors"
-            style={{ fontSize: 14 }}
-          >
-            <ChevronLeft className="size-4" />
-            Back
-          </button>
+      <div className="flex-1 bg-[#F8FAFC] flex items-start justify-center px-6 md:px-10 py-12 overflow-y-auto min-h-screen">
+        <div className="w-full max-w-[480px]">
+          {!showProductSelection ? (
+            /* STEP 1: OTP Email Verification */
+            <>
+              {/* Back */}
+              <button
+                onClick={() => navigate("/get-started")}
+                className="flex items-center gap-1 text-[#64748B] hover:text-[#0F172A] mb-6 transition-colors"
+                style={{ fontSize: 14 }}
+              >
+                <ChevronLeft className="size-4" />
+                Back
+              </button>
 
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="text-[#0F172A] mb-1" style={{ fontSize: 24, fontWeight: 700 }}>Verify your email</h2>
-            <p className="text-[#64748B]" style={{ fontSize: 14 }}>
-              Enter the 6-digit code sent to{" "}
-              <span className="text-[#0F172A] font-semibold">{email || "your email"}</span>
-            </p>
-          </div>
+              {/* Header */}
+              <div className="mb-8">
+                <h2 className="text-[#0F172A] mb-1" style={{ fontSize: 24, fontWeight: 700 }}>
+                  Verify your email
+                </h2>
+                <p className="text-[#64748B]" style={{ fontSize: 14 }}>
+                  Enter the 6-digit code sent to{" "}
+                  <span className="text-[#0F172A] font-semibold">{email || "your email"}</span>
+                </p>
+              </div>
 
-          <form onSubmit={handleVerify}>
-            {/* OTP Boxes */}
-            <div className="flex gap-3 mb-6">
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => { inputRefs.current[i] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  className="text-center bg-white border outline-none transition-all"
-                  style={{
-                    width: 52,
-                    height: 56,
-                    flexShrink: 0,
-                    borderRadius: 12,
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: "#043570",
-                    borderWidth: 1.5,
-                    borderColor: digit ? "#043570" : "#e5e7eb",
-                    background: digit ? "#f8fbff" : "white",
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = "#00c0ff"; e.target.style.boxShadow = "0 0 0 3px rgba(0,192,255,0.12)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = digit ? "#043570" : "#e5e7eb"; e.target.style.boxShadow = "none"; }}
-                />
-              ))}
-            </div>
+              <form onSubmit={handleVerify}>
+                {/* OTP Boxes */}
+                <div className="flex gap-3 mb-6">
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { inputRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(i, e)}
+                      className="text-center bg-white border outline-none transition-all"
+                      style={{
+                        width: 52,
+                        height: 56,
+                        flexShrink: 0,
+                        borderRadius: 12,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: "#043570",
+                        borderWidth: 1.5,
+                        borderColor: digit ? "#043570" : "#e5e7eb",
+                        background: digit ? "#f8fbff" : "white",
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = "#00c0ff"; e.target.style.boxShadow = "0 0 0 3px rgba(0,192,255,0.12)"; }}
+                      onBlur={(e) => { e.target.style.borderColor = digit ? "#043570" : "#e5e7eb"; e.target.style.boxShadow = "none"; }}
+                    />
+                  ))}
+                </div>
 
-            {/* Resend */}
-            <div className="text-center mb-6">
-              <span className="text-[#64748B]" style={{ fontSize: 14 }}>Didn't receive the code? </span>
-              {canResend ? (
+                {/* Resend */}
+                <div className="text-center mb-6">
+                  <span className="text-[#64748B]" style={{ fontSize: 14 }}>Didn't receive the code? </span>
+                  {canResend ? (
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      className="text-[#00c0ff] font-semibold"
+                      style={{ fontSize: 14 }}
+                    >
+                      Resend
+                    </button>
+                  ) : (
+                    <span className="text-[#94A3B8]" style={{ fontSize: 14 }}>
+                      Resend in 0:{String(countdown).padStart(2, "0")}
+                    </span>
+                  )}
+                </div>
+
+                {/* CTA */}
                 <button
-                  type="button"
-                  onClick={handleResend}
-                  className="text-[#00c0ff] font-semibold"
-                  style={{ fontSize: 14 }}
+                  type="submit"
+                  className="w-full bg-[#043570] text-white rounded-xl flex items-center justify-center transition-opacity hover:opacity-90 mb-5"
+                  style={{ height: 52, fontSize: 15, fontWeight: 700 }}
                 >
-                  Resend
+                  Verify & Continue
                 </button>
-              ) : (
-                <span className="text-[#94A3B8]" style={{ fontSize: 14 }}>
-                  Resend in 0:{String(countdown).padStart(2, "0")}
+              </form>
+
+              {/* Trust signal */}
+              <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[#e5e7eb]">
+                <Shield className="size-4 text-[#043570] flex-shrink-0" />
+                <div>
+                  <span className="text-[#0F172A] block" style={{ fontSize: 14, fontWeight: 700 }}>Secure & Private</span>
+                  <span className="text-[#64748B]" style={{ fontSize: 12 }}>Your data is encrypted and HIPAA-compliant</span>
+                </div>
+              </div>
+
+              {/* Language */}
+              <div className="text-center mt-5">
+                <button className="text-[#00c0ff] flex items-center gap-1.5 mx-auto" style={{ fontSize: 14 }}>
+                  <Globe className="size-4" />
+                  English
+                </button>
+              </div>
+            </>
+          ) : (
+            /* STEP 2: EDGE CASE - User Selects Account / Product Type */
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <button
+                onClick={() => setShowProductSelection(false)}
+                className="flex items-center gap-1 text-[#64748B] hover:text-[#0F172A] mb-4 transition-colors"
+                style={{ fontSize: 14 }}
+              >
+                <ChevronLeft className="size-4" />
+                Back to verification
+              </button>
+
+              <div className="mb-6">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#00c0ff] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                  Email Verified ✓
                 </span>
-              )}
+                <h2 className="text-[#0F172A] mt-3 mb-1" style={{ fontSize: 24, fontWeight: 700 }}>
+                  How would you like to use Mantra?
+                </h2>
+                <p className="text-[#64748B]" style={{ fontSize: 14 }}>
+                  Select your primary use case to customize your account setup and onboarding.
+                </p>
+              </div>
+
+              {/* Option 1: Join Mantra Provider Network */}
+              <div
+                onClick={() => completeLoginAndNavigate("provider")}
+                className="group cursor-pointer bg-white rounded-2xl p-5 border border-[#e5e7eb] hover:border-[#043570] hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-xl bg-blue-50 text-[#043570] flex items-center justify-center flex-shrink-0 group-hover:bg-[#043570] group-hover:text-white transition-colors">
+                      <GlobeIcon className="size-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#043570]">
+                        Free Provider Network
+                      </span>
+                      <h3 className="text-base font-bold text-[#0F172A] leading-snug">
+                        Join Mantra Provider Network
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-[#64748B] leading-relaxed mb-3">
+                  Get client referrals from 1M+ individuals & 20K+ corporate clients. Work on your own flexible schedule.
+                </p>
+
+                <ul className="space-y-1.5 mb-4 text-xs text-[#334155]">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="size-3.5 text-emerald-500 flex-shrink-0" />
+                    <span>Client referrals & directory listing</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="size-3.5 text-emerald-500 flex-shrink-0" />
+                    <span>Free scheduling, telehealth & practice tools</span>
+                  </li>
+                </ul>
+
+                <div className="w-full py-2.5 px-4 rounded-xl bg-[#f8fbff] group-hover:bg-[#043570] text-[#043570] group-hover:text-white font-bold text-xs flex items-center justify-between transition-all">
+                  <span>Sign in as Mantra Provider</span>
+                  <ArrowRight className="size-4" />
+                </div>
+              </div>
+
+              {/* Option 2: Complete Practice OS (EHR + AI Scribe) */}
+              <div
+                onClick={() => completeLoginAndNavigate("full-ehr")}
+                className="group cursor-pointer bg-white rounded-2xl p-5 border border-[#e5e7eb] hover:border-[#00c0ff] hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-xl bg-cyan-50 text-[#00c0ff] flex items-center justify-center flex-shrink-0 group-hover:bg-[#00c0ff] group-hover:text-white transition-colors">
+                      <Sparkles className="size-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00c0ff]">
+                        Complete Practice OS
+                      </span>
+                      <h3 className="text-base font-bold text-[#0F172A] leading-snug">
+                        EHR + AI Scribe OS
+                      </h3>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
+                    🎁 1 Month Free
+                  </span>
+                </div>
+
+                <p className="text-xs text-[#64748B] leading-relaxed mb-3">
+                  Full practice management, AI session transcriber, auto SOAP notes, electronic prescriptions & billing.
+                </p>
+
+                <ul className="space-y-1.5 mb-4 text-xs text-[#334155]">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="size-3.5 text-cyan-500 flex-shrink-0" />
+                    <span>Real-time AI Scribe & auto SOAP notes</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="size-3.5 text-cyan-500 flex-shrink-0" />
+                    <span>Full EHR, prescriptions & insurance billing</span>
+                  </li>
+                </ul>
+
+                <div className="w-full py-2.5 px-4 rounded-xl bg-[#f8fbff] group-hover:bg-[#00c0ff] text-[#00c0ff] group-hover:text-white font-bold text-xs flex items-center justify-between transition-all">
+                  <span>Sign in to EHR + AI Scribe</span>
+                  <ArrowRight className="size-4" />
+                </div>
+              </div>
+
+              {/* Trust Signal */}
+              <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[#e5e7eb]">
+                <Shield className="size-4 text-[#043570] flex-shrink-0" />
+                <div>
+                  <span className="text-[#0F172A] block" style={{ fontSize: 13, fontWeight: 700 }}>
+                    Flexible Account Switch
+                  </span>
+                  <span className="text-[#64748B]" style={{ fontSize: 11 }}>
+                    You can switch or upgrade features anytime inside settings
+                  </span>
+                </div>
+              </div>
             </div>
-
-            {/* CTA */}
-            <button
-              type="submit"
-              className="w-full bg-[#043570] text-white rounded-xl flex items-center justify-center transition-opacity hover:opacity-90 mb-5"
-              style={{ height: 52, fontSize: 15, fontWeight: 700 }}
-            >
-              Verify & Continue
-            </button>
-          </form>
-
-          {/* Trust signal */}
-          <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[#e5e7eb]">
-            <Shield className="size-4 text-[#043570] flex-shrink-0" />
-            <div>
-              <span className="text-[#0F172A] block" style={{ fontSize: 14, fontWeight: 700 }}>Secure & Private</span>
-              <span className="text-[#64748B]" style={{ fontSize: 12 }}>Your data is encrypted and HIPAA-compliant</span>
-            </div>
-          </div>
-
-          {/* Language */}
-          <div className="text-center mt-5">
-            <button className="text-[#00c0ff] flex items-center gap-1.5 mx-auto" style={{ fontSize: 14 }}>
-              <Globe className="size-4" />
-              English
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

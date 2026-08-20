@@ -5,8 +5,9 @@ import { motion } from "motion/react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { FreeTrialBanner } from "../components/monetization/FreeTrialBanner";
 import { usePlanMode } from "../contexts/PlanModeContext";
-import { AddSessionNoteModal } from "../components/AddSessionNoteModal";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useUserMode } from "../contexts/UserModeContext";
+import { AddSessionNoteModal } from "../components/AddSessionNoteModal";
 
 interface SessionNote {
   id: string;
@@ -20,31 +21,30 @@ interface SessionNote {
   addedBy: string;
 }
 
-export function SessionNotesList() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { planMode } = usePlanMode();
-  const { canViewClientClinicalContent } = usePartnerDashboard();
-  const isTranscriberOnly = planMode === "transcriber-only";
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
-  const [showClientDropdown, setShowClientDropdown] = useState(false);
+const DEMO_CARL_ROGERS_NOTE: SessionNote = {
+  id: "demo-note-carl-rogers",
+  clientId: "demo-carl-rogers",
+  clientName: "Carl Rogers",
+  clientAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBzbWlsaW5nJTIwaGVhZHNob3R8ZW58MHx8fHwxNzc0MjM1Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  sessionId: "demo-sess-carl-rogers",
+  sessionDate: "Today at 2:00 PM",
+  templateName: "SOAP Client Session Notes (CPT 90834)",
+  addedDate: "Today",
+  addedBy: "Dr. Sarah Johnson",
+};
 
-  // Mock session notes data
-  const sessionNotes: SessionNote[] = [
-    {
-      id: "note-1",
-      clientId: "1",
-      clientName: "Sarah Johnson",
-      clientAvatar: "https://images.unsplash.com/photo-1701096351544-7de3c7fa0272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDYwODg5MXww&ixlib=rb-4.1.0&q=80&w=1080",
-      sessionId: "session-1",
-      sessionDate: "Mar 14, 2026",
-      templateName: "SOAP Client Session Notes",
-      addedDate: "Mar 14, 2026",
-      addedBy: "Dr. Smith",
-    },
+const MOCK_SESSION_NOTES: SessionNote[] = [
+  {
+    id: "note-1",
+    clientId: "1",
+    clientName: "Sarah Johnson",
+    clientAvatar: "https://images.unsplash.com/photo-1701096351544-7de3c7fa0272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDYwODg5MXww&ixlib=rb-4.1.0&q=80&w=1080",
+    sessionId: "session-1",
+    sessionDate: "Mar 14, 2026",
+    templateName: "SOAP Client Session Notes",
+    addedDate: "Mar 14, 2026",
+    addedBy: "Dr. Smith",
+  },
     {
       id: "note-2",
       clientId: "2",
@@ -112,16 +112,34 @@ export function SessionNotesList() {
       addedBy: "Dr. Smith",
     },
   ];
+
+export function SessionNotesList() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { planMode } = usePlanMode();
+  const { userMode } = useUserMode();
+  const isNew = userMode === "new";
+  const { canViewClientClinicalContent } = usePartnerDashboard();
+  const isTranscriberOnly = planMode === "transcriber-only";
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  const sessionNotes = isNew ? [DEMO_CARL_ROGERS_NOTE] : MOCK_SESSION_NOTES;
   const visibleSessionNotes = sessionNotes.filter((note) => canViewClientClinicalContent(note.clientId));
 
   // Mock clients
-  const clients = [
-    { id: "1", name: "Sarah Johnson" },
-    { id: "2", name: "Michael Chen" },
-    { id: "3", name: "David Martinez" },
-    { id: "4", name: "Emily Watson" },
-    { id: "5", name: "Priya Sharma" },
-  ];
+  const clients = isNew
+    ? [{ id: "demo-carl-rogers", name: "Carl Rogers" }]
+    : [
+        { id: "1", name: "Sarah Johnson" },
+        { id: "2", name: "Michael Chen" },
+        { id: "3", name: "David Martinez" },
+        { id: "4", name: "Emily Watson" },
+        { id: "5", name: "Priya Sharma" },
+      ];
 
   const filteredNotes = visibleSessionNotes.filter((note) => {
     const matchesSearch =

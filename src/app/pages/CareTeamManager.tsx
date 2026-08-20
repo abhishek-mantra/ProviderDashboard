@@ -126,7 +126,7 @@ export function CareTeamManager({ clientId }: CareTeamManagerProps) {
                 className="max-w-[200px] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 aria-label="Switch treating provider"
               >
-                {establishmentMembers.map((member) => {
+                {Array.from(new Map(establishmentMembers.map((m) => [m.providerId, m])).values()).map((member) => {
                   const provider = providers.find((item) => item.id === member.providerId);
                   return <option key={member.providerId} value={member.providerId}>{provider?.name || member.providerId}</option>;
                 })}

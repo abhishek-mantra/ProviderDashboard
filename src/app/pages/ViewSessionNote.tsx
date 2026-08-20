@@ -1,8 +1,9 @@
 import { useNavigate, useParams, Link } from "react-router";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useUserMode } from "../contexts/UserModeContext";
 import { getActiveDiagnosisForDate } from "../types/partnerDashboard";
 import { ArrowLeft, FileText, Calendar, Clock, Edit2, ChevronDown, User, Sparkles, AlertTriangle, Lock, CheckCircle2, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface NoteField {
   label: string;

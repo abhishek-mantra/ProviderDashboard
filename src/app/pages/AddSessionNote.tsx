@@ -4,6 +4,8 @@ import { useTranscriberPrefill, demoNoteData, demoTranscript } from "../hooks/us
 import { ArrowLeft, FileText, ChevronDown, Sparkles, Loader2, Save, Zap, Check, User, ChevronLeft, ChevronRight, Lock, AlertCircle, Plus, X } from "lucide-react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
+import { useUserMode } from "../contexts/UserModeContext";
+import { ContextualSpotlight } from "../components/onboarding/SpotlightTour";
 import { getActiveDiagnosisForDate } from "../types/partnerDashboard";
 
 interface TemplateOption {
@@ -738,7 +740,16 @@ export function AddSessionNote() {
 
               {/* Diagnosis & CPT Codes for Sign & Lock */}
               {!isNoteLocked && (
-                <div className="pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                <div className="relative pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                  {/* Scoped Spotlight Nudge for Sign & Lock */}
+                  <ContextualSpotlight
+                    spotlightId="sign-and-lock"
+                    title="Diagnosis & Procedure Coding"
+                    description="Confirm active ICD-10 diagnosis codes and select your CPT code (e.g. 90834) before applying your verified signature to lock and bill."
+                    tag="Sign & Lock"
+                    arrowPosition="bottom"
+                    className="mb-3 w-full shadow-lg"
+                  />
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sign & Lock Note (for billing)</h3>
                     <button

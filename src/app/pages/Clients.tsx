@@ -6,8 +6,10 @@ import { AddClientModal } from "../components/AddClientModal";
 import mantraCareLogo from "../../imports/MantraCare_(1).svg";
 import { AvatarWithFallback } from "../components/AvatarWithFallback";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useFirstTimeUser } from "../contexts/FirstTimeUserContext";
 import { usePracticeScopedClients } from "../hooks/usePracticeScopedData";
 import { ClientProfile } from "./ClientProfile";
+import { DemoClientModal } from "../components/onboarding/DemoClientModal";
 import type { MockClient } from "../types/partnerDashboard";
 
 interface DisplayClient {
@@ -25,6 +27,7 @@ interface DisplayClient {
 
 export function Clients() {
   const { isCurrentUserAdmin, currentProviderId, careTeamMemberships, providers, clientTreatingProviders, reassignClient, addClient, referClient, getLinkedClientRecords, practices, currentPracticeId } = usePartnerDashboard();
+  const { openDemoModal } = useFirstTimeUser();
   const practiceScopedClients = usePracticeScopedClients();
   const [searchQuery, setSearchQuery] = useState("");
   const [onboardingFilter, setOnboardingFilter] = useState("All");
@@ -248,13 +251,22 @@ export function Clients() {
             </p>
           </div>
         </div>
-        <button
-          className="w-full md:w-auto flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-5 md:px-6 py-2.5 rounded-xl transition-all font-medium shadow-sm hover:shadow-md text-sm md:text-base"
-          onClick={() => setIsAddClientModalOpen(true)}
-        >
-          <UserPlus className="size-4 md:size-5" />
-          Add Client(s)
-        </button>
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
+          <button
+            onClick={() => navigate("/clients/demo-carl-rogers")}
+            className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 px-4 py-2.5 rounded-xl transition-all font-semibold shadow-2xs text-xs md:text-sm cursor-pointer"
+          >
+            <Users className="size-4 text-[#00c0ff]" />
+            <span>Open Demo Client Chart</span>
+          </button>
+          <button
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-5 md:px-6 py-2.5 rounded-xl transition-all font-medium shadow-sm hover:shadow-md text-xs md:text-sm cursor-pointer active:scale-95"
+            onClick={() => setIsAddClientModalOpen(true)}
+          >
+            <UserPlus className="size-4" />
+            <span>Add Client(s)</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -643,6 +655,11 @@ export function Clients() {
                               >
                                 {client.name}
                               </Link>
+                              {client.id === "demo-carl-rogers" && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#043570] dark:bg-blue-950/60 dark:text-cyan-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                                  DEMO CASE
+                                </span>
+                              )}
                               {client.favorite && (
                                 <motion.div
                                   initial={{ scale: 0 }}
@@ -878,32 +895,41 @@ export function Clients() {
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="size-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4">
-                          <Search className="size-8 text-gray-400" />
+                          <Users className="size-8 text-gray-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                          No clients found
+                          {hasActiveFilters ? "No clients found" : "Your Client Directory is Ready"}
                         </h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-4 max-w-sm">
+                        <p className="text-gray-500 dark:text-gray-400 mb-5 max-w-md text-sm leading-relaxed">
                           {hasActiveFilters 
                             ? "Try adjusting your filters or search query to find what you're looking for."
-                            : "Get started by adding your first client."}
+                            : "Add your first client to schedule appointments, conduct ambient AI sessions, and record clinical notes. You can also explore our pre-loaded Carl Rogers demo case."}
                         </p>
                         {hasActiveFilters ? (
                           <button
                             onClick={clearFilters}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl transition-all font-medium shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl transition-all font-medium shadow-sm cursor-pointer"
                           >
                             <X className="size-4" />
                             Clear Filters
                           </button>
                         ) : (
-                          <button
-                            onClick={() => setIsAddClientModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl transition-all font-medium shadow-sm"
-                          >
-                            <UserPlus className="size-4" />
-                            Add Your First Client
-                          </button>
+                          <div className="flex flex-wrap items-center justify-center gap-3">
+                            <button
+                              onClick={() => setIsAddClientModalOpen(true)}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-[#043570] hover:bg-[#032a5a] text-white rounded-xl transition-all font-bold shadow-sm cursor-pointer active:scale-95 text-xs md:text-sm"
+                            >
+                              <UserPlus className="size-4" />
+                              <span>Add Your First Client</span>
+                            </button>
+                            <button
+                              onClick={() => navigate("/clients/demo-carl-rogers")}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-xl transition-all font-semibold shadow-2xs cursor-pointer text-xs md:text-sm"
+                            >
+                              <Users className="size-4 text-[#00c0ff]" />
+                              <span>Explore Demo Case (Carl Rogers)</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </td>
@@ -1274,6 +1300,9 @@ export function Clients() {
         onClose={() => setIsAddClientModalOpen(false)}
         onAddClient={handleAddClient}
       />
+
+      {/* Carl Rogers Demo Sandbox Modal */}
+      <DemoClientModal />
       {selectedClientId && (
         <div className="fixed inset-0 z-[200] flex justify-end bg-black/40" onClick={() => setSelectedClientId(null)}>
           <div className="h-full w-full max-w-3xl overflow-y-auto bg-[#F8FAFC] dark:bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>

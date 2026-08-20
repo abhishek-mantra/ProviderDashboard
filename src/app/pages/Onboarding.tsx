@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import { ArrowLeft, Check, Eye, MapPin, Calendar, Phone, Briefcase, Users2, FileText, Video, Clock, User, Upload, Plus, Trash2, X, Globe, ChevronRight, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { usePlanMode } from "../contexts/PlanModeContext";
+import { useUserMode } from "../contexts/UserModeContext";
 import { SPECIALTIES } from "../types/partnerDashboard";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -21,7 +22,9 @@ function isTherapyOnly(professions: string[]): boolean {
 
 export function Onboarding() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setPlanMode } = usePlanMode();
+  const { setUserMode } = useUserMode();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [availabilityTab, setAvailabilityTab] = useState<"timeslot" | "dayoff">("timeslot");
@@ -212,12 +215,23 @@ export function Onboarding() {
                 localStorage.setItem("ai_scribe_prescription_pref", "yes");
               }
               // Do NOT write to sidebar_hidden_items — Layout.tsx reads ai_scribe_prescription_pref directly
-              setPlanMode("provider");
-              navigate("/");
+              const signupMode = (location.state as any)?.signupMode || localStorage.getItem("mantra_signup_mode");
+              if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
+                setUserMode("new");
+              }
+              if (signupMode === "full-ehr") setPlanMode("full-ehr");
+              else if (signupMode === "ai-scribe") setPlanMode("transcriber-only");
+              else setPlanMode("provider");
+
+              if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
+                navigate("/learn-mantra");
+              } else {
+                navigate("/");
+              }
             }}
             className="px-12 py-4 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-bold transition-all text-base md:text-lg shadow-lg hover:shadow-xl hover:scale-105"
           >
-            Go to Dashboard
+            Get Started →
           </button>
         </div>
       </div>

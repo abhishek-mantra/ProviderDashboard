@@ -1,14 +1,18 @@
 import { Link, useNavigate, useLocation } from "react-router";
-import { Users, UserPlus, UserCheck, Calendar, DollarSign, Video, FileText, ChevronRight, CheckCircle2, Clock, MessageSquare, ArrowRight, User, CreditCard, TrendingUp, TrendingDown, Sparkles, Gift, HelpCircle, CalendarCheck, ChevronDown, ChevronUp, AlertCircle, Shield, X, MessageCircle, MapPin, Megaphone, Target, Pencil, Check, Mic, Pill, Lock, Plus, ClipboardList, StickyNote, Crown, CheckSquare, Star } from "lucide-react";
+import { Users, UserPlus, UserCheck, Calendar, DollarSign, Video, FileText, ChevronRight, CheckCircle2, Clock, MessageSquare, ArrowRight, User, CreditCard, TrendingUp, TrendingDown, Sparkles, Gift, HelpCircle, CalendarCheck, ChevronDown, ChevronUp, AlertCircle, Shield, X, MessageCircle, MapPin, Megaphone, Target, Pencil, Check, Mic, Pill, Lock, Plus, ClipboardList, StickyNote, Crown, CheckSquare, Star, BookOpen } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { motion } from "motion/react";
 import { useState, useEffect, useRef } from "react";
 import { usePlanMode } from "../contexts/PlanModeContext";
+import { useUserMode } from "../contexts/UserModeContext";
 import { SkeletonList } from "../components/ui/skeleton-list";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useFirstTimeUser } from "../contexts/FirstTimeUserContext";
 import { AddClientModal } from "../components/AddClientModal";
 import { AddSessionNoteModal } from "../components/AddSessionNoteModal";
 import { AddPrescriptionModal } from "../components/AddPrescriptionModal";
+import { OnboardingChecklistCard } from "../components/onboarding/OnboardingChecklistCard";
+import { DemoClientModal } from "../components/onboarding/DemoClientModal";
 
 type SessionMode = "online" | "in-person";
 
@@ -210,6 +214,9 @@ export function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { planMode } = usePlanMode();
+  const { userMode, showGraduationToast, dismissGraduationToast } = useUserMode();
+  const { openDemoModal } = useFirstTimeUser();
+  const isNewUser = userMode === "new";
   const { isCurrentUserAdmin, providers, currentProviderId, practiceMembers, clients, formEntries, currentEstablishmentId, getPermissionsForCurrentUser } = usePartnerDashboard();
   const currentProvider = providers.find((p) => p.id === currentProviderId);
   const userPerms = getPermissionsForCurrentUser();
@@ -218,6 +225,7 @@ export function Dashboard() {
   const pendingRequests = isCurrentUserAdmin ? 30 : 6;
   const pendingMessages = isCurrentUserAdmin ? 25 : 10;
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isSessionNoteModalOpen, setIsSessionNoteModalOpen] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [clinicStatsCollapsed, setClinicStatsCollapsed] = useState(false);
@@ -574,38 +582,228 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Welcome Header for Clinicians / Admins */}
-      {!isReceptionist && (
-        <div className="mb-6 md:mb-8">
-          {isTranscriberOnly ? (
+      {/* Graduation Confirmation Toast / Banner */}
+      {showGraduationToast && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-blue-500/15 border border-emerald-500/30 dark:border-emerald-500/20 flex items-center justify-between gap-3 shadow-xs"
+        >
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+              <Sparkles className="size-4" />
+            </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                Good morning, Alex
-              </h1>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                Ready for your next session?
+              <p className="text-sm font-bold text-gray-900 dark:text-white">
+                You're all set! 🎉
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                Onboarding complete. Your practice dashboard is ready for daily client care.
               </p>
             </div>
-          ) : (
+          </div>
+          <button
+            onClick={dismissGraduationToast}
+            className="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 transition-colors shadow-2xs"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── NEW USER MODE: Streamlined Checklist + Sandbox + Learning Center ── */}
+      {!isReceptionist && isNewUser && (
+        <div className="space-y-6 md:space-y-8">
+          {/* Personalized Welcome Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3 md:gap-4">
-              <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
-                <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+              <div className="size-10 md:size-11 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#043570] to-[#0099cc] text-white shadow-md shadow-[#00c0ff]/15">
+                <Users className="size-5 md:size-6" />
               </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                  Dashboard
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#043570] text-white uppercase tracking-wider">
+                    Practice Onboarding
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Mantra Care EHR
+                  </span>
+                </div>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+                  Welcome to Mantra, {currentProvider?.name || "Dr. Sarah Johnson"}
                 </h1>
-                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                  Welcome back! Here's what's happening with your practice today
+                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Let's get your clinical practice configured with ambient AI notes and billing.
                 </p>
               </div>
             </div>
-          )}
+
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <button
+                onClick={() => navigate("/clients/demo-carl-rogers")}
+                className="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <User className="size-3.5 text-[#00c0ff]" />
+                <span>Open Demo Patient Chart</span>
+              </button>
+              <button
+                onClick={() => setIsAddClientModalOpen(true)}
+                className="px-4 py-2 bg-[#043570] hover:bg-[#032a5a] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
+              >
+                <Plus className="size-4" />
+                <span>Add First Client</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2-Column Balanced Hub: Setup Checklist (Left) + Interactive Sandbox (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Getting Started Checklist (7 cols) */}
+            <div className="lg:col-span-7">
+              <OnboardingChecklistCard onOpenAddClient={() => setIsAddClientModalOpen(true)} />
+            </div>
+
+            {/* Right Column: Practice Sandbox (Carl Rogers) (5 cols) */}
+            <div className="lg:col-span-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div 
+                  onClick={() => navigate("/clients/demo-carl-rogers")}
+                  className="flex items-center gap-2.5 cursor-pointer group"
+                >
+                  <div className="size-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                    CR
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#00c0ff] transition-colors">
+                        Carl Rogers
+                      </h3>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-[#043570] dark:bg-blue-950/60 dark:text-cyan-300 border border-blue-200 dark:border-blue-800">
+                        DEMO CASE
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ICD-10 F41.1 · BlueCross PPO
+                    </p>
+                  </div>
+                </div>
+
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Living Sandbox
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50/80 dark:bg-gray-750/40 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+                A live demo patient record wired across your directory, ambient scribe, clinical charting, and billing invoices.
+              </p>
+
+              {/* 4 Direct Route Action Buttons */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <button
+                  onClick={() => navigate("/ai-transcriber")}
+                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
+                >
+                  <Mic className="size-4 text-blue-600 dark:text-cyan-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">AI Scribe</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Live audio & notes</p>
+                </button>
+
+                <button
+                  onClick={() => navigate("/session-notes")}
+                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
+                >
+                  <FileText className="size-4 text-indigo-600 dark:text-indigo-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">SOAP Note</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Session notes workspace</p>
+                </button>
+
+                <button
+                  onClick={() => navigate("/billing/bills/demo-bill-carl-rogers/invoice")}
+                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
+                >
+                  <CreditCard className="size-4 text-emerald-600 dark:text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Superbill</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">CPT 90834 invoice</p>
+                </button>
+
+                <button
+                  onClick={() => navigate("/clients/demo-carl-rogers")}
+                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
+                >
+                  <User className="size-4 text-cyan-600 dark:text-cyan-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Full Chart</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Demographics & care</p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Full-Width 5-Step Video Learning Center Banner at Bottom */}
+          <div className="bg-gradient-to-r from-[#043570] via-[#054591] to-[#085aae] text-white rounded-2xl p-5 md:p-6 shadow-md border border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="size-11 rounded-2xl bg-white/15 text-cyan-300 flex items-center justify-center shrink-0 shadow-inner">
+                <BookOpen className="size-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-300/30">
+                    Video Tutorials
+                  </span>
+                  <span className="text-xs text-blue-200">5 Short Modules</span>
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-white">
+                  5-Step Video Learning Center
+                </h3>
+                <p className="text-xs text-blue-100 leading-relaxed max-w-2xl">
+                  Watch fast 2-minute clinical modules on ambient AI transcription, signing & locking notes, managing bills, and filing clean insurance claims.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate("/learn-mantra")}
+              className="px-4 py-2.5 bg-white hover:bg-blue-50 text-[#043570] font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0 cursor-pointer active:scale-98"
+            >
+              <span>Watch 5-Step Walkthroughs</span>
+              <ArrowRight className="size-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Your Rating Card */}
-      {!isTranscriberOnly && currentProvider && (
+      {/* ── RETURNING USER MODE: Standard Dashboard (Action Center, Analytics) ── */}
+      {!isReceptionist && !isNewUser && (
+        <div className="space-y-6 md:space-y-8">
+          <div className="mb-6 md:mb-8">
+            {isTranscriberOnly ? (
+              <div>
+                <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
+                  Good morning, Alex
+                </h1>
+                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                  Ready for your next session?
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3 md:gap-4">
+                <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
+                  <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
+                    Dashboard
+                  </h1>
+                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                    Welcome back! Here's what's happening with your practice today
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Your Rating Card */}
+          {!isTranscriberOnly && currentProvider && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1038,16 +1236,14 @@ export function Dashboard() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">This month</p>
               </div>
               <div className="flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <ResponsiveContainer width={180} height={180}>
-                    <PieChart>
-                      <Pie data={stats.sessionsByType} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" strokeWidth={0}>
-                        <Cell fill="#00c0ff" />
-                        <Cell fill="#6366f1" />
-                        <Cell fill="#10b981" />
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="relative flex-shrink-0 w-[180px] h-[180px]">
+                  <PieChart width={180} height={180}>
+                    <Pie data={stats.sessionsByType} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" strokeWidth={0}>
+                      <Cell fill="#00c0ff" />
+                      <Cell fill="#6366f1" />
+                      <Cell fill="#10b981" />
+                    </Pie>
+                  </PieChart>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900 dark:text-white">{stats.totalSessions}</div>
@@ -1086,6 +1282,20 @@ export function Dashboard() {
           </div>
         </motion.div>
       )}
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      <AddClientModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+        onAddClient={(newClient) => {
+          setIsAddClientModalOpen(false);
+        }}
+      />
+
+      {/* Demo Client Sandbox Modal */}
+      <DemoClientModal />
     </div>
   );
 }

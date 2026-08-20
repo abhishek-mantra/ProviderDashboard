@@ -263,9 +263,10 @@ const mockSessions = [
 export function RecordingScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
   const state = location.state as { clientName?: string; noteType?: string } | null;
-  const clientName = state?.clientName || "";
-  const noteType = state?.noteType || "SOAP";
+  const clientName = state?.clientName || searchParams.get("clientName") || "";
+  const noteType = state?.noteType || searchParams.get("noteType") || "SOAP";
 
   type RecordingState = "recording" | "paused" | "stopped";
   const [recordingState, setRecordingState] = useState<RecordingState>("recording");

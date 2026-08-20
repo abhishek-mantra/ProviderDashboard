@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { Shield, Globe, ShieldCheck, Headphones, Users, CreditCard, FileText, CalendarDays, Pill, ClipboardCheck, Mic, Bot, Brain, Timer, Briefcase, LayoutDashboard, Building2, Zap, Globe as GlobeIcon, ChevronDown, Megaphone } from "lucide-react";
 import { usePlanMode } from "../contexts/PlanModeContext";
+import { useUserMode } from "../contexts/UserModeContext";
 
 type SignupMode = "provider" | "full-ehr" | "ai-scribe";
 
@@ -151,6 +152,7 @@ export function OnboardingEHRAIScribe() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setPlanMode } = usePlanMode();
+  const { setUserMode } = useUserMode();
 
   const signupMode: SignupMode = (location.state as any)?.signupMode ?? "full-ehr";
   const email: string = (location.state as any)?.email ?? "";
@@ -226,6 +228,9 @@ export function OnboardingEHRAIScribe() {
         localStorage.removeItem("sidebar_hidden_items");
       }
       if (isAiScribe) setPlanMode("transcriber-only"); else setPlanMode("full-ehr");
+      if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
+        setUserMode("new");
+      }
       localStorage.setItem("mantra_logged_in", "true");
       navigate("/");
       return;
@@ -331,8 +336,12 @@ export function OnboardingEHRAIScribe() {
     if (signupMode === "ai-scribe") setPlanMode("transcriber-only");
     else setPlanMode("full-ehr");
 
+    if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
+      setUserMode("new");
+    }
+
     localStorage.setItem("mantra_logged_in", "true");
-    navigate("/");
+    navigate("/learn-mantra");
   };
 
   const capsuleBase = "px-4 py-2 rounded-full text-sm font-medium border transition-all cursor-pointer select-none";

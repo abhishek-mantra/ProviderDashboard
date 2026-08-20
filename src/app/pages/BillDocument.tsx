@@ -146,7 +146,7 @@ export function BillDocument() {
                   <td className="py-2 text-gray-600">{line.description}</td>
                   <td className="py-2 text-gray-900 dark:text-white">{line.cptCode}</td>
                   <td className="py-2 text-gray-900 dark:text-white">
-                    {bill.diagnosisCodes[0] || "—"}
+                    {(bill.diagnosisCodes && bill.diagnosisCodes[0]) || (bill as any).diagnosisCode || "—"}
                   </td>
                   <td className="py-2 text-right text-gray-900 dark:text-white">
                     {currency}

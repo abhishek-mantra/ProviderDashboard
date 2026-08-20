@@ -8,6 +8,10 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast, Toaster } from "sonner";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useUserMode } from "../contexts/UserModeContext";
+import { useFirstTimeUser } from "../contexts/FirstTimeUserContext";
+import { DemoClientModal } from "../components/onboarding/DemoClientModal";
+import { DEMO_CARL_ROGERS_SESSION } from "../data/demoClientData";
 import { findPayerForClient } from "../types/claims";
 import { mockClients } from "../data/mockPartnerData";
 import { openBillingPanel } from "../components/billing/billingPanelStore";
@@ -40,12 +44,63 @@ interface TranscriptEntry {
   text: string;
 }
 
+const MOCK_SESSIONS: Session[] = [
+  {
+    id: "req-sarah",
+    clientName: "Sarah Jenkins",
+    service: "Therapy",
+    date: "Jul 23 at 10:00 AM",
+    time: "10:00 AM",
+    duration: "30 min",
+    status: "upcoming",
+    avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080",
+    needsAccept: true,
+    serviceType: "Mantra",
+    requestedDateFull: "Thursday, July 23, 2026",
+    credits: 3,
+  },
+  {
+    id: "req-abhishek",
+    clientName: "Abhishek Madaan",
+    service: "Therapy",
+    date: "Jul 23 at 1:00 PM",
+    time: "1:00 PM",
+    duration: "60 min",
+    status: "upcoming",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    needsAccept: true,
+    serviceType: "Personal",
+    requestedDateFull: "Thursday, July 23, 2026",
+    credits: 0,
+  },
+  {
+    id: "sess-2-done",
+    clientId: "2",
+    clientName: "Michael Chen",
+    service: "Therapy",
+    date: "Mar 12, 2026",
+    time: "2:00 PM",
+    duration: "60 min",
+    status: "done",
+    avatar: "MC",
+    serviceType: "Personal",
+    platform: "Video",
+    hasTranscript: true,
+    aiNotetakerEnabled: true,
+    cptCode: "90834",
+    fee: 150,
+  },
+];
+
 export function Sessions() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clientParam = searchParams.get("client");
   const { addUnbilledSession } = useClaims();
   const { bills } = usePartnerDashboard();
+  const { userMode } = useUserMode();
+  const { openDemoModal } = useFirstTimeUser();
+  const isNew = userMode === "new";
 
   // A session already linked to a bill shows "Bill #XXXXX"; otherwise "+ Bill".
   const billForSession = (sessionId: string) =>
@@ -159,53 +214,18 @@ export function Sessions() {
     );
   };
 
-  const [sessions, setSessions] = useState<Session[]>([
-    {
-      id: "req-sarah",
-      clientName: "Sarah Jenkins",
-      service: "Therapy",
-      date: "Jul 23 at 10:00 AM",
-      time: "10:00 AM",
-      duration: "30 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1762522921456-cdfe882d36c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJsb25kZSUyMGhlYWRzaG90fGVufDF8fHx8MTc3NDIzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080",
-      needsAccept: true,
-      serviceType: "Mantra",
-      requestedDateFull: "Thursday, July 23, 2026",
-      credits: 3,
-    },
-    {
-      id: "req-abhishek",
-      clientName: "Abhishek Madaan",
-      service: "Therapy",
-      date: "Jul 23 at 1:00 PM",
-      time: "1:00 PM",
-      duration: "60 min",
-      status: "upcoming",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBoZWFkc2hvdHxlbnwwfHx8fDE3NzQyMzU2NzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      needsAccept: true,
-      serviceType: "Personal",
-      requestedDateFull: "Thursday, July 23, 2026",
-      credits: 0,
-    },
-    {
-      id: "sess-2-done",
-      clientId: "2",
-      clientName: "Michael Chen",
-      service: "Therapy",
-      date: "Mar 12, 2026",
-      time: "2:00 PM",
-      duration: "60 min",
-      status: "done",
-      avatar: "MC",
-      serviceType: "Personal",
-      platform: "Video",
-      hasTranscript: true,
-      aiNotetakerEnabled: true,
-      cptCode: "90834",
-      fee: 150,
-    },
-  ]);
+  const [userCreatedSessions, setUserCreatedSessions] = useState<Session[]>([]);
+  const [mockSessionsList, setMockSessionsList] = useState<Session[]>(MOCK_SESSIONS);
+
+  const sessions = isNew ? [(DEMO_CARL_ROGERS_SESSION as unknown as Session), ...userCreatedSessions] : [...mockSessionsList, ...userCreatedSessions];
+
+  const setSessions = (action: React.SetStateAction<Session[]>) => {
+    if (isNew) {
+      setUserCreatedSessions(action);
+    } else {
+      setMockSessionsList(action);
+    }
+  };
 
   // Update selected client when URL parameter changes
   useEffect(() => {
@@ -558,9 +578,19 @@ export function Sessions() {
             )}
           </div>
 
+          {/* Explore Demo Case */}
+          <button
+            onClick={() => navigate("/recording?clientId=demo-carl-rogers&clientName=Carl%20Rogers")}
+            className="flex items-center gap-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 rounded-lg md:rounded-xl transition-all font-semibold shadow-2xs text-xs md:text-sm cursor-pointer"
+          >
+            <Mic className="size-4 text-[#00c0ff]" />
+            <span className="hidden sm:inline">Start AI Scribe</span>
+            <span className="sm:hidden">AI Scribe</span>
+          </button>
+
           {/* Add Appointment Button */}
           <button
-            className="flex items-center gap-1.5 md:gap-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-4 md:px-6 py-2.5 md:py-2.5 rounded-lg md:rounded-xl transition-all font-medium shadow-md hover:shadow-lg flex-shrink-0"
+            className="flex items-center gap-1.5 md:gap-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white px-4 md:px-6 py-2.5 md:py-2.5 rounded-lg md:rounded-xl transition-all font-medium shadow-md hover:shadow-lg flex-shrink-0 cursor-pointer active:scale-95"
             onClick={() => setIsActionModalOpen(true)}
           >
             <Plus className="size-4 md:size-5" />
@@ -2225,6 +2255,8 @@ export function Sessions() {
           </div>
         )}
       </AnimatePresence>
+      {/* Carl Rogers Demo Sandbox Modal */}
+      <DemoClientModal />
     </div>
   );
 }

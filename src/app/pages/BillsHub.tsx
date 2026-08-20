@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { useUserMode } from "../contexts/UserModeContext";
+import { useFirstTimeUser } from "../contexts/FirstTimeUserContext";
+import { ContextualSpotlight } from "../components/onboarding/SpotlightTour";
+import { DemoClientModal } from "../components/onboarding/DemoClientModal";
 import {
   Bill,
   WriteOffReason,
@@ -56,6 +60,7 @@ export function BillsHub() {
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { openDemoModal } = useFirstTimeUser();
 
   // Deep-link from Client Profile - preselect the client filter.
   const initialClientId = searchParams.get("clientId") || "";
@@ -452,10 +457,26 @@ export function BillsHub() {
           </select>
         </div>
 
-        <div className="flex items-center gap-2 lg:ml-auto">
+        <div className="relative flex items-center gap-2 lg:ml-auto">
+          {/* Scoped Spotlight Nudge on Bills Hub */}
+          <ContextualSpotlight
+            spotlightId="bills-hub"
+            title="Create & Track Patient Bills"
+            description="Generate itemized self-pay bills, charge copays, and record patient payments from this central action bar."
+            tag="Bills Hub"
+            arrowPosition="top"
+            className="absolute top-12 right-0 w-80 shadow-2xl"
+          />
+          <button
+            onClick={() => navigate("/billing/bills/demo-bill-carl-rogers/invoice")}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-semibold transition-colors shadow-2xs flex-shrink-0 cursor-pointer"
+          >
+            <CreditCard className="size-4 text-[#00c0ff]" />
+            Demo Superbill
+          </button>
           <button
             onClick={() => navigate("/billing/bills/create")}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-sm font-medium transition-colors shadow-sm flex-shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white rounded-xl text-sm font-medium transition-colors shadow-sm flex-shrink-0 cursor-pointer active:scale-95"
           >
             <Plus className="size-4" />
             Create Bill
@@ -558,16 +579,28 @@ export function BillsHub() {
                 <Receipt className="size-6 text-gray-400 dark:text-gray-500" />
               </div>
               <div>
-                <p className="text-gray-500 dark:text-gray-400 font-semibold">
-                  No bills match your filters.
+                <p className="text-gray-900 dark:text-white font-bold text-base">
+                  No bills generated yet
                 </p>
-                <p className="text-[12px] text-gray-400 mt-1">
-                  Click{" "}
-                  <span className="font-semibold text-[#043570] dark:text-[#00c0ff]">
-                    Create Bill
-                  </span>{" "}
-                  to bill a signed session.
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                  Create a self-pay invoice, record a copay, or sign and lock a clinical note to automatically generate billing charges.
                 </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                <button
+                  onClick={() => navigate("/billing/bills/create")}
+                  className="px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Create First Bill</span>
+                </button>
+                <button
+                  onClick={() => openDemoModal("superbill")}
+                  className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-xl transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CreditCard className="size-3.5 text-[#00c0ff]" />
+                  <span>Preview Demo Superbill</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1673,6 +1706,9 @@ export function BillsHub() {
           </div>
         </div>
       )}
+
+      {/* Carl Rogers Demo Sandbox Modal */}
+      <DemoClientModal />
     </div>
   );
 }

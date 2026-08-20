@@ -1,10 +1,11 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Plus, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, Activity, EyeOff, GripVertical } from "lucide-react";
+import { Home, Users, Calendar, FileText, CreditCard, User, Menu, MessageSquare, Gift, LogOut, CheckSquare, TrendingUp, Crown, ChevronDown, Megaphone, Plus, Settings, UserPlus, X, Lock, Brain, Mic, Pill, Sparkles, StickyNote, ChevronRight, Shield, Building2, Globe, BadgeCheck, ShieldCheck, LayoutDashboard, Activity, EyeOff, GripVertical, BookOpen } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Toaster, toast } from "./ui/sonner";
 import { usePlanMode } from "../contexts/PlanModeContext";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
+import { UserModeToggle } from "./UserModeToggle";
 import { PracticeSwitcher } from "./PracticeSwitcher";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { BillingPanel } from "./billing/BillingPanel";
@@ -256,9 +257,9 @@ export function Layout() {
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   // Nav item ordering — one per mode, persisted
-  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
+  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'learn-mantra', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'learn-mantra', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'learn-mantra', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
     const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
@@ -751,6 +752,22 @@ export function Layout() {
             )}
           </div>
         );
+      case 'learn-mantra':
+        return (
+          <Link
+            to="/learn-mantra"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`flex items-center ${shouldShowCollapsed() ? 'md:justify-center' : 'justify-between'} py-[10px] px-3 rounded-xl transition-all relative overflow-hidden ${
+              isActive("/learn-mantra") ? "bg-[#00c0ff] text-white shadow-md" : "text-[#64748b] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title={shouldShowCollapsed() ? "Learn Mantra" : undefined}
+          >
+            <div className="flex items-center flex-1">
+              <BookOpen className="size-5 flex-shrink-0" />
+              <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Learn Mantra</span>
+            </div>
+          </Link>
+        );
       case 'settings':
         return renderSettingsItem(true);
       default:
@@ -804,6 +821,8 @@ export function Layout() {
             )}
           </div>
         );
+      case 'learn-mantra':
+        return renderNavItem("/learn-mantra", <BookOpen className="size-5 flex-shrink-0" />, "Learn Mantra");
       case 'ai-crm':
         return renderNavItem("/ai-crm", <Brain className="size-5 flex-shrink-0" />, "AI CRM");
       case 'settings':
@@ -1480,6 +1499,8 @@ export function Layout() {
 
       {/* Dev Role Switcher */}
       <DevRoleSwitcher />
+      {/* Dev User Mode Switcher */}
+      <UserModeToggle />
     </div>
   );
 }

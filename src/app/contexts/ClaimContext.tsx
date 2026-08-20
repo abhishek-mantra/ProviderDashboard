@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import type { Claim, ClaimStatus, ClaimStatusEvent, ClaimFlowType, ServiceLine, UnbilledSession, FeeScheduleEntry } from "../types/claims";
 import { generateClaimNumber, generatePatientControlNumber, generatePccn, computeClaimFrequencyCode, getMockUnbilledSessions, MOCK_FEE_SCHEDULE, getFeeForService } from "../types/claims";
 import { generateId } from "../utils/id";
+import { useUserMode } from "./UserModeContext";
+import { DEMO_CARL_ROGERS_CLAIM } from "../data/demoClientData";
 
 interface ClaimContextType {
   claims: Claim[];
@@ -375,13 +377,30 @@ function createInitialClaims(): Claim[] {
 }
 
 export function ClaimProvider({ children }: { children: ReactNode }) {
-  const [claims, setClaims] = useState<Claim[]>(createInitialClaims);
+  const { userMode } = useUserMode();
+  const isNew = userMode === "new";
+
+  const [userCreatedClaims, setUserCreatedClaims] = useState<Claim[]>([]);
+  const [mockClaimsList, setMockClaimsList] = useState<Claim[]>(createInitialClaims);
+
+  const claims = useMemo(() => {
+    return isNew ? [DEMO_CARL_ROGERS_CLAIM, ...userCreatedClaims] : [...mockClaimsList, ...userCreatedClaims];
+  }, [isNew, mockClaimsList, userCreatedClaims]);
+
+  const setClaims = useCallback((action: React.SetStateAction<Claim[]>) => {
+    if (isNew) {
+      setUserCreatedClaims(action);
+    } else {
+      setMockClaimsList(action);
+    }
+  }, [isNew]);
+
   const [unbilledSessions, setUnbilledSessions] = useState<UnbilledSession[]>(getMockUnbilledSessions);
   const [feeSchedule, setFeeSchedule] = useState<FeeScheduleEntry[]>(MOCK_FEE_SCHEDULE);
 
   const addClaim = useCallback((claim: Claim) => {
     setClaims((prev) => [...prev, claim]);
-  }, []);
+  }, [setClaims]);
 
   const updateClaimStatus = useCallback((claimId: string, status: ClaimStatus, note?: string) => {
     setClaims((prev) => {

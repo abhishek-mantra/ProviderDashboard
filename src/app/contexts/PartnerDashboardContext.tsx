@@ -3,6 +3,8 @@ import type { Provider, Practice, PracticeMember, EstablishmentSuperAdmin, Custo
 import { ROLE_PERMISSION_DEFAULTS, BASE_ROLES, getClientDue, getInsuranceDue, isBillSettled } from "../types/partnerDashboard";
 import { mockEstablishments, mockProviders, mockCareTeamMemberships, mockClients, mockIntakeForms, mockIntakeFlows, mockFormEntries, mockFormResponses, mockPractices, mockPracticeMembers, mockSuperAdmins, mockCustomRoles, mockDiagnosisTreatmentPlans, mockBills, mockPriorAuthorizations, mockRemittanceRecords } from "../data/mockPartnerData";
 import { generateId } from "../utils/id";
+import { useUserMode } from "./UserModeContext";
+import { DEMO_CARL_ROGERS_CLIENT, DEMO_CARL_ROGERS_BILL, DEMO_CARL_ROGERS_PLAN } from "../data/demoClientData";
 
 
 interface PartnerDashboardContextType {
@@ -87,6 +89,9 @@ interface PartnerDashboardContextType {
 const PartnerDashboardContext = createContext<PartnerDashboardContextType | undefined>(undefined);
 
 export function PartnerDashboardProvider({ children }: { children: ReactNode }) {
+  const { userMode } = useUserMode();
+  const isNew = userMode === "new";
+
   const [topUpCredits, setTopUpCredits] = useState<number>(0);
   const addTopUpCredits = useCallback((minutes: number) => {
     setTopUpCredits((prev) => prev + minutes);
@@ -103,20 +108,66 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   }, []);
   const [providers, setProviders] = useState<Provider[]>(mockProviders);
   const [careTeamMemberships, setCareTeamMemberships] = useState<CareTeamMembership[]>(mockCareTeamMemberships);
-  const [clients, setClients] = useState<MockClient[]>(mockClients);
-  const [clientTreatingProviders, setClientTreatingProviders] = useState<Record<string, string>>(
-    Object.fromEntries(mockClients.map((client) => [client.id, client.treatingProviderId]))
-  );
+
+  // Clients state: Living Demo Client (Carl Rogers) + any custom clients in New User Mode, full roster in Returning
+  const [userCustomClients, setUserCustomClients] = useState<MockClient[]>([]);
+  const [mockClientsList, setMockClientsList] = useState<MockClient[]>(mockClients);
+  const clients = useMemo(() => isNew ? [DEMO_CARL_ROGERS_CLIENT, ...userCustomClients] : [...mockClientsList, ...userCustomClients], [isNew, mockClientsList, userCustomClients]);
+  const setClients = useCallback((action: React.SetStateAction<MockClient[]>) => {
+    if (isNew) {
+      setUserCustomClients(action);
+    } else {
+      setMockClientsList(action);
+    }
+  }, [isNew]);
+
+  const [clientTreatingProviders, setClientTreatingProviders] = useState<Record<string, string>>({
+    ...Object.fromEntries(mockClients.map((client) => [client.id, client.treatingProviderId])),
+    "demo-carl-rogers": "prov-admin",
+  });
   const [currentProviderId, setCurrentProviderId] = useState<string>("prov-admin");
   const [currentEstablishmentId, setCurrentEstablishmentId] = useState<string | null>("est-1");
 
   const [intakeForms, setIntakeForms] = useState<IntakeForm[]>(mockIntakeForms);
   const [intakeFlows, setIntakeFlows] = useState<IntakeFlow[]>(mockIntakeFlows);
-  const [formEntries, setFormEntries] = useState<FormEntry[]>(mockFormEntries);
+
+  // Form entries: empty for New User, populated for Returning User
+  const [userCustomFormEntries, setUserCustomFormEntries] = useState<FormEntry[]>([]);
+  const [mockFormEntriesList, setMockFormEntriesList] = useState<FormEntry[]>(mockFormEntries);
+  const formEntries = useMemo(() => isNew ? userCustomFormEntries : [...mockFormEntriesList, ...userCustomFormEntries], [isNew, mockFormEntriesList, userCustomFormEntries]);
+  const setFormEntries = useCallback((action: React.SetStateAction<FormEntry[]>) => {
+    if (isNew) {
+      setUserCustomFormEntries(action);
+    } else {
+      setMockFormEntriesList(action);
+    }
+  }, [isNew]);
+
   const [formResponses, setFormResponses] = useState<FormResponse[]>(mockFormResponses);
 
-  const [diagnosisPlans, setDiagnosisPlans] = useState<DiagnosisTreatmentPlan[]>(mockDiagnosisTreatmentPlans);
-  const [bills, setBills] = useState<Bill[]>(mockBills);
+  // Diagnosis plans: Living demo plan (Carl Rogers) + any custom plans in New User Mode
+  const [userCustomDiagnosisPlans, setUserCustomDiagnosisPlans] = useState<DiagnosisTreatmentPlan[]>([]);
+  const [mockDiagnosisPlansList, setMockDiagnosisPlansList] = useState<DiagnosisTreatmentPlan[]>(mockDiagnosisTreatmentPlans);
+  const diagnosisPlans = useMemo(() => isNew ? [DEMO_CARL_ROGERS_PLAN, ...userCustomDiagnosisPlans] : [...mockDiagnosisPlansList, ...userCustomDiagnosisPlans], [isNew, mockDiagnosisPlansList, userCustomDiagnosisPlans]);
+  const setDiagnosisPlans = useCallback((action: React.SetStateAction<DiagnosisTreatmentPlan[]>) => {
+    if (isNew) {
+      setUserCustomDiagnosisPlans(action);
+    } else {
+      setMockDiagnosisPlansList(action);
+    }
+  }, [isNew]);
+
+  // Bills: Living demo bill (Carl Rogers) + any custom bills in New User Mode
+  const [userCustomBills, setUserCustomBills] = useState<Bill[]>([]);
+  const [mockBillsList, setMockBillsList] = useState<Bill[]>(mockBills);
+  const bills = useMemo(() => isNew ? [DEMO_CARL_ROGERS_BILL, ...userCustomBills] : [...mockBillsList, ...userCustomBills], [isNew, mockBillsList, userCustomBills]);
+  const setBills = useCallback((action: React.SetStateAction<Bill[]>) => {
+    if (isNew) {
+      setUserCustomBills(action);
+    } else {
+      setMockBillsList(action);
+    }
+  }, [isNew]);
   const [priorAuthorizations, setPriorAuthorizations] = useState<PriorAuthorization[]>(mockPriorAuthorizations);
   const [remittanceRecords, setRemittanceRecords] = useState<RemittanceRecord[]>(mockRemittanceRecords);
 

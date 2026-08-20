@@ -25,6 +25,7 @@ import { motion } from "motion/react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { FreeTrialBanner } from "../components/monetization/FreeTrialBanner";
 import { usePlanMode } from "../contexts/PlanModeContext";
+import { useUserMode } from "../contexts/UserModeContext";
 
 interface Transcription {
   id: string;
@@ -229,8 +230,25 @@ export function AITranscriber() {
     }
   };
 
+  const DEMO_CARL_ROGERS_TRANSCRIPTION: Transcription = {
+    id: "trans-demo-carl-rogers",
+    clientId: "demo-carl-rogers",
+    clientName: "Carl Rogers",
+    clientAvatar:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBzbWlsaW5nJTIwaGVhZHNob3R8ZW58MHx8fHwxNzc0MjM1Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+    sessionDate: "Today at 2:00 PM",
+    duration: "45:00",
+    status: "completed",
+    recordedDate: "Today",
+    fileSize: "28 MB",
+    transcript: "Patient discusses persistent generalized anxiety symptoms, somatic tension, and coping strategies.",
+  };
+
+  const { userMode } = useUserMode();
+  const isNew = userMode === "new";
+
   // Mock transcriptions data
-  const transcriptions: Transcription[] = [
+  const MOCK_TRANSCRIPTIONS: Transcription[] = [
     {
       id: "trans-1",
       clientId: "1",
@@ -293,14 +311,18 @@ export function AITranscriber() {
     },
   ];
 
+  const transcriptions = isNew ? [DEMO_CARL_ROGERS_TRANSCRIPTION] : MOCK_TRANSCRIPTIONS;
+
   // Mock clients
-  const clients = [
-    { id: "1", name: "Sarah Johnson" },
-    { id: "2", name: "Michael Chen" },
-    { id: "3", name: "David Martinez" },
-    { id: "4", name: "Emily Watson" },
-    { id: "5", name: "Priya Sharma" },
-  ];
+  const clients = isNew
+    ? [{ id: "demo-carl-rogers", name: "Carl Rogers" }]
+    : [
+        { id: "1", name: "Sarah Johnson" },
+        { id: "2", name: "Michael Chen" },
+        { id: "3", name: "David Martinez" },
+        { id: "4", name: "Emily Watson" },
+        { id: "5", name: "Priya Sharma" },
+      ];
 
   const filteredTranscriptions = transcriptions.filter(
     (trans) => {

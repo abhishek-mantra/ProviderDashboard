@@ -5,6 +5,7 @@ import { OTPVerify } from "./pages/OTPVerify";
 import { Onboarding } from "./pages/Onboarding";
 import { OnboardingEHRAIScribe } from "./pages/OnboardingEHRAIScribe";
 import { Dashboard } from "./pages/Dashboard";
+import { LearnMantra } from "./pages/LearnMantra";
 import { Requests } from "./pages/Requests";
 import { Sessions } from "./pages/Sessions";
 import { Clients } from "./pages/Clients";
@@ -108,6 +109,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: "learn-mantra", element: <LearnMantra /> },
       { path: "monetization-showcase", element: <MonetizationShowcase /> },
       { path: "modal-showcase", element: <ModalShowcase /> },
       { path: "requests", element: <Requests /> },
@@ -137,6 +139,9 @@ export const router = createBrowserRouter([
       { path: "clients/:id/orders", element: <ClientOrders /> },
       { path: "earnings", element: <Earnings /> },
       { path: "billing", element: <Billing /> },
+      { path: "bills", element: <Billing /> },
+      { path: "bills-hub", element: <Billing /> },
+      { path: "availability", element: <Availability /> },
       { path: "billing/bills", element: <Navigate to="/billing" replace /> },
       { path: "billing/bills/superbill", element: <SuperbillDocument /> },
       { path: "billing/bills/create", element: <CreateBill /> },
@@ -176,6 +181,7 @@ export const router = createBrowserRouter([
       { path: "session-notes", element: <SessionNotesList /> },
       { path: "ai-transcriber", element: <AITranscriber /> },
       { path: "record-session", element: <RecordingScreen /> },
+      { path: "recording", element: <RecordingScreen /> },
       { path: "ai-transcriber-demo", element: <AITranscriberDemo /> },
       { path: "view-transcription/:transcriptionId", element: <ViewTranscription /> },
       { path: "view-transcription/:transcriptionId/note/:noteId", element: <ViewTranscriptionNote /> },

@@ -1,4 +1,4 @@
-﻿import { useNavigate, useParams, Link } from "react-router";
+import { useNavigate, useParams, Link } from "react-router";
 import { useState, useMemo } from "react";
 import { openBillingPanel } from "../components/billing/billingPanelStore";
 import {
@@ -786,7 +786,7 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
                       >
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            {plan.diagnosisCodes.map((code) => (
+                            {(plan.diagnosisCodes || []).map((code) => (
                               <span
                                 key={code}
                                 className="px-2 py-0.5 text-xs font-mono font-bold bg-[#043570]/10 dark:bg-[#00c0ff]/20 text-[#043570] dark:text-[#00c0ff] rounded-md border border-[#043570]/20 dark:border-[#00c0ff]/30"

@@ -51,7 +51,7 @@ export function OnboardingChecklistCard({ onOpenAddClient }: OnboardingChecklist
             </span>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Complete these 4 foundational milestones to activate your practice
+            Complete these foundational milestones to activate your practice
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export function OnboardingChecklistCard({ onOpenAddClient }: OnboardingChecklist
         </div>
       </div>
 
-      {/* 4 Checklist Items List */}
+      {/* Checklist Items List */}
       <div className="space-y-2.5">
         {CHECKLIST_ITEMS.map((item) => {
           const isComplete = completedChecklist.includes(item.id);

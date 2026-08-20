@@ -12,6 +12,7 @@ import { AddClientModal } from "../components/AddClientModal";
 import { AddSessionNoteModal } from "../components/AddSessionNoteModal";
 import { AddPrescriptionModal } from "../components/AddPrescriptionModal";
 import { OnboardingChecklistCard } from "../components/onboarding/OnboardingChecklistCard";
+import { HelpfulResourcesCard } from "../components/onboarding/HelpfulResourcesCard";
 import { DemoClientModal } from "../components/onboarding/DemoClientModal";
 
 type SessionMode = "online" | "in-person";
@@ -222,6 +223,7 @@ export function Dashboard() {
   const userPerms = getPermissionsForCurrentUser();
   const isReceptionist = !isCurrentUserAdmin && !userPerms.viewClinicalNotes && userPerms.manageBilling;
   const isTranscriberOnly = planMode === "transcriber-only";
+  const isProviderPlan = planMode === "provider";
   const pendingRequests = isCurrentUserAdmin ? 30 : 6;
   const pendingMessages = isCurrentUserAdmin ? 25 : 10;
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -292,9 +294,36 @@ export function Dashboard() {
     ]
   };
 
-  const stats = isCurrentUserAdmin ? adminStats : personalStats;
+  const newUserStats = {
+    activeClients: "0",
+    sessionsThisMonth: "0",
+    revenueMtd: "$0.00",
+    avgDuration: "0 min",
+    revenueTrend: [
+      { month: "Jan", revenue: 0 },
+      { month: "Feb", revenue: 0 },
+      { month: "Mar", revenue: 0 },
+      { month: "Apr", revenue: 0 },
+      { month: "May", revenue: 0 },
+      { month: "Jun", revenue: 0 },
+    ],
+    sessionsByType: [
+      { name: "Video", value: 0 },
+      { name: "In-Person", value: 0 },
+      { name: "Chat", value: 0 },
+    ],
+    totalSessions: 0,
+    sessionDistribution: [
+      { label: "Video", count: 0, pct: "0%", color: "#00c0ff" },
+      { label: "In-Person", count: 0, pct: "0%", color: "#6366f1" },
+      { label: "Chat", count: 0, pct: "0%", color: "#10b981" },
+    ],
+    recentActivities: [] as { text: string; time: string; icon: any; iconBg: string; iconColor: string }[],
+  };
 
-  const upcomingAppointments = [
+  const stats = isNewUser ? newUserStats : (isCurrentUserAdmin ? adminStats : personalStats);
+
+  const MOCK_UPCOMING_APPOINTMENTS = [
     {
       id: "1",
       clientName: "Rachit Dubey",
@@ -327,7 +356,7 @@ export function Dashboard() {
     },
   ];
 
-  const pendingClientRequests = [
+  const MOCK_PENDING_CLIENT_REQUESTS = [
     {
       id: "1",
       clientName: "Jessica Adams",
@@ -366,7 +395,7 @@ export function Dashboard() {
     },
   ];
 
-  const pendingSessionRequests = [
+  const MOCK_PENDING_SESSION_REQUESTS = [
     {
       id: "1",
       clientName: "Emma Thompson",
@@ -398,6 +427,10 @@ export function Dashboard() {
       avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMGJydW5ldHRlJTIwaGVhZHNob3R8ZW58MXx8fHwxNzQyNzg1NDcyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     },
   ];
+
+  const upcomingAppointments = isNewUser ? [] : MOCK_UPCOMING_APPOINTMENTS;
+  const pendingClientRequests = isNewUser ? [] : MOCK_PENDING_CLIENT_REQUESTS;
+  const pendingSessionRequests = isNewUser ? [] : MOCK_PENDING_SESSION_REQUESTS;
 
   const [pageLoading, setPageLoading] = useState(true);
   useEffect(() => {
@@ -612,9 +645,9 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      {/* ── NEW USER MODE: Streamlined Checklist + Sandbox + Learning Center ── */}
+      {/* ── NEW USER MODE: Onboarding Checklist (Left) + Helpful Resources (Right) ── */}
       {!isReceptionist && isNewUser && (
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-6 md:space-y-8 mb-8">
           {/* Personalized Welcome Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3 md:gap-4">
@@ -641,13 +674,6 @@ export function Dashboard() {
 
             <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
               <button
-                onClick={() => navigate("/clients/demo-carl-rogers")}
-                className="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <User className="size-3.5 text-[#00c0ff]" />
-                <span>Open Demo Patient Chart</span>
-              </button>
-              <button
                 onClick={() => setIsAddClientModalOpen(true)}
                 className="px-4 py-2 bg-[#043570] hover:bg-[#032a5a] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
               >
@@ -657,181 +683,82 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* 2-Column Balanced Hub: Setup Checklist (Left) + Interactive Sandbox (Right) */}
+          {/* 2-Column Balanced Hub: Setup Checklist (Left 7 cols) + Helpful Resources (Right 5 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column: Getting Started Checklist (7 cols) */}
             <div className="lg:col-span-7">
               <OnboardingChecklistCard onOpenAddClient={() => setIsAddClientModalOpen(true)} />
             </div>
-
-            {/* Right Column: Practice Sandbox (Carl Rogers) (5 cols) */}
-            <div className="lg:col-span-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <div 
-                  onClick={() => navigate("/clients/demo-carl-rogers")}
-                  className="flex items-center gap-2.5 cursor-pointer group"
-                >
-                  <div className="size-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
-                    CR
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#00c0ff] transition-colors">
-                        Carl Rogers
-                      </h3>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-[#043570] dark:bg-blue-950/60 dark:text-cyan-300 border border-blue-200 dark:border-blue-800">
-                        DEMO CASE
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      ICD-10 F41.1 · BlueCross PPO
-                    </p>
-                  </div>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Living Sandbox
-                </span>
-              </div>
-
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50/80 dark:bg-gray-750/40 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
-                A live demo patient record wired across your directory, ambient scribe, clinical charting, and billing invoices.
-              </p>
-
-              {/* 4 Direct Route Action Buttons */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <button
-                  onClick={() => navigate("/ai-transcriber")}
-                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
-                >
-                  <Mic className="size-4 text-blue-600 dark:text-cyan-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">AI Scribe</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Live audio & notes</p>
-                </button>
-
-                <button
-                  onClick={() => navigate("/session-notes")}
-                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
-                >
-                  <FileText className="size-4 text-indigo-600 dark:text-indigo-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">SOAP Note</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Session notes workspace</p>
-                </button>
-
-                <button
-                  onClick={() => navigate("/billing/bills/demo-bill-carl-rogers/invoice")}
-                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
-                >
-                  <CreditCard className="size-4 text-emerald-600 dark:text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Superbill</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">CPT 90834 invoice</p>
-                </button>
-
-                <button
-                  onClick={() => navigate("/clients/demo-carl-rogers")}
-                  className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#00c0ff] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer shadow-2xs"
-                >
-                  <User className="size-4 text-cyan-600 dark:text-cyan-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                  <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Full Chart</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Demographics & care</p>
-                </button>
-              </div>
+            <div className="lg:col-span-5">
+              <HelpfulResourcesCard />
             </div>
-          </div>
-
-          {/* Full-Width 5-Step Video Learning Center Banner at Bottom */}
-          <div className="bg-gradient-to-r from-[#043570] via-[#054591] to-[#085aae] text-white rounded-2xl p-5 md:p-6 shadow-md border border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="size-11 rounded-2xl bg-white/15 text-cyan-300 flex items-center justify-center shrink-0 shadow-inner">
-                <BookOpen className="size-5" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-300/30">
-                    Video Tutorials
-                  </span>
-                  <span className="text-xs text-blue-200">5 Short Modules</span>
-                </div>
-                <h3 className="text-sm md:text-base font-bold text-white">
-                  5-Step Video Learning Center
-                </h3>
-                <p className="text-xs text-blue-100 leading-relaxed max-w-2xl">
-                  Watch fast 2-minute clinical modules on ambient AI transcription, signing & locking notes, managing bills, and filing clean insurance claims.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate("/learn-mantra")}
-              className="px-4 py-2.5 bg-white hover:bg-blue-50 text-[#043570] font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0 cursor-pointer active:scale-98"
-            >
-              <span>Watch 5-Step Walkthroughs</span>
-              <ArrowRight className="size-3.5" />
-            </button>
           </div>
         </div>
       )}
 
-      {/* ── RETURNING USER MODE: Standard Dashboard (Action Center, Analytics) ── */}
+      {/* ── RETURNING USER HEADER ── */}
       {!isReceptionist && !isNewUser && (
-        <div className="space-y-6 md:space-y-8">
-          <div className="mb-6 md:mb-8">
-            {isTranscriberOnly ? (
+        <div className="mb-6 md:mb-8">
+          {isTranscriberOnly ? (
+            <div>
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
+                Good morning, Alex
+              </h1>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                Ready for your next session?
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
+                <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+              </div>
               <div>
                 <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                  Good morning, Alex
+                  Dashboard
                 </h1>
                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                  Ready for your next session?
+                  Welcome back! Here's what's happening with your practice today
                 </p>
               </div>
-            ) : (
-              <div className="flex items-start gap-3 md:gap-4">
-                <div className="size-9 md:size-10 rounded-lg flex items-center justify-center bg-[#F1F5F9] dark:bg-gray-800">
-                  <Users className="size-4 md:size-5 text-[#1E293B] dark:text-gray-300" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MAIN DASHBOARD CONTENT (Consistent across New & Returning Users) ── */}
+      {!isReceptionist && (
+        <div className="space-y-6 md:space-y-8">
+
+          {/* Your Rating Card (Mantra Provider Network exclusive) */}
+          {!isTranscriberOnly && isProviderPlan && currentProvider && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-6 md:mb-8"
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 md:px-6 py-4 flex items-center gap-4">
+                <div className="size-11 rounded-2xl flex items-center justify-center bg-amber-100 dark:bg-amber-900/20">
+                  <Star className="size-5 text-amber-500" />
                 </div>
-                <div>
-                  <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-                    Dashboard
-                  </h1>
-                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                    Welcome back! Here's what's happening with your practice today
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Your rating</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">
+                    {(currentProvider?.rating ?? 0).toFixed(1)}
+                    <span className="text-xs font-normal text-gray-400 ml-1">/ 5.0</span>
                   </p>
                 </div>
               </div>
-            )}
-          </div>
+            </motion.div>
+          )}
 
-          {/* Your Rating Card */}
-          {!isTranscriberOnly && currentProvider && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mb-6 md:mb-8"
-        >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 md:px-6 py-4 flex items-center gap-4">
-            <div className="size-11 rounded-2xl flex items-center justify-center bg-amber-100 dark:bg-amber-900/20">
-              <Star className="size-5 text-amber-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Your rating</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {(currentProvider?.rating ?? 0).toFixed(1)}
-                <span className="text-xs font-normal text-gray-400 ml-1">/ 5.0</span>
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Clinic Operations Overview (Admin-Practitioner exclusive widget) */}
-      {!isTranscriberOnly && isCurrentUserAdmin && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden"
-        >
+          {/* Clinic Operations Overview (Mantra Provider Network exclusive widget) */}
+          {!isTranscriberOnly && isProviderPlan && isCurrentUserAdmin && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden"
+            >
           <div 
             onClick={() => setClinicStatsCollapsed(!clinicStatsCollapsed)}
             className="flex items-center justify-between px-4 md:px-6 py-4 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-750/30 transition-colors"
@@ -972,25 +899,35 @@ export function Dashboard() {
             style={{ maxHeight: activeTab === "messages" ? "360px" : "0px", overflow: "hidden", transition: "max-height 0.3s ease", borderTop: activeTab === "messages" ? "1px solid #f1f5f9" : "none" }}
           >
             <div className="px-5 md:px-7 pb-5 overflow-y-auto" style={{ maxHeight: "360px" }}>
-              <Link to="/chat">
-                <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl px-2 -mx-2 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="size-11 bg-[#10b981] rounded-xl flex items-center justify-center flex-shrink-0">
-                      <MessageSquare className="size-4 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-[14px] font-semibold text-[#059669]">Unread Messages</span>
-                      <div className="flex items-center gap-1 mt-1.5">
-                        <span className="px-2 py-0.5 bg-[#10b981] text-white text-[11px] font-bold rounded-full">{pendingMessages}</span>
-                        <span className="text-[12px] text-[#64748B]">new messages waiting</span>
+              {pendingMessages > 0 ? (
+                <Link to="/chat">
+                  <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl px-2 -mx-2 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="size-11 bg-[#10b981] rounded-xl flex items-center justify-center flex-shrink-0">
+                        <MessageSquare className="size-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-[14px] font-semibold text-[#059669]">Unread Messages</span>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <span className="px-2 py-0.5 bg-[#10b981] text-white text-[11px] font-bold rounded-full">{pendingMessages}</span>
+                          <span className="text-[12px] text-[#64748B]">new messages waiting</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-1 text-sm font-medium text-[#059669]">
+                      View <ChevronRight className="size-4" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-medium text-[#059669]">
-                    View <ChevronRight className="size-4" />
+                </Link>
+              ) : (
+                <div className="py-8 text-center">
+                  <div className="size-10 bg-emerald-50 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-5" />
                   </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">All caught up!</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">No unread client messages at this time.</p>
                 </div>
-              </Link>
+              )}
             </div>
           </div>
 
@@ -999,39 +936,49 @@ export function Dashboard() {
             style={{ maxHeight: activeTab === "appointments" ? "360px" : "0px", overflow: "hidden", transition: "max-height 0.3s ease", borderTop: activeTab === "appointments" ? "1px solid #f1f5f9" : "none" }}
           >
             <div className="px-5 md:px-7 pb-5 overflow-y-auto" style={{ maxHeight: "360px" }}>
-              {upcomingAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="relative flex-shrink-0">
-                      <img src={appointment.avatar} alt={appointment.clientName} className="size-11 rounded-xl object-cover" />
-                      <div className="absolute -bottom-1 -right-1 size-4 bg-[#00c0ff] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
-                        {appointment.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+              {upcomingAppointments.length > 0 ? (
+                upcomingAppointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="relative flex-shrink-0">
+                        <img src={appointment.avatar} alt={appointment.clientName} className="size-11 rounded-xl object-cover" />
+                        <div className="absolute -bottom-1 -right-1 size-4 bg-[#00c0ff] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
+                          {appointment.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{appointment.clientName}</span>
+                          <span className="text-[11px] text-[#2563EB] bg-[#EEF2FF] dark:bg-blue-900/20 px-2 py-0.5 rounded-md font-medium">{appointment.type}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[11px] text-[#0EA5E9] bg-[#F0F9FF] dark:bg-cyan-900/20 px-1.5 py-0.5 rounded font-semibold">{appointment.date}</span>
+                          <span className="text-[11px] text-[#F97316] bg-[#FFF7ED] dark:bg-orange-900/20 px-1.5 py-0.5 rounded font-semibold">{appointment.time}</span>
+                          <span className="text-[11px] text-[#64748B] bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded font-medium">{appointment.duration}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{appointment.clientName}</span>
-                        <span className="text-[11px] text-[#2563EB] bg-[#EEF2FF] dark:bg-blue-900/20 px-2 py-0.5 rounded-md font-medium">{appointment.type}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[11px] text-[#0EA5E9] bg-[#F0F9FF] dark:bg-cyan-900/20 px-1.5 py-0.5 rounded font-semibold">{appointment.date}</span>
-                        <span className="text-[11px] text-[#F97316] bg-[#FFF7ED] dark:bg-orange-900/20 px-1.5 py-0.5 rounded font-semibold">{appointment.time}</span>
-                        <span className="text-[11px] text-[#64748B] bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded font-medium">{appointment.duration}</span>
-                      </div>
+                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
+                      <button className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
+                        <Video className="size-3" />
+                        Join Now
+                      </button>
+                      <button className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:border-[#2563EB] text-gray-600 hover:text-[#2563EB] rounded-lg text-[12px] font-semibold transition-all">
+                        <Calendar className="size-3" />
+                        Reschedule
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                    <button className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
-                      <Video className="size-3" />
-                      Join Now
-                    </button>
-                    <button className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:border-[#2563EB] text-gray-600 hover:text-[#2563EB] rounded-lg text-[12px] font-semibold transition-all">
-                      <Calendar className="size-3" />
-                      Reschedule
-                    </button>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <div className="size-10 bg-blue-50 dark:bg-blue-950/40 rounded-full flex items-center justify-center mx-auto mb-2 text-[#00c0ff]">
+                    <Calendar className="size-5" />
                   </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">No appointments scheduled today</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Scheduled therapy sessions and consultations will appear here.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -1040,39 +987,49 @@ export function Dashboard() {
             style={{ maxHeight: activeTab === "session-requests" ? "360px" : "0px", overflow: "hidden", transition: "max-height 0.3s ease", borderTop: activeTab === "session-requests" ? "1px solid #f1f5f9" : "none" }}
           >
             <div className="px-5 md:px-7 pb-5 overflow-y-auto" style={{ maxHeight: "360px" }}>
-              {pendingSessionRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="relative flex-shrink-0">
-                      <img src={request.avatar} alt={request.clientName} className="size-11 rounded-xl object-cover" />
-                      <div className="absolute -bottom-1 -right-1 size-4 bg-[#06B6D4] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
-                        {request.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+              {pendingSessionRequests.length > 0 ? (
+                pendingSessionRequests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="relative flex-shrink-0">
+                        <img src={request.avatar} alt={request.clientName} className="size-11 rounded-xl object-cover" />
+                        <div className="absolute -bottom-1 -right-1 size-4 bg-[#06B6D4] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
+                          {request.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{request.clientName}</span>
+                          <span className="text-[11px] text-[#2563EB] bg-[#EEF2FF] dark:bg-blue-900/20 px-2 py-0.5 rounded-md font-medium">{request.sessionType}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[11px] text-[#0EA5E9] bg-[#F0F9FF] dark:bg-cyan-900/20 px-1.5 py-0.5 rounded font-semibold">{request.date}</span>
+                          <span className="text-[11px] text-[#F97316] bg-[#FFF7ED] dark:bg-orange-900/20 px-1.5 py-0.5 rounded font-semibold">{request.time}</span>
+                          <span className="text-[11px] text-[#64748B] bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded font-medium">{request.duration}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{request.clientName}</span>
-                        <span className="text-[11px] text-[#2563EB] bg-[#EEF2FF] dark:bg-blue-900/20 px-2 py-0.5 rounded-md font-medium">{request.sessionType}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[11px] text-[#0EA5E9] bg-[#F0F9FF] dark:bg-cyan-900/20 px-1.5 py-0.5 rounded font-semibold">{request.date}</span>
-                        <span className="text-[11px] text-[#F97316] bg-[#FFF7ED] dark:bg-orange-900/20 px-1.5 py-0.5 rounded font-semibold">{request.time}</span>
-                        <span className="text-[11px] text-[#64748B] bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded font-medium">{request.duration}</span>
-                      </div>
+                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
+                      <button className="flex items-center gap-1 px-3 py-1.5 bg-[#15a65e] hover:bg-[#128a4e] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
+                        <CheckCircle2 className="size-3" />
+                        Approve
+                      </button>
+                      <button className="flex items-center gap-1 px-3 py-1.5 border border-[#EF4444] hover:bg-[#EF4444]/5 text-[#EF4444] rounded-lg text-[12px] font-semibold transition-all">
+                        <X className="size-3" />
+                        Decline
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                    <button className="flex items-center gap-1 px-3 py-1.5 bg-[#15a65e] hover:bg-[#128a4e] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
-                      <CheckCircle2 className="size-3" />
-                      Approve
-                    </button>
-                    <button className="flex items-center gap-1 px-3 py-1.5 border border-[#EF4444] hover:bg-[#EF4444]/5 text-[#EF4444] rounded-lg text-[12px] font-semibold transition-all">
-                      <X className="size-3" />
-                      Decline
-                    </button>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <div className="size-10 bg-cyan-50 dark:bg-cyan-950/40 rounded-full flex items-center justify-center mx-auto mb-2 text-cyan-600">
+                    <Video className="size-5" />
                   </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">No pending session requests</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Booking and reschedule requests from clients will appear here.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -1081,40 +1038,50 @@ export function Dashboard() {
             style={{ maxHeight: activeTab === "client-requests" ? "360px" : "0px", overflow: "hidden", transition: "max-height 0.3s ease", borderTop: activeTab === "client-requests" ? "1px solid #f1f5f9" : "none" }}
           >
             <div className="px-5 md:px-7 pb-5 overflow-y-auto" style={{ maxHeight: "360px" }}>
-              {pendingClientRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="relative flex-shrink-0">
-                      <img src={request.avatar} alt={request.clientName} className="size-11 rounded-xl object-cover" />
-                      <div className="absolute -bottom-1 -right-1 size-4 bg-[#EC4899] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
-                        {request.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+              {pendingClientRequests.length > 0 ? (
+                pendingClientRequests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="relative flex-shrink-0">
+                        <img src={request.avatar} alt={request.clientName} className="size-11 rounded-xl object-cover" />
+                        <div className="absolute -bottom-1 -right-1 size-4 bg-[#EC4899] rounded-full flex items-center justify-center ring-1 ring-white dark:ring-gray-800">
+                          {request.sessionMode === "video" ? <Video className="size-2.5 text-white" /> : <MessageSquare className="size-2.5 text-white" />}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{request.clientName}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-[11px] text-[#64748B] truncate max-w-[180px]">{request.requestType}</span>
+                          <span className="text-[#CBD5E1]">·</span>
+                          <span className="text-[11px] text-[#64748B]">{request.location}</span>
+                          <span className="text-[#CBD5E1]">·</span>
+                          <span className="text-[11px] font-semibold text-[#EC4899]">{request.amount}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[14px] font-semibold text-[#020817] dark:text-white">{request.clientName}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        <span className="text-[11px] text-[#64748B] truncate max-w-[180px]">{request.requestType}</span>
-                        <span className="text-[#CBD5E1]">·</span>
-                        <span className="text-[11px] text-[#64748B]">{request.location}</span>
-                        <span className="text-[#CBD5E1]">·</span>
-                        <span className="text-[11px] font-semibold text-[#EC4899]">{request.amount}</span>
-                      </div>
+                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
+                      <button className="flex items-center gap-1 px-3 py-1.5 bg-[#15a65e] hover:bg-[#128a4e] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
+                        <CheckCircle2 className="size-3" />
+                        Accept
+                      </button>
+                      <button className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-600 rounded-lg text-[12px] font-semibold transition-all">
+                        <FileText className="size-3" />
+                        Review
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                    <button className="flex items-center gap-1 px-3 py-1.5 bg-[#15a65e] hover:bg-[#128a4e] text-white rounded-lg text-[12px] font-semibold transition-all shadow-sm">
-                      <CheckCircle2 className="size-3" />
-                      Accept
-                    </button>
-                    <button className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-600 rounded-lg text-[12px] font-semibold transition-all">
-                      <FileText className="size-3" />
-                      Review
-                    </button>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <div className="size-10 bg-pink-50 dark:bg-pink-950/40 rounded-full flex items-center justify-center mx-auto mb-2 text-pink-600">
+                    <Users className="size-5" />
                   </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">No new client inquiries</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Incoming patient intake requests and leads will appear here.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </motion.div>
@@ -1269,15 +1236,21 @@ export function Dashboard() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recent Activity</h3>
             <div>
-              {stats.recentActivities.map(({ icon: Icon, iconBg, iconColor, text, time }) => (
-                <div key={text} className="flex items-center gap-3 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl px-3 -mx-3 transition-colors cursor-pointer">
-                  <div className={`size-8 ${iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`size-4 ${iconColor}`} />
+              {stats.recentActivities.length > 0 ? (
+                stats.recentActivities.map(({ icon: Icon, iconBg, iconColor, text, time }) => (
+                  <div key={text} className="flex items-center gap-3 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl px-3 -mx-3 transition-colors cursor-pointer">
+                    <div className={`size-8 ${iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
+                      <Icon className={`size-4 ${iconColor}`} />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{text}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{time}</span>
                   </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{text}</span>
-                  <span className="text-xs text-gray-400 flex-shrink-0">{time}</span>
+                ))
+              ) : (
+                <div className="py-6 text-center text-gray-400 dark:text-gray-500 text-xs">
+                  No recent activity yet. Your practice activity log will appear here as you see clients and complete charts.
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </motion.div>

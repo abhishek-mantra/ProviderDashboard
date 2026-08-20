@@ -151,14 +151,14 @@ export function UserModeToggle() {
                 <div className="grid grid-cols-3 gap-1.5">
                   <button
                     onClick={() => {
-                      navigate("/learn-mantra");
+                      navigate("/ai-transcriber");
                       setIsOpen(false);
                     }}
                     className="p-2 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 text-[#043570] dark:text-cyan-300 border border-blue-200 dark:border-blue-900/40 rounded-lg text-[11px] font-bold flex flex-col items-center gap-1 transition-colors"
                   >
                     <BookOpen className="size-3 text-blue-600" />
-                    <span className="truncate">Learn Mantra</span>
-                    <span className="text-[9px] opacity-75">5 Videos</span>
+                    <span className="truncate">AI Scribe</span>
+                    <span className="text-[9px] opacity-75">Demo</span>
                   </button>
                   <button
                     onClick={() => {

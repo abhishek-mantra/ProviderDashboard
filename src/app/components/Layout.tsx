@@ -125,16 +125,18 @@ function mergeOrderWithDefaults(
   defaults: string[],
   showMoreKeys: string[] = []
 ): string[] {
-  const showMoreSet = new Set(showMoreKeys);
-  if (!saved) return defaults.filter(k => !showMoreSet.has(k));
-  const missing = defaults.filter(k => !saved.includes(k) && !showMoreSet.has(k));
-  if (missing.length === 0) return saved;
+  const showMoreSet = new Set(showMoreKeys.filter(k => k !== 'learn-mantra'));
+  const cleanDefaults = defaults.filter(k => k !== 'learn-mantra');
+  if (!saved) return cleanDefaults.filter(k => !showMoreSet.has(k));
+  const cleanSaved = saved.filter(k => k !== 'learn-mantra');
+  const missing = cleanDefaults.filter(k => !cleanSaved.includes(k) && !showMoreSet.has(k));
+  if (missing.length === 0) return cleanSaved;
   // Insert missing keys before 'refer-earn' so they land in a sensible position
   const insertBefore = 'refer-earn';
-  const idx = saved.indexOf(insertBefore);
-  const result = [...saved];
+  const idx = cleanSaved.indexOf(insertBefore);
+  const result = [...cleanSaved];
   result.splice(idx === -1 ? result.length - 1 : idx, 0, ...missing);
-  return result;
+  return result.filter(k => k !== 'learn-mantra');
 }
 
 function UnlockEHRPopup({ onClose, onGetListed, onUpgradeEHR }: {
@@ -257,42 +259,45 @@ export function Layout() {
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   // Nav item ordering — one per mode, persisted
-  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'learn-mantra', 'settings'];
-  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'learn-mantra', 'settings'];
-  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'learn-mantra', 'for-mantra-provider', 'settings'];
+  const defaultTranscriberOrder = ['home', 'clients', 'admin-dashboard', 'ai-transcriber', 'session-notes', 'settings'];
+  const defaultEHROrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'settings'];
+  const defaultProviderOrder = ['home', 'clients', 'admin-dashboard', 'supervisor-dashboard', 'billing', 'messages', 'appointments', 'intake-forms', 'for-mantra-provider', 'settings'];
 
   const [transcriberItemOrder, setTranscriberItemOrder] = useState<string[]>(() => {
-    const saved = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
-    const showMore = JSON.parse(localStorage.getItem('sidebar_user_show_more_transcriber') || '[]');
+    const raw = JSON.parse(localStorage.getItem('sidebar_transcriber_order') || 'null');
+    const saved = Array.isArray(raw) ? raw.filter((k: string) => k !== 'learn-mantra') : null;
+    const showMore = (JSON.parse(localStorage.getItem('sidebar_user_show_more_transcriber') || '[]') as string[]).filter(k => k !== 'learn-mantra');
     return mergeOrderWithDefaults(saved, defaultTranscriberOrder, showMore);
   });
   const [ehrItemOrder, setEHRItemOrder] = useState<string[]>(() => {
-    const saved = JSON.parse(localStorage.getItem('sidebar_ehr_order') || 'null');
-    const showMore = JSON.parse(localStorage.getItem('sidebar_user_show_more_ehr') || '[]');
+    const raw = JSON.parse(localStorage.getItem('sidebar_ehr_order') || 'null');
+    const saved = Array.isArray(raw) ? raw.filter((k: string) => k !== 'learn-mantra') : null;
+    const showMore = (JSON.parse(localStorage.getItem('sidebar_user_show_more_ehr') || '[]') as string[]).filter(k => k !== 'learn-mantra');
     return mergeOrderWithDefaults(saved, defaultEHROrder, showMore);
   });
   const [providerItemOrder, setProviderItemOrder] = useState<string[]>(() => {
-    const saved = JSON.parse(localStorage.getItem('sidebar_provider_order') || 'null');
-    const showMore = JSON.parse(localStorage.getItem('sidebar_user_show_more_provider') || '[]');
+    const raw = JSON.parse(localStorage.getItem('sidebar_provider_order') || 'null');
+    const saved = Array.isArray(raw) ? raw.filter((k: string) => k !== 'learn-mantra') : null;
+    const showMore = (JSON.parse(localStorage.getItem('sidebar_user_show_more_provider') || '[]') as string[]).filter(k => k !== 'learn-mantra');
     return mergeOrderWithDefaults(saved, defaultProviderOrder, showMore);
   });
   const [hiddenItems, setHiddenItems] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('sidebar_hidden_items') || '[]')
+    () => (JSON.parse(localStorage.getItem('sidebar_hidden_items') || '[]') as string[]).filter(k => k !== 'learn-mantra')
   );
   const [showMorePromoted, setShowMorePromoted] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('sidebar_show_more_promoted') || '[]')
+    () => (JSON.parse(localStorage.getItem('sidebar_show_more_promoted') || '[]') as string[]).filter(k => k !== 'learn-mantra')
   );
   const [hiddenOrigins, setHiddenOrigins] = useState<Record<string, 'main' | 'showMore'>>(
     () => JSON.parse(localStorage.getItem('sidebar_hidden_origins') || '{}')
   );
   const [userShowMoreEhr, setUserShowMoreEhr] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('sidebar_user_show_more_ehr') || '[]')
+    () => (JSON.parse(localStorage.getItem('sidebar_user_show_more_ehr') || '[]') as string[]).filter(k => k !== 'learn-mantra')
   );
   const [userShowMoreTranscriber, setUserShowMoreTranscriber] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('sidebar_user_show_more_transcriber') || '[]')
+    () => (JSON.parse(localStorage.getItem('sidebar_user_show_more_transcriber') || '[]') as string[]).filter(k => k !== 'learn-mantra')
   );
   const [userShowMoreProvider, setUserShowMoreProvider] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('sidebar_user_show_more_provider') || '[]')
+    () => (JSON.parse(localStorage.getItem('sidebar_user_show_more_provider') || '[]') as string[]).filter(k => k !== 'learn-mantra')
   );
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
@@ -530,8 +535,8 @@ export function Layout() {
     // If origin === 'main': item stays in order, will reappear in main nav
   };
 
-  const visibleItems = (order: string[]) => order.filter(k => !hiddenItems.includes(k));
-  const hiddenFromOrder = (order: string[]) => order.filter(k => hiddenItems.includes(k));
+  const visibleItems = (order: string[]) => order.filter(k => k !== 'learn-mantra' && !hiddenItems.includes(k));
+  const hiddenFromOrder = (order: string[]) => order.filter(k => k !== 'learn-mantra' && hiddenItems.includes(k));
   const toggleHideItem = (key: string) => {
     // Legacy toggle — only used where mode context is unavailable; prefer hideItem/restoreItem
     setHiddenItems(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
@@ -752,22 +757,6 @@ export function Layout() {
             )}
           </div>
         );
-      case 'learn-mantra':
-        return (
-          <Link
-            to="/learn-mantra"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={`flex items-center ${shouldShowCollapsed() ? 'md:justify-center' : 'justify-between'} py-[10px] px-3 rounded-xl transition-all relative overflow-hidden ${
-              isActive("/learn-mantra") ? "bg-[#00c0ff] text-white shadow-md" : "text-[#64748b] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            }`}
-            title={shouldShowCollapsed() ? "Learn Mantra" : undefined}
-          >
-            <div className="flex items-center flex-1">
-              <BookOpen className="size-5 flex-shrink-0" />
-              <span className={`ml-3 text-sm font-medium whitespace-nowrap transition-opacity duration-300 ${shouldShowCollapsed() ? 'md:opacity-0 md:absolute' : 'opacity-100'}`}>Learn Mantra</span>
-            </div>
-          </Link>
-        );
       case 'settings':
         return renderSettingsItem(true);
       default:
@@ -821,8 +810,6 @@ export function Layout() {
             )}
           </div>
         );
-      case 'learn-mantra':
-        return renderNavItem("/learn-mantra", <BookOpen className="size-5 flex-shrink-0" />, "Learn Mantra");
       case 'ai-crm':
         return renderNavItem("/ai-crm", <Brain className="size-5 flex-shrink-0" />, "AI CRM");
       case 'settings':

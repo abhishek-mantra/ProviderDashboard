@@ -197,14 +197,7 @@ export function OTPVerify() {
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // If URL params or explicit dev toggle preset a mode, redirect directly.
-    if (hasPresetMode) {
-      completeLoginAndNavigate(signupMode);
-    } else {
-      // Edge Case: No URL params specified -> prompt user to pick how they want to sign in / use Mantra!
-      setShowProductSelection(true);
-    }
+    completeLoginAndNavigate(signupMode);
   };
 
   const completeLoginAndNavigate = (mode: SignupMode) => {

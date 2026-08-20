@@ -4,7 +4,7 @@ import {
   Eye, EyeOff, Shield, Globe, ChevronDown, ChevronLeft,
   Globe as GlobeIcon, Briefcase, LayoutDashboard, Building2, Zap, ShieldCheck,
   Headphones, Users, CreditCard, FileText, CalendarDays, Pill, ClipboardCheck,
-  Mic, Bot, Brain, Timer, Megaphone,
+  Mic, Bot, Brain, Timer, Megaphone, Sparkles, CheckCircle2,
 } from "lucide-react";
 
 type SignupMode = "provider" | "full-ehr";
@@ -137,8 +137,9 @@ function LanguageToggle() {
 export function GetStarted() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [signupMode, setSignupMode] = useState<SignupMode>("provider");
+  const [signupMode, setSignupMode] = useState<SignupMode>("full-ehr");
   const [hasPresetMode, setHasPresetMode] = useState(false);
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -169,7 +170,7 @@ export function GetStarted() {
   };
 
   const handleProceedToVerify = () => {
-    navigate("/verify", { state: { signupMode, email, hasPresetMode } });
+    navigate("/verify", { state: { signupMode, email, hasPresetMode: true } });
   };
 
   const content = modeContent[signupMode];
@@ -328,6 +329,127 @@ export function GetStarted() {
               </div>
 
               <div className="space-y-4">
+                {/* Account Type / Continue As Dropdown */}
+                <div>
+                  <label className="block text-[#0F172A] mb-1.5" style={{ fontSize: 14, fontWeight: 600 }}>
+                    Continue As / Primary Use Case
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowModeDropdown(!showModeDropdown)}
+                      className="w-full bg-[#f8fbff] border border-[#e5e7eb] rounded-2xl text-left flex items-center justify-between p-3.5 outline-none transition-all hover:border-[#00c0ff] focus:border-[#00c0ff] cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          signupMode === "full-ehr"
+                            ? "bg-gradient-to-br from-[#00c0ff] to-[#043570] text-white shadow-xs"
+                            : "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xs"
+                        }`}>
+                          {signupMode === "full-ehr" ? <Sparkles className="size-4.5 text-white" /> : <GlobeIcon className="size-4.5 text-white" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-[#0F172A] truncate">
+                              {signupMode === "full-ehr" ? "Complete Practice OS (EHR + AI Scribe)" : "Mantra Provider Network"}
+                            </span>
+                            {signupMode === "full-ehr" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                🎁 1 Month Free
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                Free Forever
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#64748B] truncate mt-0.5">
+                            {signupMode === "full-ehr"
+                              ? "Practice management, ambient AI SOAP notes & billing"
+                              : "Client referrals from 1M+ individuals & corporate network"}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronDown className={`size-4 text-[#94A3B8] shrink-0 ml-2 transition-transform duration-200 ${showModeDropdown ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {showModeDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowModeDropdown(false)} />
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl z-20 overflow-hidden p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+                          {/* Option 1: Full EHR + AI Scribe */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleModeSwitch("full-ehr");
+                              setShowModeDropdown(false);
+                            }}
+                            className={`w-full text-left p-3 rounded-xl transition-all flex items-start justify-between gap-3 cursor-pointer ${
+                              signupMode === "full-ehr"
+                                ? "bg-[#f0f9ff] border border-[#bae6fd]"
+                                : "hover:bg-[#f8fbff] border border-transparent"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="size-8 rounded-lg bg-[#00c0ff]/15 text-[#043570] flex items-center justify-center shrink-0 mt-0.5">
+                                <Sparkles className="size-4 text-[#043570]" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-[#0F172A]">Complete Practice OS (EHR + AI Scribe)</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    🎁 1 Month Free
+                                  </span>
+                                </div>
+                                <p className="text-xs text-[#64748B] mt-0.5 leading-relaxed">
+                                  Full practice management, AI session transcriber, auto SOAP notes, e-prescriptions & insurance billing.
+                                </p>
+                              </div>
+                            </div>
+                            {signupMode === "full-ehr" && (
+                              <CheckCircle2 className="size-4.5 text-[#043570] shrink-0 mt-0.5" />
+                            )}
+                          </button>
+
+                          {/* Option 2: Provider Network */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleModeSwitch("provider");
+                              setShowModeDropdown(false);
+                            }}
+                            className={`w-full text-left p-3 rounded-xl transition-all flex items-start justify-between gap-3 cursor-pointer ${
+                              signupMode === "provider"
+                                ? "bg-[#f0f9ff] border border-[#bae6fd]"
+                                : "hover:bg-[#f8fbff] border border-transparent"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="size-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
+                                <GlobeIcon className="size-4 text-blue-700" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-[#0F172A]">Join Mantra Provider Network</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Free Forever
+                                  </span>
+                                </div>
+                                <p className="text-xs text-[#64748B] mt-0.5 leading-relaxed">
+                                  Get client referrals from 1M+ individuals & 20K+ corporate clients. Work on your own flexible schedule.
+                                </p>
+                              </div>
+                            </div>
+                            {signupMode === "provider" && (
+                              <CheckCircle2 className="size-4.5 text-[#043570] shrink-0 mt-0.5" />
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 {/* Full Name */}
                 <div>
                   <label className="block text-[#0F172A] mb-1.5" style={{ fontSize: 14, fontWeight: 600 }}>Full Name</label>

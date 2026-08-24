@@ -602,31 +602,59 @@ export function BillsHub() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center shadow-sm">
             <div className="inline-flex flex-col items-center gap-3">
               <div className="size-14 rounded-full bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center">
-                <Receipt className="size-6 text-gray-400 dark:text-gray-500" />
+                {searchQuery ? (
+                  <Search className="size-6 text-gray-400 dark:text-gray-500" />
+                ) : activeTab === "unpaid" ? (
+                  <CheckCircle className="size-6 text-emerald-500" />
+                ) : (
+                  <Receipt className="size-6 text-gray-400 dark:text-gray-500" />
+                )}
               </div>
               <div>
                 <p className="text-gray-900 dark:text-white font-bold text-base">
-                  No bills generated yet
+                  {selfPayBills.length === 0
+                    ? "No bills generated yet"
+                    : searchQuery
+                    ? "No matching bills found"
+                    : activeTab === "draft"
+                    ? "No draft bills"
+                    : activeTab === "unpaid"
+                    ? "No unpaid bills"
+                    : activeTab === "sent"
+                    ? "No sent bills"
+                    : "No bills found"}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
-                  Create a self-pay invoice, record a copay, or sign and lock a clinical note to automatically generate billing charges.
+                  {selfPayBills.length === 0
+                    ? "Create a self-pay invoice, record a copay, or sign and lock a clinical note to automatically generate billing charges."
+                    : searchQuery
+                    ? `No bills found matching "${searchQuery}". Try searching by another client name or invoice number.`
+                    : activeTab === "draft"
+                    ? "You don't have any bills saved in draft status."
+                    : activeTab === "unpaid"
+                    ? "All client invoices are fully paid and settled."
+                    : activeTab === "sent"
+                    ? "No sent invoices found for the current selection."
+                    : "No bills match the selected client filter."}
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-                <button
-                  onClick={() => navigate("/billing/bills/create")}
-                  className="px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Create First Bill</span>
-                </button>
-                <button
-                  onClick={() => openDemoModal("superbill")}
-                  className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-xl transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <CreditCard className="size-3.5 text-[#00c0ff]" />
-                  <span>Preview Demo Superbill</span>
-                </button>
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                  >
+                    Clear Search
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate("/billing/bills/create")}
+                    className="px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>{selfPayBills.length === 0 ? "Create First Bill" : "Create Bill"}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

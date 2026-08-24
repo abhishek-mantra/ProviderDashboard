@@ -1,5 +1,5 @@
 import type { MockClient, Bill, DiagnosisTreatmentPlan } from "../types/partnerDashboard";
-import type { Claim } from "../types/claims";
+import type { Claim, UnbilledSession } from "../types/claims";
 
 export interface DemoSession {
   id: string;
@@ -135,3 +135,47 @@ export const DEMO_CARL_ROGERS_PLAN: DiagnosisTreatmentPlan = {
   createdAt: new Date().toISOString(),
   lockedAt: new Date().toISOString(),
 };
+
+export const DEMO_CARL_ROGERS_INSURANCE_UNBILLED_SESSION: UnbilledSession = {
+  id: "demo-unbilled-carl-rogers-ins",
+  clientId: "demo-carl-rogers",
+  clientName: "Carl Rogers",
+  dateOfService: "Aug 20, 2026",
+  payerId: "bcbs-1",
+  payerName: "BlueCross BlueShield",
+  serviceType: "Individual Psychotherapy, 45 min",
+  duration: "45 min",
+  notesStatus: "locked",
+  notesId: "note-demo-carl-rogers-ins",
+  cptCode: "90834",
+  diagnosisCode: "F41.1",
+  amount: 150,
+  daysSinceService: 4,
+  selected: false,
+};
+
+export const DEMO_CARL_ROGERS_SELFPAY_UNBILLED_SESSION: UnbilledSession = {
+  id: "demo-unbilled-carl-rogers-self",
+  clientId: "demo-carl-rogers",
+  clientName: "Carl Rogers",
+  dateOfService: "Aug 18, 2026",
+  payerId: "self-pay",
+  payerName: "Self-pay",
+  serviceType: "Individual Psychotherapy, 45 min",
+  duration: "45 min",
+  notesStatus: "locked",
+  notesId: "note-demo-carl-rogers-self",
+  cptCode: "90834",
+  diagnosisCode: "F41.1",
+  amount: 150,
+  daysSinceService: 6,
+  selected: false,
+};
+
+export const DEMO_CARL_ROGERS_UNBILLED_SESSION = DEMO_CARL_ROGERS_INSURANCE_UNBILLED_SESSION;
+export const DEMO_CARL_ROGERS_UNBILLED_SESSIONS: UnbilledSession[] = [
+  DEMO_CARL_ROGERS_INSURANCE_UNBILLED_SESSION,
+  DEMO_CARL_ROGERS_SELFPAY_UNBILLED_SESSION,
+];
+
+

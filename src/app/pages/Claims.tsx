@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
+import { useUserMode } from "../contexts/UserModeContext";
 import { CLAIM_STATUS_LABELS } from "../types/claims";
 import type { ClaimFlowType, ClaimStatus } from "../types/claims";
 
@@ -33,6 +34,8 @@ export function Claims({
   setShowClientSelectModal?: (show: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const { userMode } = useUserMode();
+  const isNew = userMode === "new";
   const { claims, simulateClearinghouseSubmission } = useClaims();
   const { clients: contextClients, currentPracticeId, bills = [] } = usePartnerDashboard();
   const [internalShowModal, setInternalShowModal] = useState(false);
@@ -47,7 +50,9 @@ export function Claims({
   const setShowClientSelectModal = externalSetShowModal || setInternalShowModal;
 
   // Practice-scoped clients
-  const practiceClients = contextClients.filter((c) => c.practiceId === currentPracticeId);
+  const practiceClients = isNew
+    ? contextClients
+    : contextClients.filter((c) => !currentPracticeId || c.practiceId === currentPracticeId);
   const practiceClientIds = new Set(practiceClients.map((c) => c.id));
 
   const clients: Client[] = practiceClients.map((c, i) => ({
@@ -189,79 +194,81 @@ export function Claims({
       }
     });
 
-    const hasReady = list.some((c) => ["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(c.status));
-    if (!hasReady) {
-      list.push(
-        {
-          id: "seed-ready-1",
-          claimNumber: "CLM-2026-088",
-          flowType: "mantra",
-          status: "ready_to_submit",
-          clientId: "2",
-          clientName: "Michael Chen",
-          practiceId: "practice-1",
-          providerId: "prov-1",
-          payerId: "bupa",
-          payerName: "Bupa",
-          region: "US",
-          sessionIds: ["sess-2-done"],
-          diagnosisCodes: ["F41.1"],
-          serviceLines: [
-            { id: "sl-ready-1", sessionId: "sess-2-done", dateOfService: "Mar 12, 2026", serviceCode: "90834", units: 1, chargeAmount: 210 },
-          ],
-          eligibilityCheck: null,
-          authorizationCode: null,
-          submittedDate: null,
-          statusHistory: [
-            { status: "ready_to_submit", timestamp: "2026-03-12T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
-          ],
-          totalAmount: 210,
-          currency: "USD",
-          pccn: null,
-          claimFrequencyCode: "1",
-          patientControlNumber: "PCN-READY1",
-          isMedicare: false,
-          payment: null,
-          createdAt: "2026-03-12T09:00:00Z",
-          updatedAt: "2026-03-12T10:05:00Z",
-        },
-        {
-          id: "seed-ready-2",
-          claimNumber: "CLM-2026-089",
-          flowType: "mantra",
-          status: "ready_to_submit",
-          clientId: "1",
-          clientName: "Sarah Johnson",
-          practiceId: "practice-1",
-          providerId: "prov-1",
-          payerId: "us-1",
-          payerName: "UnitedHealthcare",
-          region: "US",
-          sessionIds: ["unbilled-1"],
-          diagnosisCodes: ["F41.1"],
-          serviceLines: [
-            { id: "sl-ready-2", sessionId: "unbilled-1", dateOfService: "Jul 31, 2026", serviceCode: "90834", units: 1, chargeAmount: 150 },
-          ],
-          eligibilityCheck: null,
-          authorizationCode: null,
-          submittedDate: null,
-          statusHistory: [
-            { status: "ready_to_submit", timestamp: "2026-07-31T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
-          ],
-          totalAmount: 150,
-          currency: "USD",
-          pccn: null,
-          claimFrequencyCode: "1",
-          patientControlNumber: "PCN-READY2",
-          isMedicare: false,
-          payment: null,
-          createdAt: "2026-07-31T09:00:00Z",
-          updatedAt: "2026-07-31T10:05:00Z",
-        }
-      );
+    if (!isNew) {
+      const hasReady = list.some((c) => ["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(c.status));
+      if (!hasReady) {
+        list.push(
+          {
+            id: "seed-ready-1",
+            claimNumber: "CLM-2026-088",
+            flowType: "mantra",
+            status: "ready_to_submit",
+            clientId: "2",
+            clientName: "Michael Chen",
+            practiceId: "practice-1",
+            providerId: "prov-1",
+            payerId: "bupa",
+            payerName: "Bupa",
+            region: "US",
+            sessionIds: ["sess-2-done"],
+            diagnosisCodes: ["F41.1"],
+            serviceLines: [
+              { id: "sl-ready-1", sessionId: "sess-2-done", dateOfService: "Mar 12, 2026", serviceCode: "90834", units: 1, chargeAmount: 210 },
+            ],
+            eligibilityCheck: null,
+            authorizationCode: null,
+            submittedDate: null,
+            statusHistory: [
+              { status: "ready_to_submit", timestamp: "2026-03-12T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
+            ],
+            totalAmount: 210,
+            currency: "USD",
+            pccn: null,
+            claimFrequencyCode: "1",
+            patientControlNumber: "PCN-READY1",
+            isMedicare: false,
+            payment: null,
+            createdAt: "2026-03-12T09:00:00Z",
+            updatedAt: "2026-03-12T10:05:00Z",
+          },
+          {
+            id: "seed-ready-2",
+            claimNumber: "CLM-2026-089",
+            flowType: "mantra",
+            status: "ready_to_submit",
+            clientId: "1",
+            clientName: "Sarah Johnson",
+            practiceId: "practice-1",
+            providerId: "prov-1",
+            payerId: "us-1",
+            payerName: "UnitedHealthcare",
+            region: "US",
+            sessionIds: ["unbilled-1"],
+            diagnosisCodes: ["F41.1"],
+            serviceLines: [
+              { id: "sl-ready-2", sessionId: "unbilled-1", dateOfService: "Jul 31, 2026", serviceCode: "90834", units: 1, chargeAmount: 150 },
+            ],
+            eligibilityCheck: null,
+            authorizationCode: null,
+            submittedDate: null,
+            statusHistory: [
+              { status: "ready_to_submit", timestamp: "2026-07-31T10:05:00Z", note: "Session notes signed & billed. Ready for submission." },
+            ],
+            totalAmount: 150,
+            currency: "USD",
+            pccn: null,
+            claimFrequencyCode: "1",
+            patientControlNumber: "PCN-READY2",
+            isMedicare: false,
+            payment: null,
+            createdAt: "2026-07-31T09:00:00Z",
+            updatedAt: "2026-07-31T10:05:00Z",
+          }
+        );
+      }
     }
     return list;
-  }, [claims, bills]);
+  }, [claims, bills, isNew]);
 
   // Filter claims
   const filteredClaims = useMemo(() => {

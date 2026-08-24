@@ -1061,18 +1061,13 @@ export function BillsHub() {
                 <>
                   {/* STEP 1 */}
                   <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="flex items-center gap-3">
+                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0">
                         1
                       </span>
-                      <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                          Select invoices and confirm payment amount
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          You can make partial payments on new invoices
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                        Select invoices and confirm payment amount
+                      </h3>
                     </div>
 
                     {/* Invoices Table Container */}
@@ -1238,18 +1233,13 @@ export function BillsHub() {
 
                   {/* STEP 2: Select payment type */}
                   <div className="space-y-4 pt-2">
-                    <div className="flex items-start gap-3">
-                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="flex items-center gap-3">
+                      <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0">
                         2
                       </span>
-                      <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                          What is this payment for?
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Select payment type ({modalClientHasInsurance ? "Self-pay, Insurance, or Write-off" : "Self-pay or Write-off"})
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                        What is this payment for?
+                      </h3>
                     </div>
 
                     {/* Payment Type Options */}
@@ -1257,7 +1247,7 @@ export function BillsHub() {
                       <button
                         type="button"
                         onClick={() => setPayType("client")}
-                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
                           payType === "client"
                             ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
                             : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
@@ -1267,16 +1257,13 @@ export function BillsHub() {
                         <span className="font-bold text-xs text-gray-900 dark:text-white">
                           Self-pay
                         </span>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                          Patient payment
-                        </span>
                       </button>
 
                       {modalClientHasInsurance && (
                         <button
                           type="button"
                           onClick={() => setPayType("insurance")}
-                          className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                          className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
                             payType === "insurance"
                               ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
                               : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
@@ -1286,16 +1273,13 @@ export function BillsHub() {
                           <span className="font-bold text-xs text-gray-900 dark:text-white">
                             Insurance
                           </span>
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                            Payer EOB / ERA
-                          </span>
                         </button>
                       )}
 
                       <button
                         type="button"
                         onClick={() => setPayType("write_off")}
-                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
                           payType === "write_off"
                             ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
                             : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
@@ -1305,9 +1289,6 @@ export function BillsHub() {
                         <span className="font-bold text-xs text-gray-900 dark:text-white">
                           Write-off
                         </span>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                          Adjustment / Discount
-                        </span>
                       </button>
                     </div>
                   </div>
@@ -1315,18 +1296,13 @@ export function BillsHub() {
                   {/* STEP 3: Details based on selected payment type */}
                   {payType === "client" && (
                     <div className="space-y-4 pt-2">
-                      <div className="flex items-start gap-3">
-                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="flex items-center gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0">
                           3
                         </span>
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                            Choose payment method
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            A payment method is required
-                          </p>
-                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                          Choose payment method
+                        </h3>
                       </div>
 
                       {/* Payment Method Container Box */}
@@ -1337,39 +1313,28 @@ export function BillsHub() {
                           <button
                             type="button"
                             onClick={() => setPayMethod("direct")}
-                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               payMethod === "direct"
                                 ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
                                 : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
                             }`}
                           >
-                            <span className="font-bold text-xs text-gray-900 dark:text-white block">
+                            <span className="font-bold text-xs text-gray-900 dark:text-white">
                               Add payment
-                            </span>
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
-                              Enter payment details yourself
                             </span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setPayMethod("link")}
-                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                               payMethod === "link"
                                 ? "bg-blue-50/40 dark:bg-blue-950/30 border-blue-500 shadow-xs"
                                 : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
                             }`}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs text-gray-900 dark:text-white">
-                                Send payment link
-                              </span>
-                              <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-bold uppercase">
-                                New
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
-                              Collect payment via a secure link sent to contact (email or SMS)
+                            <span className="font-bold text-xs text-gray-900 dark:text-white">
+                              Send payment link
                             </span>
                           </button>
                         </div>
@@ -1533,18 +1498,13 @@ export function BillsHub() {
                   {/* STEP 3: Insurance Details */}
                   {payType === "insurance" && (
                     <div className="space-y-4 pt-2">
-                      <div className="flex items-start gap-3">
-                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="flex items-center gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0">
                           3
                         </span>
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                            Insurance payment details
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Enter insurance claim remittance information
-                          </p>
-                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                          Insurance payment details
+                        </h3>
                       </div>
 
                       <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">
@@ -1608,18 +1568,13 @@ export function BillsHub() {
                   {/* STEP 3: Write-off Details */}
                   {payType === "write_off" && (
                     <div className="space-y-4 pt-2">
-                      <div className="flex items-start gap-3">
-                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="flex items-center gap-3">
+                        <span className="size-6 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shrink-0">
                           3
                         </span>
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                            Write-off details
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Specify reason code and notes for writing off balance
-                          </p>
-                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                          Write-off details
+                        </h3>
                       </div>
 
                       <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 space-y-4">

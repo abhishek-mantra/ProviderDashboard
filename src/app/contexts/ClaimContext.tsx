@@ -3,7 +3,7 @@ import type { Claim, ClaimStatus, ClaimStatusEvent, ClaimFlowType, ServiceLine, 
 import { generateClaimNumber, generatePatientControlNumber, generatePccn, computeClaimFrequencyCode, getMockUnbilledSessions, MOCK_FEE_SCHEDULE, getFeeForService } from "../types/claims";
 import { generateId } from "../utils/id";
 import { useUserMode } from "./UserModeContext";
-import { DEMO_CARL_ROGERS_CLAIM } from "../data/demoClientData";
+import { DEMO_CARL_ROGERS_CLAIM, DEMO_CARL_ROGERS_UNBILLED_SESSIONS } from "../data/demoClientData";
 
 interface ClaimContextType {
   claims: Claim[];
@@ -395,7 +395,23 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
     }
   }, [isNew]);
 
-  const [unbilledSessions, setUnbilledSessions] = useState<UnbilledSession[]>(getMockUnbilledSessions);
+  const [userCreatedUnbilledSessions, setUserCreatedUnbilledSessions] = useState<UnbilledSession[]>([]);
+  const [mockUnbilledSessionsList, setMockUnbilledSessionsList] = useState<UnbilledSession[]>(getMockUnbilledSessions);
+
+  const unbilledSessions = useMemo(() => {
+    return isNew
+      ? [...DEMO_CARL_ROGERS_UNBILLED_SESSIONS, ...userCreatedUnbilledSessions]
+      : [...mockUnbilledSessionsList, ...userCreatedUnbilledSessions];
+  }, [isNew, mockUnbilledSessionsList, userCreatedUnbilledSessions]);
+
+  const setUnbilledSessions = useCallback((action: React.SetStateAction<UnbilledSession[]>) => {
+    if (isNew) {
+      setUserCreatedUnbilledSessions(action);
+    } else {
+      setMockUnbilledSessionsList(action);
+    }
+  }, [isNew]);
+
   const [feeSchedule, setFeeSchedule] = useState<FeeScheduleEntry[]>(MOCK_FEE_SCHEDULE);
 
   const addClaim = useCallback((claim: Claim) => {

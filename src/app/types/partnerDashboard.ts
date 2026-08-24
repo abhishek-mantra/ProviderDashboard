@@ -166,6 +166,38 @@ export interface CareTeamMembership {
   addedAt: string;
 }
 
+export interface ClientInsuranceRecord {
+  id: string;
+  type: "primary" | "secondary" | "other";
+  payerName: string;
+  payerId?: string;
+  memberId: string;
+  groupId?: string;
+  policyHolder: "client" | "spouse" | "parent" | "other";
+  policyHolderName: string;
+  subscriberDob?: string;
+  subscriberGender?: "male" | "female" | "other" | "";
+  relationship?: "self" | "spouse" | "child" | "other";
+  subscriberStreet?: string;
+  subscriberCity?: string;
+  subscriberState?: string;
+  subscriberZip?: string;
+  copayAmount?: number;
+  coinsuranceRate?: number;
+  deductible?: string;
+  cardFrontUrl?: string;
+  cardBackUrl?: string;
+  status: "active" | "pending_verification" | "inactive";
+  verifiedAt?: string;
+  eligibilityDetails?: {
+    planName?: string;
+    inNetworkDeductibleRemaining?: string;
+    outOfPocketMax?: string;
+    priorAuthRequired?: boolean;
+    coverageStatus?: "active" | "inactive";
+  };
+}
+
 export interface MockClient {
   id: string;
   name: string;
@@ -175,6 +207,7 @@ export interface MockClient {
   insuranceCompany?: string;
   /** Secondary/alternative insurance plans. Primary plan is `insuranceCompany`; these are selectable in Create Bill. */
   insurances?: string[];
+  insuranceRecords?: ClientInsuranceRecord[];
   diagnosisCode: string | null;
   referredFromClientId?: string;
   /** Contact / coverage details shown in the billing panel. Optional for the prototype. */

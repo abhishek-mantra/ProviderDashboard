@@ -21,6 +21,7 @@ import { generateId } from "../utils/id";
 import { AddAppointmentModal } from "../components/AddAppointmentModal";
 import { RecordPastSessionModal } from "../components/RecordPastSessionModal";
 import { openPaymentModal } from "../components/billing/paymentModalStore";
+import { AddInsuranceModal } from "../components/AddInsuranceModal";
 
 type BillTypeMode = "self_pay" | "insurance";
 
@@ -93,9 +94,8 @@ export function CreateBill() {
   const [recordPastSessionOpen, setRecordPastSessionOpen] = useState(false);
   const [appointmentJustAdded, setAppointmentJustAdded] = useState(false);
 
-  // Add-insurance inline
-  const [addingInsurance, setAddingInsurance] = useState(false);
-  const [newInsurerName, setNewInsurerName] = useState("");
+  // Add Insurance Modal state
+  const [isAddInsuranceModalOpen, setIsAddInsuranceModalOpen] = useState(false);
 
   const client = clients.find((c) => c.id === clientId);
 
@@ -533,46 +533,78 @@ export function CreateBill() {
                   </select>
                 </div>
 
-                {/* Bill type */}
+                {/* Bill type dropdown */}
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                     Bill Type
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(
-                      [
-                        { id: "self_pay", label: "Self-pay" },
-                        { id: "insurance", label: "Insurance" },
-                      ] as const
-                    ).map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleModeChange(m.id)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                          mode === m.id
-                            ? "bg-[#4169E1] text-white border-[#4169E1] shadow-xs"
-                            : "bg-white dark:bg-gray-750 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={mode}
+                    onChange={(e) => handleModeChange(e.target.value as BillTypeMode)}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043570] dark:text-white cursor-pointer font-medium"
+                  >
+                    <option value="self_pay">Self-pay</option>
+                    <option value="insurance">Insurance</option>
+                  </select>
                 </div>
 
+                {/* Insurance Fields Container (Light gray blurred box) */}
                 {mode === "insurance" && (
-                  <>
-                    {/* Diagnosis Codes (ICD-10) — Prefilled & Editable (Insurance Only) */}
+                  <div className="bg-gray-50/80 dark:bg-gray-800/60 backdrop-blur-xs border border-gray-200/80 dark:border-gray-700/80 rounded-2xl p-4 space-y-4 mt-2.5 shadow-2xs animate-fade-in">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-gray-200/60 dark:border-gray-700/60">
+                      <ShieldCheck className="size-4 text-[#043570] dark:text-[#00c0ff]" />
+                      <span className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Insurance Details
+                      </span>
+                    </div>
+
+                    {/* Insurance Payer Selection */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Insurance / Payer
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!clientId) {
+                              alert("Please select a client first to add an insurance policy.");
+                              return;
+                            }
+                            setIsAddInsuranceModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline cursor-pointer"
+                        >
+                          <Plus className="size-3.5" /> Add insurance
+                        </button>
+                      </div>
+                      <select
+                        value={selectedPayerName}
+                        onChange={(e) => setSelectedPayerName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570] cursor-pointer"
+                      >
+                        {clientPlans.length === 0 ? (
+                          <option value="">No insurance on file</option>
+                        ) : (
+                          clientPlans.map((plan) => (
+                            <option key={plan} value={plan}>
+                              {plan}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    {/* Diagnosis Codes (ICD-10) */}
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                         Diagnosis Codes (ICD-10) — Prefilled
                       </label>
-                      <div className="flex items-center gap-2 flex-wrap p-2.5 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl min-h-[42px]">
+                      <div className="flex items-center gap-1.5 flex-wrap p-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl min-h-[40px]">
                         {diagnosisCodes.map((code, idx) => (
                           <span
                             key={idx}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-[#043570] dark:text-[#00c0ff] border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-mono font-bold"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-[#043570] dark:text-[#00c0ff] border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-mono font-bold"
                           >
                             {code}
                             <button
@@ -619,72 +651,47 @@ export function CreateBill() {
                           )}
                         </div>
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Prefilled from client record. You can edit or add additional ICD-10 codes.
-                      </p>
                     </div>
 
+                    {/* Payment Split */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Insurance / Payer
-                        </label>
-                        {!addingInsurance && (
-                          <button
-                            type="button"
-                            onClick={() => setAddingInsurance(true)}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-[#4169E1] hover:underline"
-                          >
-                            <Plus className="size-3.5" /> + Add insurance
-                          </button>
-                        )}
-                      </div>
-                      {addingInsurance ? (
-                        <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        Payment Split
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                            Client owes ({sym})
+                          </label>
                           <input
-                            type="text"
-                            value={newInsurerName}
-                            onChange={(e) => setNewInsurerName(e.target.value)}
-                            placeholder="Insurer name"
-                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={clientOwedVal}
+                            onChange={(e) => setClientOwedVal(e.target.value)}
+                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#043570]"
                           />
-                          <button
-                            type="button"
-                            onClick={handleAddInsurance}
-                            className="px-3 py-2 text-xs font-bold bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-lg shrink-0"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddingInsurance(false);
-                              setNewInsurerName("");
-                            }}
-                            className="px-2 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700"
-                          >
-                            Cancel
-                          </button>
                         </div>
-                      ) : (
-                        <select
-                          value={selectedPayerName}
-                          onChange={(e) => setSelectedPayerName(e.target.value)}
-                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
-                        >
-                          {clientPlans.length === 0 ? (
-                            <option value="">No insurance on file</option>
-                          ) : (
-                            clientPlans.map((plan) => (
-                              <option key={plan} value={plan}>
-                                {plan}
-                              </option>
-                            ))
-                          )}
-                        </select>
-                      )}
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                            Insurance owes ({sym})
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={total > 0 ? insuranceOwed.toFixed(2) : ""}
+                            onChange={(e) => {
+                              const iv = parseFloat(e.target.value);
+                              const cv = isNaN(iv) ? 0 : Math.max(0, total - iv);
+                              setClientOwedVal(cv.toFixed(2));
+                            }}
+                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#043570]"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
@@ -707,7 +714,7 @@ export function CreateBill() {
                   <select
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value as BillCurrency)}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570]"
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -723,7 +730,7 @@ export function CreateBill() {
                       type="date"
                       value={issuedDate}
                       onChange={(e) => setIssuedDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043570] dark:text-white"
                     />
                   </div>
                   <div>
@@ -732,55 +739,10 @@ export function CreateBill() {
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4169E1] dark:text-white"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043570] dark:text-white"
                     />
                   </div>
                 </div>
-
-                {/* Copay split (Insurance Only) */}
-                {mode === "insurance" && (
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                      Copay Split
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
-                          Client owes ({sym})
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={clientOwedVal}
-                          onChange={(e) => setClientOwedVal(e.target.value)}
-                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
-                          Insurance owes ({sym})
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={total > 0 ? insuranceOwed.toFixed(2) : ""}
-                          onChange={(e) => {
-                            const iv = parseFloat(e.target.value);
-                            const cv = isNaN(iv) ? 0 : Math.max(0, total - iv);
-                            setClientOwedVal(cv.toFixed(2));
-                          }}
-                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#4169E1]"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Client owes + insurance owes must equal the bill total.
-                    </p>
-                  </div>
-                )}
-
               </div>
             </div>
           </div>
@@ -797,7 +759,7 @@ export function CreateBill() {
                   onClick={() => setAddSessionActionOpen(true)}
                   className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-[#4169E1] hover:underline"
                 >
-                  <CalendarPlus className="size-3.5" /> + Add appointment
+                  <CalendarPlus className="size-3.5" /> Add appointment
                 </button>
               )}
             </div>
@@ -1080,6 +1042,16 @@ export function CreateBill() {
           onRecordPastSession={handleInlineRecordPastSession}
         />
       )}
+
+      {/* Add Insurance Modal */}
+      <AddInsuranceModal
+        isOpen={isAddInsuranceModalOpen}
+        onClose={() => setIsAddInsuranceModalOpen(false)}
+        client={client}
+        onSaveSuccess={(savedPolicy) => {
+          setSelectedPayerName(savedPolicy.payerName);
+        }}
+      />
 
       {/* Type hint */}
       <div className="flex items-start gap-2 text-[11px] text-gray-400">

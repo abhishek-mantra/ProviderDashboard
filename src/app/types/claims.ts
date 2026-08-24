@@ -239,16 +239,17 @@ export function formatCurrency(amount: number, currency: string = "USD"): string
 export function predictPayer(
   session: { clientId: string; payerId?: string | null; payerName?: string | null },
   clients: { id: string; insuranceCompany?: string; insurances?: string[] }[],
-  claims: { clientId: string; payerId: string | null }[],
-  bills: { clientId: string; payerId: string | null }[]
+  claims: { clientId: string; payerId?: string | null }[],
+  bills: { clientId: string; payerId?: string | null }[]
 ): "insurance" | "self_pay" {
+  if (session.payerId === "self-pay" || session.payerName?.toLowerCase() === "self-pay") return "self_pay";
   if (session.payerId && session.payerId !== "self-pay") return "insurance";
   const client = clients.find((c) => c.id === session.clientId);
   if (client && (client.insuranceCompany || (client.insurances && client.insurances.length > 0))) {
     return "insurance";
   }
-  if (claims.some((c) => c.clientId === session.clientId && c.payerId)) return "insurance";
-  if (bills.some((b) => b.clientId === session.clientId && b.payerId)) return "insurance";
+  if (claims.some((c) => c.clientId === session.clientId && c.payerId && c.payerId !== "self-pay")) return "insurance";
+  if (bills.some((b) => b.clientId === session.clientId && b.payerId && b.payerId !== "self-pay")) return "insurance";
   return "self_pay";
 }
 

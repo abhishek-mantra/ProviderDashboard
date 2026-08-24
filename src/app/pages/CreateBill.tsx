@@ -63,7 +63,7 @@ export function CreateBill() {
     currentProviderId,
     providers,
   } = usePartnerDashboard();
-  const { unbilledSessions, markSessionsBilled, feeSchedule, addUnbilledSession, createNewClaim } = useClaims();
+  const { unbilledSessions, markSessionsBilled, feeSchedule, addUnbilledSession, createNewClaim, simulateClearinghouseSubmission } = useClaims();
 
   // -- Core state -------------------------------------------------------------
   const [clientId, setClientId] = useState(deepClientId);

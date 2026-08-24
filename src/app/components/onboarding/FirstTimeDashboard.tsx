@@ -126,8 +126,8 @@ export function FirstTimeDashboard() {
         </div>
 
         {/* Header Progress Tracker */}
-        <div className="relative z-10 mt-6 pt-5 border-t border-white/15 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div className="md:col-span-8 space-y-2">
+        <div className="relative z-10 mt-6 pt-5 border-t border-white/15">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-blue-100 flex items-center gap-1.5">
                 <CheckSquare className="size-3.5 text-cyan-300" />
@@ -141,17 +141,6 @@ export function FirstTimeDashboard() {
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>
-          </div>
-
-          <div className="md:col-span-4 flex md:justify-end items-center gap-2 text-xs text-blue-100">
-            <Link
-              to="/learn-mantra"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-semibold text-white border border-white/20 transition-colors"
-            >
-              <BookOpen className="size-3 text-cyan-300" />
-              <span>5-Step Learning Center</span>
-              <ChevronRight className="size-3 text-blue-300" />
-            </Link>
           </div>
         </div>
       </motion.div>

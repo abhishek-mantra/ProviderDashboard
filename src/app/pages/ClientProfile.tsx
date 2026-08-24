@@ -215,8 +215,8 @@ export function ClientProfile({ clientId, clientName, clientEmail, onClose, over
     },
     {
       icon: ShieldCheck,
-      label: "New Claim",
-      onClick: () => navigate(`/billing/bills/create?clientId=${id}`)
+      label: "Insurance",
+      onClick: () => navigate(`/clients/${id}/insurance`)
     }
   ];
 

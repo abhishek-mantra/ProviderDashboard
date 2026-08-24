@@ -1,6 +1,21 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router";
-import { ArrowLeft, Download } from "lucide-react";
+import { useParams, useNavigate } from "react-router";
+import {
+  ArrowLeft,
+  Download,
+  Printer,
+  CheckCircle2,
+  ShieldCheck,
+  Check,
+  Sparkles,
+  Send,
+  FileCheck,
+  Save,
+  X,
+  Building2,
+  Calendar,
+  FileText,
+} from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useGoBack } from "../utils/useGoBack";
@@ -175,6 +190,7 @@ function createEmptyData(): CMS1500Data {
 }
 
 export function CMS1500Form() {
+  const navigate = useNavigate();
   const { claimId, billId } = useParams();
   const { providers, clients, currentProviderId, bills } = usePartnerDashboard();
   const { claims, updateClaim } = useClaims();
@@ -194,6 +210,19 @@ export function CMS1500Form() {
   const currentProvider = providers.find((p) => p.id === (rawClaim?.providerId || targetBill?.providerId || currentProviderId)) || providers[0];
 
   const [data, setData] = useState<CMS1500Data>(createEmptyData);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Manual Submission Confirmation Modal
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submissionChannel, setSubmissionChannel] = useState<"payer_portal" | "mail" | "fax" | "email">("payer_portal");
+  const [submissionRef, setSubmissionRef] = useState("");
+  const [submissionDate, setSubmissionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [submissionNote, setSubmissionNote] = useState("");
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   useEffect(() => {
     const today = new Date();
@@ -209,7 +238,6 @@ export function CMS1500Form() {
     const diagCodes = rawClaim?.diagnosisCodes || targetBill?.diagnosisCodes || ["F41.1", "F33.1"];
     const totalAmountVal = rawClaim?.totalAmount || targetBill?.amount || 190;
     const clientPaidVal = targetBill?.clientPaid || 100;
-    const dueVal = targetBill?.insuranceOwed || (totalAmountVal - clientPaidVal > 0 ? totalAmountVal - clientPaidVal : 90);
 
     const mainServiceCode = targetBill?.cptCode || rawClaim?.serviceLines[0]?.serviceCode || "90834";
     const mainDos = targetBill?.dateOfService || rawClaim?.serviceLines[0]?.dateOfService || "Mar 12, 2026";
@@ -239,17 +267,17 @@ export function CMS1500Form() {
       insuredLastName: lastName,
       insuredFirstName: firstName,
       insuredMiddleName: middleName,
-      patientAddress: "742 Evergreen Terrace",
+      patientAddress: client?.address || "742 Evergreen Terrace",
       patientCity: "San Francisco",
       patientState: "CA",
       patientZip: "94105",
-      patientPhone: "+1 (555) 234-5678",
+      patientPhone: client?.phone || "+1 (555) 234-5678",
       patientRelationship: "Self",
-      insuredAddress: "742 Evergreen Terrace",
+      insuredAddress: client?.address || "742 Evergreen Terrace",
       insuredCity: "San Francisco",
       insuredState: "CA",
       insuredZip: "94105",
-      insuredPhone: "+1 (555) 234-5678",
+      insuredPhone: client?.phone || "+1 (555) 234-5678",
       conditionEmployment: "NO",
       conditionAuto: "NO",
       conditionOther: "NO",
@@ -348,13 +376,7 @@ export function CMS1500Form() {
   };
 
   const handlePrint = () => {
-    if (rawClaim) {
-      updateClaim(rawClaim.id, { serviceLines: rawClaim.serviceLines.map((sl, i) => ({
-        ...sl,
-        serviceCode: data.serviceLines[i]?.cpt || sl.serviceCode,
-        chargeAmount: parseFloat(data.serviceLines[i]?.charges?.replace("$", "") || String(sl.chargeAmount)),
-      }))});
-    }
+    handleSaveEdits();
     window.print();
   };
 
@@ -362,6 +384,8 @@ export function CMS1500Form() {
   const handleSaveEdits = () => {
     if (!rawClaim) return;
     updateClaim(rawClaim.id, {
+      flowType: "manual",
+      status: "draft",
       diagnosisCodes: [
         data.diagnosisA, data.diagnosisB, data.diagnosisC, data.diagnosisD,
         data.diagnosisE, data.diagnosisF, data.diagnosisG, data.diagnosisH,
@@ -376,41 +400,130 @@ export function CMS1500Form() {
         chargeAmount: parseFloat(data.serviceLines[i]?.charges?.replace("$", "") || String(sl.chargeAmount)),
       })),
     });
+    showToast("Changes to CMS-1500 draft saved successfully!");
+  };
+
+  // Confirm manual submission
+  const handleConfirmManualSubmission = () => {
+    if (rawClaim) {
+      const channelLabel =
+        submissionChannel === "payer_portal" ? "Payer Web Portal"
+        : submissionChannel === "mail" ? "USPS Mail (Paper Claim)"
+        : submissionChannel === "fax" ? "Fax Submission"
+        : "Direct Email";
+
+      const note = `[MANUAL SUBMISSION] Filed via ${channelLabel} on ${submissionDate}.${submissionRef ? ` Reference / Confirmation #: ${submissionRef}.` : ""}${submissionNote ? ` Note: ${submissionNote}` : ""}`;
+
+      updateClaim(rawClaim.id, {
+        flowType: "manual",
+        status: "manual_generated",
+        submittedDate: submissionDate,
+        statusHistory: [
+          ...(rawClaim.statusHistory || []),
+          {
+            status: "manual_generated",
+            timestamp: new Date().toISOString(),
+            note,
+          },
+        ],
+      });
+
+      setSubmitModalOpen(false);
+      showToast("Claim successfully marked as submitted manually!");
+      setTimeout(() => {
+        navigate(`/claims/${rawClaim.id}`);
+      }, 1000);
+    }
   };
 
   const handleBack = useGoBack(rawClaim ? `/claims/${rawClaim.id}` : "/billing");
 
-  const inputClass = "w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#4169E1]";
+  const inputClass = "w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#043570]";
   const cellClass = "text-[9px] font-semibold text-[#0a0a0a] dark:text-gray-200 mb-0.5";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-4">
-        <div className="max-w-[1280px] mx-auto flex items-center gap-3">
-          <button onClick={handleBack} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <ArrowLeft className="size-6 text-gray-600 dark:text-gray-400" />
-          </button>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">CMS-1500 Health Insurance Claim Form</h1>
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-900 pb-20">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-semibold rounded-xl shadow-xl animate-fade-in">
+          <CheckCircle2 className="size-4 text-emerald-400 dark:text-emerald-600" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Top Header Controls Bar (Hidden during Print) */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 md:px-8 py-3.5 print:hidden sticky top-0 z-30 shadow-xs">
+        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={handleBack}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white shrink-0"
+              title="Back"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base md:text-lg font-bold text-gray-900 dark:text-white truncate">
+                  CMS-1500 Claim Form
+                </h1>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                  NUCC 02/12
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                {client?.name} · {data.carrierName} · Claim #{rawClaim?.claimNumber || "Draft"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleSaveEdits}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-xl transition-all cursor-pointer shadow-2xs"
+            >
+              <Save className="size-3.5" />
+              <span className="hidden sm:inline">Save</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-xs font-semibold text-[#043570] dark:text-[#00c0ff] rounded-xl transition-all cursor-pointer shadow-2xs"
+            >
+              <Printer className="size-3.5" />
+              <span>Print / PDF</span>
+            </button>
+            <button
+              onClick={() => setSubmitModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#043570] hover:bg-[#032554] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+            >
+              <FileCheck className="size-4" />
+              <span>Mark as Submitted</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="px-8 py-8">
+      {/* Main CMS-1500 Document Wrapper */}
+      <div className="px-4 md:px-8 py-6">
         <div className="max-w-[1280px] mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">CMS-1500 Health Insurance Claim Form</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Header info in card */}
+            <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 print:hidden">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{rawClaim?.claimNumber || "Claim #"}</span>
-                {rawClaim?.payerName && (
-                  <span className="px-3 py-1 bg-[#364153] text-white text-xs font-medium rounded">{rawClaim.payerName}</span>
-                )}
+                <FileText className="size-5 text-[#043570] dark:text-[#00c0ff]" />
+                <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white">
+                  Health Insurance Claim Form (CMS-1500)
+                </h2>
               </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Edit boxes below before exporting or marking as submitted.
+              </span>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               {/* Row 1: Box 1 + Insurance Checkboxes + Box 1a */}
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
                   <div className="mb-2">
                     <p className={cellClass}>PAYER ID</p>
                     <input value={data.payerId} onChange={(e) => updateField("payerId", e.target.value)} className={inputClass} />
@@ -422,477 +535,443 @@ export function CMS1500Form() {
                     <input value={data.carrierAddress2} onChange={(e) => updateField("carrierAddress2", e.target.value)} className={inputClass} placeholder="Address line 2" />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <div className="flex-1 border border-[#d1d5dc] p-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 border border-[#d1d5dc] dark:border-gray-600 p-2">
                     <p className={cellClass}>1. MEDICARE MEDICAID TRICARE CHAMPVA GROUP HEALTH PLAN FECA BLK LUNG OTHER</p>
-                    <div className="flex gap-3 mt-2">
-                      {["Medicare", "Medicaid", "TRICARE"].map((t) => (
-                        <label key={t} className="flex items-center gap-1">
+                    <div className="flex gap-3 mt-2 flex-wrap">
+                      {["Medicare", "Medicaid", "TRICARE", "Group Health Plan"].map((t) => (
+                        <label key={t} className="flex items-center gap-1 cursor-pointer">
                           <input type="checkbox" checked={data.insuranceType.includes(t)} onChange={(e) => {
                             const next = e.target.checked
                               ? [...data.insuranceType, t]
                               : data.insuranceType.filter((x) => x !== t);
                             updateField("insuranceType", next);
                           }} className="size-3" />
-                          <span className="text-xs">{t}</span>
+                          <span className="text-xs text-gray-800 dark:text-gray-200">{t}</span>
                         </label>
                       ))}
                     </div>
                   </div>
-                  <div className="flex-1 border border-[#d1d5dc] p-2">
+                  <div className="w-full sm:w-48 border border-[#d1d5dc] dark:border-gray-600 p-2">
                     <p className={cellClass}>1a. INSURED'S I.D. NUMBER</p>
-                    <input value={data.insuredIdNumber} onChange={(e) => updateField("insuredIdNumber", e.target.value)} className={inputClass} />
+                    <input value={data.insuredIdNumber} onChange={(e) => updateField("insuredIdNumber", e.target.value)} className={`${inputClass} font-mono font-bold`} />
                   </div>
                 </div>
               </div>
 
-              {/* Row 2: Boxes 2-4 */}
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>2. PATIENT'S NAME</p>
-                  <input value={data.patientLastName} onChange={(e) => updateField("patientLastName", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="Last name" />
-                  <input value={data.patientFirstName} onChange={(e) => updateField("patientFirstName", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="First name" />
-                  <input value={data.patientMiddleName} onChange={(e) => updateField("patientMiddleName", e.target.value)} className={inputClass} placeholder="Middle name" />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>3. PATIENT'S BIRTH DATE</p>
-                  <div className="flex gap-1 mb-1">
-                    <input value={data.patientBirthMM} onChange={(e) => updateField("patientBirthMM", e.target.value)} className={inputClass} placeholder="MM" />
-                    <input value={data.patientBirthDD} onChange={(e) => updateField("patientBirthDD", e.target.value)} className={inputClass} placeholder="DD" />
-                    <input value={data.patientBirthYY} onChange={(e) => updateField("patientBirthYY", e.target.value)} className={inputClass} placeholder="YY" />
-                  </div>
-                  <p className={cellClass}>SEX</p>
-                  <div className="flex gap-2">
-                    {["M", "F"].map((s) => (
-                      <label key={s} className="flex items-center gap-1">
-                        <input type="radio" name="patientSex" checked={data.patientSex === s} onChange={() => updateField("patientSex", s)} className="size-3" />
-                        <span className="text-xs">{s}</span>
-                      </label>
-                    ))}
+              {/* Row 2: Patient and Insured Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>2. PATIENT'S NAME (Last Name, First Name, Middle Initial)</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    <input value={data.patientLastName} onChange={(e) => updateField("patientLastName", e.target.value)} className={inputClass} placeholder="Last" />
+                    <input value={data.patientFirstName} onChange={(e) => updateField("patientFirstName", e.target.value)} className={inputClass} placeholder="First" />
+                    <input value={data.patientMiddleName} onChange={(e) => updateField("patientMiddleName", e.target.value)} className={inputClass} placeholder="MI" />
                   </div>
                 </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>4. INSURED'S NAME</p>
-                  <input value={data.insuredLastName} onChange={(e) => updateField("insuredLastName", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="Last name" />
-                  <input value={data.insuredFirstName} onChange={(e) => updateField("insuredFirstName", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="First name" />
-                  <input value={data.insuredMiddleName} onChange={(e) => updateField("insuredMiddleName", e.target.value)} className={inputClass} placeholder="Middle" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                    <p className={cellClass}>3. PATIENT'S BIRTH DATE &amp; SEX</p>
+                    <div className="flex items-center gap-1">
+                      <input value={data.patientBirthMM} onChange={(e) => updateField("patientBirthMM", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="MM" />
+                      <span>/</span>
+                      <input value={data.patientBirthDD} onChange={(e) => updateField("patientBirthDD", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="DD" />
+                      <span>/</span>
+                      <input value={data.patientBirthYY} onChange={(e) => updateField("patientBirthYY", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="YY" />
+                      <select value={data.patientSex} onChange={(e) => updateField("patientSex", e.target.value)} className={`${inputClass} ml-1`}>
+                        <option value="M">M</option>
+                        <option value="F">F</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                    <p className={cellClass}>4. INSURED'S NAME</p>
+                    <div className="grid grid-cols-3 gap-1">
+                      <input value={data.insuredLastName} onChange={(e) => updateField("insuredLastName", e.target.value)} className={inputClass} placeholder="Last" />
+                      <input value={data.insuredFirstName} onChange={(e) => updateField("insuredFirstName", e.target.value)} className={inputClass} placeholder="First" />
+                      <input value={data.insuredMiddleName} onChange={(e) => updateField("insuredMiddleName", e.target.value)} className={inputClass} placeholder="MI" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Row 3: Boxes 5-8 */}
-              <div className="grid grid-cols-4 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
+              {/* Row 3: Addresses and Relationship */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
                   <p className={cellClass}>5. PATIENT'S ADDRESS</p>
-                  <input value={data.patientAddress} onChange={(e) => updateField("patientAddress", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="Street" />
-                  <input value={data.patientCity} onChange={(e) => updateField("patientCity", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="City" />
-                  <div className="flex gap-1 mb-1">
+                  <input value={data.patientAddress} onChange={(e) => updateField("patientAddress", e.target.value)} className={`${inputClass} mb-1`} placeholder="Street Address" />
+                  <div className="grid grid-cols-3 gap-1 mb-1">
+                    <input value={data.patientCity} onChange={(e) => updateField("patientCity", e.target.value)} className={inputClass} placeholder="City" />
                     <input value={data.patientState} onChange={(e) => updateField("patientState", e.target.value)} className={inputClass} placeholder="State" />
                     <input value={data.patientZip} onChange={(e) => updateField("patientZip", e.target.value)} className={inputClass} placeholder="ZIP" />
                   </div>
-                  <p className={cellClass}>TELEPHONE</p>
-                  <input value={data.patientPhone} onChange={(e) => updateField("patientPhone", e.target.value)} className={inputClass} />
+                  <input value={data.patientPhone} onChange={(e) => updateField("patientPhone", e.target.value)} className={inputClass} placeholder="Telephone" />
                 </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>6. PATIENT RELATIONSHIP TO INSURED</p>
-                  {["Self", "Spouse", "Child", "Other"].map((r) => (
-                    <label key={r} className="flex items-center gap-1">
-                      <input type="radio" name="relationship" checked={data.patientRelationship === r} onChange={() => updateField("patientRelationship", r)} className="size-3" />
-                      <span className="text-xs">{r}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>7. INSURED'S ADDRESS</p>
-                  <input value={data.insuredAddress} onChange={(e) => updateField("insuredAddress", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="Street" />
-                  <input value={data.insuredCity} onChange={(e) => updateField("insuredCity", e.target.value)} className={`${inputClass} mb-0.5`} placeholder="City" />
-                  <div className="flex gap-1 mb-1">
-                    <input value={data.insuredState} onChange={(e) => updateField("insuredState", e.target.value)} className={inputClass} placeholder="State" />
-                    <input value={data.insuredZip} onChange={(e) => updateField("insuredZip", e.target.value)} className={inputClass} placeholder="ZIP" />
-                  </div>
-                  <p className={cellClass}>TELEPHONE</p>
-                  <input value={data.insuredPhone} onChange={(e) => updateField("insuredPhone", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>8. RESERVED FOR NUCC USE</p>
-                </div>
-              </div>
-
-              {/* Row 4: Boxes 9-13 */}
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="border border-[#d1d5dc] p-2">
-                    <p className={cellClass}>9. OTHER INSURED'S NAME</p>
-                    <input value={data.otherInsuredName} onChange={(e) => updateField("otherInsuredName", e.target.value)} className={`${inputClass} mb-0.5`} />
-                    <p className={cellClass}>a. OTHER INSURED'S POLICY OR GROUP NUMBER</p>
-                    <input value={data.otherInsuredPolicy} onChange={(e) => updateField("otherInsuredPolicy", e.target.value)} className={`${inputClass} mb-0.5`} />
-                    <p className={cellClass}>b. RESERVED FOR NUCC USE</p>
-                    <p className={cellClass}>c. RESERVED FOR NUCC USE</p>
-                    <p className={cellClass}>d. INSURANCE PLAN NAME OR PROGRAM NAME</p>
-                    <input value={data.otherInsuredPlanName} onChange={(e) => updateField("otherInsuredPlanName", e.target.value)} className={inputClass} />
-                  </div>
-                  <div className="border border-[#d1d5dc] p-2">
-                    <p className={cellClass}>10. IS PATIENT'S CONDITION RELATED TO:</p>
-                    <div className="mt-1">
-                      <p className={cellClass}>a. EMPLOYMENT? (Current or Previous)</p>
-                      <div className="flex gap-2">
-                        {["YES", "NO"].map((v) => (
-                          <label key={v} className="flex items-center gap-1">
-                            <input type="radio" name="employment" checked={data.conditionEmployment === v} onChange={() => updateField("conditionEmployment", v)} className="size-3" />
-                            <span className="text-xs">{v}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mt-1">
-                      <p className={cellClass}>b. AUTO ACCIDENT?</p>
-                      <div className="flex gap-2 items-center">
-                        {["YES", "NO"].map((v) => (
-                          <label key={v} className="flex items-center gap-1">
-                            <input type="radio" name="auto" checked={data.conditionAuto === v} onChange={() => updateField("conditionAuto", v)} className="size-3" />
-                            <span className="text-xs">{v}</span>
-                          </label>
-                        ))}
-                        <span className="text-[9px] ml-1">PLACE (State)</span>
-                        <input value={data.conditionAutoState} onChange={(e) => updateField("conditionAutoState", e.target.value)} className="w-12 border border-[#d1d5dc] h-5 text-[9px] px-0.5" />
-                      </div>
-                    </div>
-                    <div className="mt-1">
-                      <p className={cellClass}>c. OTHER ACCIDENT?</p>
-                      <div className="flex gap-2">
-                        {["YES", "NO"].map((v) => (
-                          <label key={v} className="flex items-center gap-1">
-                            <input type="radio" name="other" checked={data.conditionOther === v} onChange={() => updateField("conditionOther", v)} className="size-3" />
-                            <span className="text-xs">{v}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <p className={cellClass}>d. CLAIM CODES (Designated by NUCC)</p>
-                    <input value={data.claimCodes} onChange={(e) => updateField("claimCodes", e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="border border-[#d1d5dc] p-2">
-                    <p className={cellClass}>11. INSURED'S POLICY GROUP OR FECA NUMBER</p>
-                    <input value={data.insuredPolicyGroup} onChange={(e) => updateField("insuredPolicyGroup", e.target.value)} className={inputClass} />
-                    <p className={cellClass}>a. INSURED'S DATE OF BIRTH</p>
-                    <div className="flex gap-1 mb-1">
-                      <input value={data.insuredDobMM} onChange={(e) => updateField("insuredDobMM", e.target.value)} className={inputClass} placeholder="MM" />
-                      <input value={data.insuredDobDD} onChange={(e) => updateField("insuredDobDD", e.target.value)} className={inputClass} placeholder="DD" />
-                      <input value={data.insuredDobYY} onChange={(e) => updateField("insuredDobYY", e.target.value)} className={inputClass} placeholder="YY" />
-                    </div>
-                    <div className="flex gap-2">
-                      {["M", "F"].map((s) => (
-                        <label key={s} className="flex items-center gap-1">
-                          <input type="radio" name="insuredSex" checked={data.insuredSex === s} onChange={() => updateField("insuredSex", s)} className="size-3" />
-                          <span className="text-xs">{s}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className={cellClass}>b. OTHER CLAIM ID (Designated by NUCC)</p>
-                    <input value={data.otherClaimId} onChange={(e) => updateField("otherClaimId", e.target.value)} className={inputClass} />
-                    <p className={cellClass}>c. INSURANCE PLAN NAME OR PROGRAM NAME</p>
-                    <input value={data.insurancePlanName} onChange={(e) => updateField("insurancePlanName", e.target.value)} className={inputClass} />
-                    <p className={cellClass}>d. IS THERE ANOTHER HEALTH BENEFIT PLAN?</p>
-                    <div className="flex gap-2">
-                      {["YES", "NO"].map((v) => (
-                        <label key={v} className="flex items-center gap-1">
-                          <input type="radio" name="benefit" checked={data.anotherHealthPlan === v} onChange={() => updateField("anotherHealthPlan", v)} className="size-3" />
-                          <span className="text-xs">{v}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                    <p className={cellClass}>6. PATIENT RELATIONSHIP TO INSURED</p>
+                    <div className="grid grid-cols-2 gap-1 mt-2">
+                      {["Self", "Spouse", "Child", "Other"].map((r) => (
+                        <label key={r} className="flex items-center gap-1 cursor-pointer">
+                          <input type="radio" name="rel" checked={data.patientRelationship.toLowerCase() === r.toLowerCase()} onChange={() => updateField("patientRelationship", r)} className="size-3" />
+                          <span className="text-xs text-gray-800 dark:text-gray-200">{r}</span>
                         </label>
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-rows-2 gap-2">
-                    <div className="border border-[#d1d5dc] p-2">
-                      <p className={cellClass}>12. PATIENT'S OR AUTHORIZED PERSON'S SIGNATURE</p>
-                      <p className="text-[8px] text-gray-600 leading-tight mb-1">I authorize the release of any medical or other information necessary to process this claim.</p>
-                      <input value={data.patientSignature} onChange={(e) => updateField("patientSignature", e.target.value)} className={inputClass} placeholder="Signature" />
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px]">Date</span>
-                        <input value={data.patientSignatureDate} onChange={(e) => updateField("patientSignatureDate", e.target.value)} className="flex-1 border-b border-[#d1d5dc] h-5 text-[9px] px-0.5" />
+                  <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                    <p className={cellClass}>7. INSURED'S ADDRESS</p>
+                    <input value={data.insuredAddress} onChange={(e) => updateField("insuredAddress", e.target.value)} className={`${inputClass} mb-1`} placeholder="Street Address" />
+                    <div className="grid grid-cols-3 gap-1 mb-1">
+                      <input value={data.insuredCity} onChange={(e) => updateField("insuredCity", e.target.value)} className={inputClass} placeholder="City" />
+                      <input value={data.insuredState} onChange={(e) => updateField("insuredState", e.target.value)} className={inputClass} placeholder="State" />
+                      <input value={data.insuredZip} onChange={(e) => updateField("insuredZip", e.target.value)} className={inputClass} placeholder="ZIP" />
+                    </div>
+                    <input value={data.insuredPhone} onChange={(e) => updateField("insuredPhone", e.target.value)} className={inputClass} placeholder="Telephone" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 4: Box 9, 10, 11 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>9. OTHER INSURED'S NAME</p>
+                  <input value={data.otherInsuredName} onChange={(e) => updateField("otherInsuredName", e.target.value)} className={`${inputClass} mb-1`} placeholder="Name" />
+                  <p className={cellClass}>a. OTHER INSURED'S POLICY OR GROUP NUMBER</p>
+                  <input value={data.otherInsuredPolicy} onChange={(e) => updateField("otherInsuredPolicy", e.target.value)} className={`${inputClass} mb-1`} />
+                  <p className={cellClass}>d. INSURANCE PLAN NAME OR PROGRAM NAME</p>
+                  <input value={data.otherInsuredPlanName} onChange={(e) => updateField("otherInsuredPlanName", e.target.value)} className={inputClass} />
+                </div>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>10. IS PATIENT'S CONDITION RELATED TO:</p>
+                  <div className="space-y-1 mt-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span>a. EMPLOYMENT?</span>
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-0.5"><input type="radio" name="emp" checked={data.conditionEmployment === "YES"} onChange={() => updateField("conditionEmployment", "YES")} /> YES</label>
+                        <label className="flex items-center gap-0.5"><input type="radio" name="emp" checked={data.conditionEmployment === "NO"} onChange={() => updateField("conditionEmployment", "NO")} /> NO</label>
                       </div>
                     </div>
-                    <div className="border border-[#d1d5dc] p-2">
-                      <p className={cellClass}>13. INSURED'S OR AUTHORIZED PERSON'S SIGNATURE</p>
-                      <p className="text-[8px] text-gray-600 leading-tight mb-1">I authorize payment of medical benefits to the undersigned physician or supplier for services described below.</p>
-                      <input value={data.insuredSignature} onChange={(e) => updateField("insuredSignature", e.target.value)} className={inputClass} placeholder="Signature" />
+                    <div className="flex items-center justify-between">
+                      <span>b. AUTO ACCIDENT?</span>
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-0.5"><input type="radio" name="auto" checked={data.conditionAuto === "YES"} onChange={() => updateField("conditionAuto", "YES")} /> YES</label>
+                        <label className="flex items-center gap-0.5"><input type="radio" name="auto" checked={data.conditionAuto === "NO"} onChange={() => updateField("conditionAuto", "NO")} /> NO</label>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>c. OTHER ACCIDENT?</span>
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-0.5"><input type="radio" name="oth" checked={data.conditionOther === "YES"} onChange={() => updateField("conditionOther", "YES")} /> YES</label>
+                        <label className="flex items-center gap-0.5"><input type="radio" name="oth" checked={data.conditionOther === "NO"} onChange={() => updateField("conditionOther", "NO")} /> NO</label>
+                      </div>
                     </div>
                   </div>
+                </div>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>11. INSURED'S POLICY GROUP OR FECA NUMBER</p>
+                  <input value={data.insuredPolicyGroup} onChange={(e) => updateField("insuredPolicyGroup", e.target.value)} className={`${inputClass} mb-1`} />
+                  <p className={cellClass}>a. INSURED'S DATE OF BIRTH &amp; SEX</p>
+                  <div className="flex items-center gap-1 mb-1">
+                    <input value={data.insuredDobMM} onChange={(e) => updateField("insuredDobMM", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="MM" />
+                    <span>/</span>
+                    <input value={data.insuredDobDD} onChange={(e) => updateField("insuredDobDD", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="DD" />
+                    <span>/</span>
+                    <input value={data.insuredDobYY} onChange={(e) => updateField("insuredDobYY", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="YY" />
+                    <select value={data.insuredSex} onChange={(e) => updateField("insuredSex", e.target.value)} className={`${inputClass} ml-1`}>
+                      <option value="M">M</option>
+                      <option value="F">F</option>
+                    </select>
+                  </div>
+                  <p className={cellClass}>c. INSURANCE PLAN NAME OR PROGRAM NAME</p>
+                  <input value={data.insurancePlanName} onChange={(e) => updateField("insurancePlanName", e.target.value)} className={inputClass} />
                 </div>
               </div>
 
-              {/* Row 5: Boxes 14-18 */}
-              <div className="grid grid-cols-6 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>14. DATE OF CURRENT ILLNESS, INJURY, or PREGNANCY (LMP)</p>
-                  <div className="flex gap-1 items-center mb-1">
-                    <input value={data.dateCurrentIllnessMM} onChange={(e) => updateField("dateCurrentIllnessMM", e.target.value)} className={inputClass} placeholder="MM" />
-                    <input value={data.dateCurrentIllnessDD} onChange={(e) => updateField("dateCurrentIllnessDD", e.target.value)} className={inputClass} placeholder="DD" />
-                    <input value={data.dateCurrentIllnessYY} onChange={(e) => updateField("dateCurrentIllnessYY", e.target.value)} className={inputClass} placeholder="YY" />
-                  </div>
-                  <p className="text-[8px] text-gray-600">QUAL.</p>
-                  <input value={data.dateCurrentIllnessQual} onChange={(e) => updateField("dateCurrentIllnessQual", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>15. OTHER DATE</p>
-                  <div className="flex gap-1 items-center mb-1">
-                    <input value={data.otherDateMM} onChange={(e) => updateField("otherDateMM", e.target.value)} className={inputClass} placeholder="MM" />
-                    <input value={data.otherDateDD} onChange={(e) => updateField("otherDateDD", e.target.value)} className={inputClass} placeholder="DD" />
-                    <input value={data.otherDateYY} onChange={(e) => updateField("otherDateYY", e.target.value)} className={inputClass} placeholder="YY" />
-                  </div>
-                  <p className="text-[8px] text-gray-600">QUAL.</p>
-                  <input value={data.otherDateQual} onChange={(e) => updateField("otherDateQual", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>16. DATES PATIENT UNABLE TO WORK IN CURRENT OCCUPATION</p>
-                  <div className="space-y-1">
-                    <div className="flex gap-1 items-center">
-                      <span className="text-[8px]">FROM</span>
-                      <input value={data.unableToWorkFromMM} onChange={(e) => updateField("unableToWorkFromMM", e.target.value)} className={inputClass} placeholder="MM" />
-                      <input value={data.unableToWorkFromDD} onChange={(e) => updateField("unableToWorkFromDD", e.target.value)} className={inputClass} placeholder="DD" />
-                      <input value={data.unableToWorkFromYY} onChange={(e) => updateField("unableToWorkFromYY", e.target.value)} className={inputClass} placeholder="YY" />
-                    </div>
-                    <div className="flex gap-1 items-center">
-                      <span className="text-[8px]">TO</span>
-                      <input value={data.unableToWorkToMM} onChange={(e) => updateField("unableToWorkToMM", e.target.value)} className={inputClass} placeholder="MM" />
-                      <input value={data.unableToWorkToDD} onChange={(e) => updateField("unableToWorkToDD", e.target.value)} className={inputClass} placeholder="DD" />
-                      <input value={data.unableToWorkToYY} onChange={(e) => updateField("unableToWorkToYY", e.target.value)} className={inputClass} placeholder="YY" />
-                    </div>
-                  </div>
-                </div>
-                <div className="col-span-2 border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>17. NAME OF REFERRING PROVIDER OR OTHER SOURCE</p>
-                  <input value={data.referringProvider} onChange={(e) => updateField("referringProvider", e.target.value)} className={inputClass} />
-                  <div className="grid grid-cols-2 gap-1 mt-1">
-                    <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">17a. ID NUMBER OF REFERRING PHYSICIAN</p>
-                      <input value={data.referringProviderNpi} onChange={(e) => updateField("referringProviderNpi", e.target.value)} className={inputClass} />
-                    </div>
-                    <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">17b.</p>
-                      <input value={data.referringProviderOther} onChange={(e) => updateField("referringProviderOther", e.target.value)} className={inputClass} />
-                    </div>
-                  </div>
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>18. HOSPITALIZATION DATES RELATED TO CURRENT SERVICES</p>
-                  <div className="space-y-1">
-                    <div className="flex gap-1 items-center">
-                      <span className="text-[8px]">FROM</span>
-                      <input value={data.hospitalizationFromMM} onChange={(e) => updateField("hospitalizationFromMM", e.target.value)} className={inputClass} placeholder="MM" />
-                      <input value={data.hospitalizationFromDD} onChange={(e) => updateField("hospitalizationFromDD", e.target.value)} className={inputClass} placeholder="DD" />
-                      <input value={data.hospitalizationFromYY} onChange={(e) => updateField("hospitalizationFromYY", e.target.value)} className={inputClass} placeholder="YY" />
-                    </div>
-                    <div className="flex gap-1 items-center">
-                      <span className="text-[8px]">TO</span>
-                      <input value={data.hospitalizationToMM} onChange={(e) => updateField("hospitalizationToMM", e.target.value)} className={inputClass} placeholder="MM" />
-                      <input value={data.hospitalizationToDD} onChange={(e) => updateField("hospitalizationToDD", e.target.value)} className={inputClass} placeholder="DD" />
-                      <input value={data.hospitalizationToYY} onChange={(e) => updateField("hospitalizationToYY", e.target.value)} className={inputClass} placeholder="YY" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 6: Boxes 19-23 */}
-              <div className="grid grid-cols-4 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>19. ADDITIONAL CLAIM INFORMATION (Designated by NUCC)</p>
-                  <textarea value={data.additionalClaimInfo} onChange={(e) => updateField("additionalClaimInfo", e.target.value)} className={`${inputClass} h-10 resize-none`} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>20. OUTSIDE LAB?</p>
-                  <div className="flex gap-2 items-center">
-                    {["YES", "NO"].map((v) => (
-                      <label key={v} className="flex items-center gap-1">
-                        <input type="radio" name="outsideLab" checked={data.outsideLab === v} onChange={() => updateField("outsideLab", v)} className="size-3" />
-                        <span className="text-xs">{v}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-[8px] text-gray-600 mt-1 mb-0.5">$ CHARGES</p>
-                  <input value={data.outsideLabCharges} onChange={(e) => updateField("outsideLabCharges", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>21. DIAGNOSIS OR NATURE OF ILLNESS OR INJURY</p>
-                  <div className="grid grid-cols-4 gap-1">
-                    {(["A", "B", "C", "D", "E", "F", "G", "H"] as const).map((letter, i) => {
-                      const key = `diagnosis${letter}` as keyof CMS1500Data;
-                      return (
-                        <div key={letter} className="flex items-center gap-0.5">
-                          <span className="text-[8px]">{letter}.</span>
-                          <input value={data[key] as string} onChange={(e) => updateField(key, e.target.value as any)} className="w-full border border-[#d1d5dc] h-4 text-[8px] px-0.5" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="grid grid-rows-2 gap-2">
-                  <div className="border border-[#d1d5dc] p-2">
-                    <p className={cellClass}>22. RESUBMISSION CODE</p>
-                    <input value={data.resubmissionCode} onChange={(e) => updateField("resubmissionCode", e.target.value)} className={inputClass} />
-                    <p className="text-[8px] text-gray-600 mt-0.5">ORIGINAL REF. NO.</p>
-                    <input value={data.originalRefNo} onChange={(e) => updateField("originalRefNo", e.target.value)} className={inputClass} />
-                  </div>
-                  <div className="border border-[#d1d5dc] p-2">
-                    <p className={cellClass}>23. PRIOR AUTHORIZATION NUMBER</p>
-                    <input value={data.priorAuthNumber} onChange={(e) => updateField("priorAuthNumber", e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 7: Service Lines (Box 24) */}
-              <div className="border border-[#d1d5dc] mb-2">
-                <div className="grid grid-cols-12 gap-px bg-[#d1d5dc]">
-                  <div className="col-span-2 bg-white p-1"><p className="text-[8px] font-semibold text-center">A. DATE(S) OF SERVICE<br/><span className="text-[7px]">From | To</span></p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">B. POS</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">C. EMG</p></div>
-                  <div className="col-span-2 bg-white p-1"><p className="text-[8px] font-semibold text-center">D. CPT/HCPCS | MOD</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">E. DIAG</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">F. $</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">G. UNITS</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">H. EPSDT</p></div>
-                  <div className="bg-white p-1"><p className="text-[8px] font-semibold text-center">I. QUAL</p></div>
-                  <div className="col-span-2 bg-white p-1"><p className="text-[8px] font-semibold text-center">J. RENDERING NPI</p></div>
-                </div>
-                {Array.from({ length: 6 }).map((_, line) => (
-                  <div key={line} className="grid grid-cols-12 gap-px bg-[#d1d5dc] border-t border-[#d1d5dc]">
-                    <div className="col-span-2 bg-white p-0.5 flex gap-px">
-                      <input value={data.serviceLines[line].dateFrom} onChange={(e) => updateServiceLine(line, "dateFrom", e.target.value)} className="w-1/2 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="From" />
-                      <input value={data.serviceLines[line].dateTo} onChange={(e) => updateServiceLine(line, "dateTo", e.target.value)} className="w-1/2 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="To" />
-                    </div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].placeOfService} onChange={(e) => updateServiceLine(line, "placeOfService", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].emg} onChange={(e) => updateServiceLine(line, "emg", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="col-span-2 bg-white p-0.5 flex gap-px">
-                      <input value={data.serviceLines[line].cpt} onChange={(e) => updateServiceLine(line, "cpt", e.target.value)} className="flex-1 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="CPT" />
-                      <input value={data.serviceLines[line].modifier} onChange={(e) => updateServiceLine(line, "modifier", e.target.value)} className="w-6 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="Mod" />
-                    </div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].diagnosisPointer} onChange={(e) => updateServiceLine(line, "diagnosisPointer", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].charges} onChange={(e) => updateServiceLine(line, "charges", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].daysUnits} onChange={(e) => updateServiceLine(line, "daysUnits", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].epsdt} onChange={(e) => updateServiceLine(line, "epsdt", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="bg-white p-0.5"><input value={data.serviceLines[line].idQual} onChange={(e) => updateServiceLine(line, "idQual", e.target.value)} className="w-full border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" /></div>
-                    <div className="col-span-2 bg-white p-0.5 flex gap-px">
-                      <input value={data.serviceLines[line].renderingNpi} onChange={(e) => updateServiceLine(line, "renderingNpi", e.target.value)} className="flex-1 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="NPI" />
-                      <input value={data.serviceLines[line].renderingOther} onChange={(e) => updateServiceLine(line, "renderingOther", e.target.value)} className="flex-1 border-b border-[#d1d5dc] h-5 text-[8px] px-0.5" placeholder="Other ID" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Row 8: Boxes 25-30 */}
-              <div className="grid grid-cols-6 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>25. FEDERAL TAX I.D. NUMBER</p>
-                  <div className="flex items-center gap-2 mb-1">
-                    <input value={data.federalTaxId} onChange={(e) => updateField("federalTaxId", e.target.value)} className="flex-1 border border-[#d1d5dc] h-5 text-[9px] px-1" />
-                  </div>
+              {/* Row 5: Signatures (12, 13) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>12. PATIENT'S OR AUTHORIZED PERSON'S SIGNATURE</p>
+                  <p className="text-[8px] text-gray-500 mb-1">I authorize release of any medical information necessary to process this claim.</p>
                   <div className="flex gap-2">
-                    {["SSN", "EIN"].map((t) => (
-                      <label key={t} className="flex items-center gap-0.5">
-                        <input type="radio" name="taxType" checked={data.taxType === t} onChange={() => updateField("taxType", t)} className="size-2.5" />
-                        <span className="text-[8px]">{t}</span>
-                      </label>
-                    ))}
+                    <input value={data.patientSignature} onChange={(e) => updateField("patientSignature", e.target.value)} className={`${inputClass} flex-1 font-mono`} />
+                    <input value={data.patientSignatureDate} onChange={(e) => updateField("patientSignatureDate", e.target.value)} className={`${inputClass} w-28`} placeholder="Date" />
                   </div>
                 </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>26. PATIENT'S ACCOUNT NO.</p>
-                  <input value={data.patientAccountNo} onChange={(e) => updateField("patientAccountNo", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>27. ACCEPT ASSIGNMENT?</p>
-                  <div className="flex gap-2">
-                    {["YES", "NO"].map((v) => (
-                      <label key={v} className="flex items-center gap-1">
-                        <input type="radio" name="assignment" checked={data.acceptAssignment === v} onChange={() => updateField("acceptAssignment", v)} className="size-3" />
-                        <span className="text-xs">{v}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>28. TOTAL CHARGE</p>
-                  <input value={data.totalCharge} onChange={(e) => updateField("totalCharge", e.target.value)} className={inputClass} />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>29. AMOUNT PAID</p>
-                  <input value={data.amountPaid} onChange={(e) => updateField("amountPaid", e.target.value)} className={inputClass} placeholder="$" />
-                </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>30. RSVD FOR NUCC USE</p>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>13. INSURED'S OR AUTHORIZED PERSON'S SIGNATURE</p>
+                  <p className="text-[8px] text-gray-500 mb-1">I authorize payment of medical benefits to the undersigned physician.</p>
+                  <input value={data.insuredSignature} onChange={(e) => updateField("insuredSignature", e.target.value)} className={`${inputClass} font-mono`} />
                 </div>
               </div>
 
-              {/* Row 9: Boxes 31-33 */}
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>31. SIGNATURE OF PHYSICIAN OR SUPPLIER</p>
-                  <p className="text-[8px] text-gray-600 mb-0.5">I certify that the statements on the reverse apply to this bill.</p>
-                  <input value={data.signaturePhysician} onChange={(e) => updateField("signaturePhysician", e.target.value)} className={inputClass} placeholder="Signature" />
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-[8px]">DATE</span>
-                    <input value={data.signatureDate} onChange={(e) => updateField("signatureDate", e.target.value)} className="flex-1 border-b border-[#d1d5dc] h-5 text-[9px] px-0.5" />
+              {/* Row 6: Box 14-23 Clinical & Prior Auth */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>14. DATE OF CURRENT ILLNESS / INJURY</p>
+                  <div className="flex items-center gap-1">
+                    <input value={data.dateCurrentIllnessMM} onChange={(e) => updateField("dateCurrentIllnessMM", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="MM" />
+                    <span>/</span>
+                    <input value={data.dateCurrentIllnessDD} onChange={(e) => updateField("dateCurrentIllnessDD", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="DD" />
+                    <span>/</span>
+                    <input value={data.dateCurrentIllnessYY} onChange={(e) => updateField("dateCurrentIllnessYY", e.target.value)} className={`${inputClass} w-10 text-center`} placeholder="YY" />
                   </div>
                 </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>32. SERVICE FACILITY LOCATION INFORMATION</p>
-                  <input value={data.serviceFacilityName} onChange={(e) => updateField("serviceFacilityName", e.target.value)} className={`${inputClass} mb-0.5`} />
-                  <input value={data.serviceFacilityAddress} onChange={(e) => updateField("serviceFacilityAddress", e.target.value)} className={`${inputClass} mb-0.5`} />
-                  <input value={data.serviceFacilityCityState} onChange={(e) => updateField("serviceFacilityCityState", e.target.value)} className={`${inputClass} mb-1`} />
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>17. NAME OF REFERRING PROVIDER</p>
+                  <input value={data.referringProvider} onChange={(e) => updateField("referringProvider", e.target.value)} className={`${inputClass} mb-1`} />
+                  <p className={cellClass}>17b. NPI</p>
+                  <input value={data.referringProviderNpi} onChange={(e) => updateField("referringProviderNpi", e.target.value)} className={`${inputClass} font-mono`} />
+                </div>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>21. DIAGNOSIS (ICD-10-CM)</p>
                   <div className="grid grid-cols-2 gap-1">
-                    <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">a. NPI</p>
-                      <input value={data.serviceFacilityNpi} onChange={(e) => updateField("serviceFacilityNpi", e.target.value)} className={`${inputClass} font-mono`} />
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-gray-500">A.</span>
+                      <input value={data.diagnosisA} onChange={(e) => updateField("diagnosisA", e.target.value)} className={`${inputClass} font-mono`} />
                     </div>
-                    <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">b. Other ID</p>
-                      <input value={data.serviceFacilityOtherId} onChange={(e) => updateField("serviceFacilityOtherId", e.target.value)} className={inputClass} />
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-gray-500">B.</span>
+                      <input value={data.diagnosisB} onChange={(e) => updateField("diagnosisB", e.target.value)} className={`${inputClass} font-mono`} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-gray-500">C.</span>
+                      <input value={data.diagnosisC} onChange={(e) => updateField("diagnosisC", e.target.value)} className={`${inputClass} font-mono`} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-gray-500">D.</span>
+                      <input value={data.diagnosisD} onChange={(e) => updateField("diagnosisD", e.target.value)} className={`${inputClass} font-mono`} />
                     </div>
                   </div>
                 </div>
-                <div className="border border-[#d1d5dc] p-2">
-                  <p className={cellClass}>33. BILLING PROVIDER INFO & PH #</p>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>23. PRIOR AUTHORIZATION NUMBER</p>
+                  <input value={data.priorAuthNumber} onChange={(e) => updateField("priorAuthNumber", e.target.value)} className={`${inputClass} font-mono`} placeholder="e.g. AUTH-98241" />
+                </div>
+              </div>
+
+              {/* Row 7: Box 24 Service Lines Table */}
+              <div className="border border-[#d1d5dc] dark:border-gray-600 mb-2 overflow-x-auto">
+                <p className={`${cellClass} p-1 bg-gray-100 dark:bg-gray-750 border-b border-[#d1d5dc] dark:border-gray-600`}>
+                  24. A. DATES OF SERVICE | B. POS | C. EMG | D. CPT/HCPCS &amp; MODIFIER | E. DIAG POINTER | F. $ CHARGES | G. UNITS | J. RENDERING PROVIDER NPI
+                </p>
+                <table className="w-full text-xs min-w-[700px]">
+                  <thead>
+                    <tr className="border-b border-[#d1d5dc] dark:border-gray-600 text-[8px] font-semibold text-gray-600 dark:text-gray-300">
+                      <th className="p-1 text-left">From (MM/DD/YY)</th>
+                      <th className="p-1 text-left">To</th>
+                      <th className="p-1 text-center w-10">POS</th>
+                      <th className="p-1 text-left">CPT/HCPCS</th>
+                      <th className="p-1 text-left w-12">Mod</th>
+                      <th className="p-1 text-center w-12">Diag</th>
+                      <th className="p-1 text-right w-20">Charges</th>
+                      <th className="p-1 text-center w-12">Units</th>
+                      <th className="p-1 text-left w-28">Rendering NPI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.serviceLines.map((line, idx) => (
+                      <tr key={idx} className="border-b border-[#e5e7eb] dark:border-gray-700">
+                        <td className="p-0.5"><input value={line.dateFrom} onChange={(e) => updateServiceLine(idx, "dateFrom", e.target.value)} className={inputClass} placeholder="MM/DD/YY" /></td>
+                        <td className="p-0.5"><input value={line.dateTo} onChange={(e) => updateServiceLine(idx, "dateTo", e.target.value)} className={inputClass} placeholder="MM/DD/YY" /></td>
+                        <td className="p-0.5"><input value={line.placeOfService} onChange={(e) => updateServiceLine(idx, "placeOfService", e.target.value)} className={`${inputClass} text-center font-mono`} placeholder="11" /></td>
+                        <td className="p-0.5"><input value={line.cpt} onChange={(e) => updateServiceLine(idx, "cpt", e.target.value)} className={`${inputClass} font-mono font-bold`} placeholder="90834" /></td>
+                        <td className="p-0.5"><input value={line.modifier} onChange={(e) => updateServiceLine(idx, "modifier", e.target.value)} className={`${inputClass} text-center`} placeholder="95" /></td>
+                        <td className="p-0.5"><input value={line.diagnosisPointer} onChange={(e) => updateServiceLine(idx, "diagnosisPointer", e.target.value)} className={`${inputClass} text-center font-bold`} placeholder="A" /></td>
+                        <td className="p-0.5"><input value={line.charges} onChange={(e) => updateServiceLine(idx, "charges", e.target.value)} className={`${inputClass} text-right font-mono`} placeholder="$150.00" /></td>
+                        <td className="p-0.5"><input value={line.daysUnits} onChange={(e) => updateServiceLine(idx, "daysUnits", e.target.value)} className={`${inputClass} text-center`} placeholder="1" /></td>
+                        <td className="p-0.5"><input value={line.renderingNpi} onChange={(e) => updateServiceLine(idx, "renderingNpi", e.target.value)} className={`${inputClass} font-mono`} placeholder="1982736405" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Row 8: Box 25-33 Provider & Totals */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>25. FEDERAL TAX I.D. NUMBER</p>
+                  <div className="flex gap-2 mb-1">
+                    <input value={data.federalTaxId} onChange={(e) => updateField("federalTaxId", e.target.value)} className={`${inputClass} font-mono`} />
+                    <select value={data.taxType} onChange={(e) => updateField("taxType", e.target.value)} className={`${inputClass} w-16`}>
+                      <option value="EIN">EIN</option>
+                      <option value="SSN">SSN</option>
+                    </select>
+                  </div>
+                  <p className={cellClass}>26. PATIENT'S ACCOUNT NO.</p>
+                  <input value={data.patientAccountNo} onChange={(e) => updateField("patientAccountNo", e.target.value)} className={`${inputClass} font-mono`} />
+                </div>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <div className="grid grid-cols-2 gap-2 mb-1">
+                    <div>
+                      <p className={cellClass}>28. TOTAL CHARGE</p>
+                      <input value={data.totalCharge} onChange={(e) => updateField("totalCharge", e.target.value)} className={`${inputClass} font-mono font-bold text-sm`} />
+                    </div>
+                    <div>
+                      <p className={cellClass}>29. AMOUNT PAID</p>
+                      <input value={data.amountPaid} onChange={(e) => updateField("amountPaid", e.target.value)} className={`${inputClass} font-mono`} />
+                    </div>
+                  </div>
+                  <p className={cellClass}>31. SIGNATURE OF PHYSICIAN OR SUPPLIER</p>
+                  <div className="flex gap-2">
+                    <input value={data.signaturePhysician} onChange={(e) => updateField("signaturePhysician", e.target.value)} className={`${inputClass} flex-1`} />
+                    <input value={data.signatureDate} onChange={(e) => updateField("signatureDate", e.target.value)} className={`${inputClass} w-24`} />
+                  </div>
+                </div>
+                <div className="border border-[#d1d5dc] dark:border-gray-600 p-2">
+                  <p className={cellClass}>33. BILLING PROVIDER INFO &amp; PH #</p>
                   <input value={data.billingProviderName} onChange={(e) => updateField("billingProviderName", e.target.value)} className={`${inputClass} mb-0.5 font-bold`} />
                   <input value={data.billingProviderAddress} onChange={(e) => updateField("billingProviderAddress", e.target.value)} className={`${inputClass} mb-0.5`} />
                   <input value={data.billingProviderCityState} onChange={(e) => updateField("billingProviderCityState", e.target.value)} className={`${inputClass} mb-0.5`} />
                   <input value={data.billingProviderPhone} onChange={(e) => updateField("billingProviderPhone", e.target.value)} className={`${inputClass} mb-1`} />
                   <div className="grid grid-cols-2 gap-1">
                     <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">a. NPI</p>
+                      <p className="text-[8px] text-gray-600 dark:text-gray-400 mb-0.5">a. NPI</p>
                       <input value={data.billingProviderNpi} onChange={(e) => updateField("billingProviderNpi", e.target.value)} className={`${inputClass} font-mono`} />
                     </div>
                     <div>
-                      <p className="text-[8px] text-gray-600 mb-0.5">b. Other ID</p>
+                      <p className="text-[8px] text-gray-600 dark:text-gray-400 mb-0.5">b. Other ID</p>
                       <input value={data.billingProviderOtherId} onChange={(e) => updateField("billingProviderOtherId", e.target.value)} className={inputClass} />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <p className="text-[9px] text-gray-500 dark:text-gray-400">NUCC Instruction Manual available at: www.nucc.org<br />OMB APPROVAL PENDING</p>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4 text-[9px] text-gray-400 flex items-center justify-between">
+                <span>National Uniform Claim Committee (NUCC) 02/12 Form Standards</span>
+                <span>Pre-filled from Clinical EHR Data</span>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-              <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                Back to Claim Details
+            {/* Bottom Back Button (Hidden during print) */}
+            <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 print:hidden flex items-center justify-between">
+              <button
+                onClick={handleBack}
+                className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+              >
+                ← Back to Claim Details
               </button>
-              <div className="flex items-center gap-3">
-                <button onClick={handleSaveEdits} className="flex items-center gap-2 px-6 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-medium transition-colors">
-                  Save Changes
-                </button>
-                <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2.5 bg-[#4169E1] hover:bg-[#3557c7] text-white rounded-xl font-medium transition-colors">
-                  <Download className="size-4" />
-                  Print / Download PDF
-                </button>
-              </div>
+              <span className="text-xs text-gray-400">All actions are available in the top toolbar.</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MARK AS SUBMITTED MANUALLY CONFIRMATION DIALOG                            */}
+      {/* ========================================================================= */}
+      {submitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-lg w-full p-6 md:p-7 shadow-2xl border border-gray-100 dark:border-gray-700 space-y-5 animate-scale-up">
+            <div className="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/60">
+                  <FileCheck className="size-5.5" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                    Record Manual Submission
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Claim #{rawClaim?.claimNumber || "Draft"} · <span className="font-semibold text-gray-700 dark:text-gray-300">{data.carrierName}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Submission Channel / Method <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={submissionChannel}
+                  onChange={(e) => setSubmissionChannel(e.target.value as any)}
+                  className="w-full h-10 px-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-xs font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570] cursor-pointer transition-all"
+                >
+                  <option value="payer_portal">Payer Web Portal (Availity / UHC / Cigna Portal)</option>
+                  <option value="mail">USPS Mail (Printed Paper CMS-1500)</option>
+                  <option value="fax">Fax Submission directly to Payer</option>
+                  <option value="email">Direct Email / Secure Upload</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Date Submitted <span className="text-red-500">*</span>
+                    </label>
+                  </div>
+                  <input
+                    type="date"
+                    value={submissionDate}
+                    onChange={(e) => setSubmissionDate(e.target.value)}
+                    required
+                    className="w-full h-10 px-3 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Reference / Ack #
+                    </label>
+                    <span className="text-[11px] text-gray-400 font-normal">Optional</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={submissionRef}
+                    onChange={(e) => setSubmissionRef(e.target.value)}
+                    placeholder="e.g. ACK-99214"
+                    className="w-full h-10 px-3 font-mono bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Submission Notes
+                  </label>
+                  <span className="text-[11px] text-gray-400 font-normal">Optional</span>
+                </div>
+                <textarea
+                  rows={2}
+                  value={submissionNote}
+                  onChange={(e) => setSubmissionNote(e.target.value)}
+                  placeholder="e.g. Uploaded to UHC portal, estimated adjudication within 14 business days."
+                  className="w-full px-3 py-2.5 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570] transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setSubmitModalOpen(false)}
+                className="px-4 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmManualSubmission}
+                className="px-5 py-2.5 bg-[#043570] hover:bg-[#032554] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
+              >
+                Confirm &amp; Record Submission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -677,16 +677,16 @@ export function ClaimDetail() {
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   <Send className="size-3.5" />
-                  Submit via Clearinghouse (House)
+                  Submit via Mantra Clearinghouse
                 </button>
                 <button
                   onClick={() => {
-                    updateClaimStatus(claim.id, "submitted", "Submitted manually by provider");
+                    navigate(`/claims/${claim.id}/cms1500`, { state: { from: `/claims/${claim.id}` } });
                   }}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   <FileText className="size-3.5 text-blue-600 dark:text-blue-400" />
-                  Submit Manually (Paper / Payer)
+                  Submit Manually (CMS-1500 Form)
                 </button>
               </div>
             </div>

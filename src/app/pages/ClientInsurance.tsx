@@ -25,16 +25,17 @@ import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePracticeScopedClients } from "../hooks/usePracticeScopedData";
 import { CLAIM_STATUS_LABELS } from "../types/claims";
-import type { ClaimStatus } from "../types/claims";
+import type { ClaimStatus, Claim } from "../types/claims";
 import type { ClientInsuranceRecord } from "../types/partnerDashboard";
 import { AddInsuranceModal } from "../components/AddInsuranceModal";
+import { ClaimSubmissionModal } from "../components/billing/ClaimSubmissionModal";
 
 export function ClientInsurance() {
   const navigate = useNavigate();
   const { id } = useParams();
   const clients = usePracticeScopedClients();
   const { setClients } = usePartnerDashboard();
-  const { claims: allClaims, runEligibilityCheck } = useClaims();
+  const { claims: allClaims, runEligibilityCheck, simulateClearinghouseSubmission } = useClaims();
   const contextClient = id ? clients.find((c) => c.id === id) : undefined;
 
   const [activeTab, setActiveTab] = useState<"insurance" | "claims">("insurance");
@@ -42,6 +43,7 @@ export function ClientInsurance() {
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [submittingClaim, setSubmittingClaim] = useState<Claim | null>(null);
 
   // Claims filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -709,13 +711,23 @@ export function ClientInsurance() {
                               {getStatusBadge(claim.status)}
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => navigate(`/claims/${claim.id}`)}
-                                className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline cursor-pointer"
-                              >
-                                <Eye className="size-3.5" />
-                                <span>View</span>
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                {["draft", "ready_to_submit", "claim_pending", "unsubmitted"].includes(claim.status) && (
+                                  <button
+                                    onClick={() => setSubmittingClaim(claim)}
+                                    className="px-2.5 py-1 bg-[#043570] hover:bg-[#032554] text-white text-[11px] font-bold rounded-lg shadow-2xs cursor-pointer transition-all"
+                                  >
+                                    Submit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => navigate(`/claims/${claim.id}`)}
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-[#043570] dark:text-[#00c0ff] hover:underline cursor-pointer"
+                                >
+                                  <Eye className="size-3.5" />
+                                  <span>View</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -746,6 +758,29 @@ export function ClientInsurance() {
           );
         }}
       />
+
+      {/* Claim Submission Choice Modal */}
+      {submittingClaim && (
+        <ClaimSubmissionModal
+          isOpen={Boolean(submittingClaim)}
+          onClose={() => setSubmittingClaim(null)}
+          claimId={submittingClaim.id}
+          clientName={submittingClaim.clientName}
+          payerName={submittingClaim.payerName || "Insurance"}
+          totalAmount={submittingClaim.totalAmount}
+          onSelectManual={() => {
+            const id = submittingClaim.id;
+            setSubmittingClaim(null);
+            navigate(`/claims/${id}/cms1500`);
+          }}
+          onSelectClearinghouse={() => {
+            const id = submittingClaim.id;
+            simulateClearinghouseSubmission(id);
+            setSubmittingClaim(null);
+            navigate(`/claims/${id}`);
+          }}
+        />
+      )}
 
       {/* Real-Time Eligibility Check Modal */}
       {eligibilityOpen && (

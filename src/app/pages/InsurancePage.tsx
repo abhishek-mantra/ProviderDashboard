@@ -53,15 +53,6 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
             <FileText className="size-4 text-[#00c0ff]" />
             <span>Superbill</span>
           </button>
-          {activeTab === "claims" && (
-            <button
-              onClick={() => setShowClientSelectModal(true)}
-              className="px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm cursor-pointer shrink-0"
-            >
-              <Plus className="size-4" />
-              New Claim
-            </button>
-          )}
         </div>
       </div>
 

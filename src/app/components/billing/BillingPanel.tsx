@@ -407,7 +407,7 @@ export function BillingPanel() {
                             className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-white dark:bg-gray-800 text-[#043570] dark:text-[#00c0ff] border border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                           >
                             <FileText className="size-3 text-blue-600 dark:text-blue-400" />
-                            Submit Manually
+                            Submit Manually (CMS-1500)
                           </button>
                         </div>
                       </div>

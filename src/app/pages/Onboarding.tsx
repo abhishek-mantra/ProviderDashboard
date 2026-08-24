@@ -223,11 +223,7 @@ export function Onboarding() {
               else if (signupMode === "ai-scribe") setPlanMode("transcriber-only");
               else setPlanMode("provider");
 
-              if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
-                navigate("/learn-mantra");
-              } else {
-                navigate("/");
-              }
+              navigate("/");
             }}
             className="px-12 py-4 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-bold transition-all text-base md:text-lg shadow-lg hover:shadow-xl hover:scale-105"
           >

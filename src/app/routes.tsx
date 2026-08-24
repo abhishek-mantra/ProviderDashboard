@@ -109,7 +109,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <Dashboard /> },
-      { path: "learn-mantra", element: <LearnMantra /> },
+      { path: "learn-mantra", element: <Navigate to="/" replace /> },
       { path: "monetization-showcase", element: <MonetizationShowcase /> },
       { path: "modal-showcase", element: <ModalShowcase /> },
       { path: "requests", element: <Requests /> },

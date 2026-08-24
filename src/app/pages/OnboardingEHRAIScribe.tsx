@@ -341,7 +341,7 @@ export function OnboardingEHRAIScribe() {
     }
 
     localStorage.setItem("mantra_logged_in", "true");
-    navigate("/learn-mantra");
+    navigate("/");
   };
 
   const capsuleBase = "px-4 py-2 rounded-full text-sm font-medium border transition-all cursor-pointer select-none";

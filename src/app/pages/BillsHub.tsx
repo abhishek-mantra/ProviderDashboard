@@ -254,6 +254,35 @@ export function BillsHub() {
       : [];
   }, [modalClientId, bills]);
 
+  const modalClient = useMemo(() => {
+    return clients.find((c) => c.id === modalClientId);
+  }, [clients, modalClientId]);
+
+  const modalClientHasInsurance = useMemo(() => {
+    if (!modalClient) return false;
+    const hasCompany = Boolean(
+      modalClient.insuranceCompany &&
+      modalClient.insuranceCompany.trim() !== "" &&
+      modalClient.insuranceCompany.toLowerCase() !== "self-pay" &&
+      modalClient.insuranceCompany.toLowerCase() !== "self pay" &&
+      modalClient.insuranceCompany.toLowerCase() !== "none"
+    );
+    const hasInsurances = Boolean(
+      modalClient.insurances &&
+      modalClient.insurances.length > 0 &&
+      modalClient.insurances.some(
+        (ins) =>
+          ins.toLowerCase() !== "self-pay" &&
+          ins.toLowerCase() !== "self pay" &&
+          ins.toLowerCase() !== "none"
+      )
+    );
+    const hasInsuranceDetails = Boolean(modalClient.insuranceDetails?.subscriberId);
+    const hasInsuranceBill = modalBills.some((b) => b.billType === "insurance");
+
+    return hasCompany || hasInsurances || hasInsuranceDetails || hasInsuranceBill;
+  }, [modalClient, modalBills]);
+
   const pastPayments = useMemo(() => {
     if (!modalClientId) return [];
     return bills
@@ -468,11 +497,12 @@ export function BillsHub() {
             className="absolute top-12 right-0 w-80 shadow-2xl"
           />
           <button
-            onClick={() => navigate("/billing/bills/demo-bill-carl-rogers/invoice")}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-semibold transition-colors shadow-2xs flex-shrink-0 cursor-pointer"
+            onClick={() => openBatchModal(clientFilter !== "all" ? clientFilter : undefined)}
+            disabled={openBills.length === 0}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <CreditCard className="size-4 text-[#00c0ff]" />
-            Demo Superbill
+            <Wallet className="size-4" />
+            Add Payment
           </button>
           <button
             onClick={() => navigate("/billing/bills/create")}
@@ -481,21 +511,6 @@ export function BillsHub() {
             <Plus className="size-4" />
             Create Bill
           </button>
-          <button
-            onClick={() => openBatchModal(clientFilter !== "all" ? clientFilter : undefined)}
-            disabled={openBills.length === 0}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Wallet className="size-4" />
-            Add Payment
-          </button>
-          <Link
-            to="/billing/unbilled"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium transition-colors flex-shrink-0"
-          >
-            <FileText className="size-4" />
-            Unbilled Sessions
-          </Link>
         </div>
       </div>
 
@@ -531,13 +546,35 @@ export function BillsHub() {
 
       {/* Filter tabs + search - Step 3.2/3.3 */}
       <div className="space-y-3 bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Left: Search filter and Unbilled Sessions */}
+          <div className="flex items-center gap-2 flex-1 max-w-full lg:max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search bills/invoice..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570]"
+              />
+            </div>
+            <Link
+              to="/billing/unbilled"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-semibold transition-colors shadow-2xs shrink-0 cursor-pointer"
+            >
+              <FileText className="size-3.5" />
+              <span>Unbilled Sessions</span>
+            </Link>
+          </div>
+
+          {/* Right: All filter tabs */}
           <div className="flex items-center gap-1 overflow-x-auto max-w-full">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                   activeTab === tab.id
                     ? "bg-[#043570] text-white shadow-xs"
                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
@@ -555,17 +592,6 @@ export function BillsHub() {
                 </span>
               </button>
             ))}
-          </div>
-
-          <div className="relative ml-auto w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search bills/invoice..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#043570]"
-            />
           </div>
         </div>
       </div>
@@ -701,7 +727,7 @@ export function BillsHub() {
                   {/* Single Unified Segmented Financial Card */}
                   <div className="flex items-center divide-x divide-gray-200 dark:divide-gray-700/80 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/50 shadow-2xs overflow-hidden">
                     {/* Total */}
-                    <div className="px-3 py-1 text-center min-w-[62px]">
+                    <div className="px-3 py-1 text-center min-w-[66px]">
                       <span className="block text-[9px] uppercase tracking-wider font-extrabold text-gray-400 dark:text-gray-500">
                         Total
                       </span>
@@ -710,18 +736,8 @@ export function BillsHub() {
                       </span>
                     </div>
 
-                    {/* Paid */}
-                    <div className="px-3 py-1 text-center min-w-[62px] bg-emerald-50/30 dark:bg-emerald-950/20">
-                      <span className="block text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
-                        Paid
-                      </span>
-                      <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-300">
-                        {sym}{(b.clientPaid || 0).toFixed(2)}
-                      </span>
-                    </div>
-
                     {/* Unpaid */}
-                    <div className={`px-3 py-1 text-center min-w-[62px] ${
+                    <div className={`px-3 py-1 text-center min-w-[66px] ${
                       pending > 0 ? "bg-amber-50/40 dark:bg-amber-950/20" : ""
                     }`}>
                       <span className={`block text-[9px] uppercase tracking-wider font-extrabold ${
@@ -808,33 +824,45 @@ export function BillsHub() {
               <label className="block text-xs font-bold uppercase text-gray-600 dark:text-gray-400 mb-1">
                 Payment Type
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { id: "client", label: "Client" },
-                    { id: "insurance", label: "Insurance" },
-                    { id: "write_off", label: "Write-off" },
-                  ] as { id: PaymentType; label: string }[]
-                ).map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setPayTypeSingle(t.id);
-                      setPayAmountSingle(
-                        (t.id === "insurance" ? getInsuranceDue(payBill) : getClientDue(payBill)).toFixed(2)
-                      );
-                      setPayError("");
-                    }}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                      payTypeSingle === t.id
-                        ? "bg-[#043570] text-white border-[#043570] shadow-xs"
-                        : "bg-white dark:bg-gray-750 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                const singleBillClient = clients.find((c) => c.id === payBill.clientId);
+                const singleBillHasInsurance = Boolean(
+                  payBill.billType === "insurance" ||
+                  (singleBillClient?.insuranceCompany &&
+                    singleBillClient.insuranceCompany.toLowerCase() !== "self-pay" &&
+                    singleBillClient.insuranceCompany.toLowerCase() !== "none") ||
+                  (singleBillClient?.insurances && singleBillClient.insurances.length > 0)
+                );
+                const singlePaymentTypes = [
+                  { id: "client", label: "Self-pay" },
+                  ...(singleBillHasInsurance ? [{ id: "insurance", label: "Insurance" }] : []),
+                  { id: "write_off", label: "Write-off" },
+                ] as { id: PaymentType; label: string }[];
+
+                return (
+                  <div className={`grid ${singleBillHasInsurance ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
+                    {singlePaymentTypes.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setPayTypeSingle(t.id);
+                          setPayAmountSingle(
+                            (t.id === "insurance" ? getInsuranceDue(payBill) : getClientDue(payBill)).toFixed(2)
+                          );
+                          setPayError("");
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                          payTypeSingle === t.id
+                            ? "bg-[#043570] text-white border-[#043570] shadow-xs"
+                            : "bg-white dark:bg-gray-750 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {payTypeSingle === "write_off" && (
@@ -957,6 +985,7 @@ export function BillsHub() {
                   onChange={(e) => {
                     const newId = e.target.value || null;
                     setModalClientId(newId);
+                    setPayType("client");
                     setIsManualPaymentInput(false);
                     setTotalPaymentInput("");
                     if (newId) {
@@ -1091,7 +1120,7 @@ export function BillsHub() {
                                     </td>
                                     <td className="py-3 px-3">
                                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300">
-                                        {b.billType === "insurance" ? "Insurance" : "Self-pay"}
+                                        {b.billType === "insurance" && modalClientHasInsurance ? "Insurance" : "Self-pay"}
                                         <span className="text-red-500 font-normal">(Unpaid)</span>
                                       </span>
                                     </td>
@@ -1190,13 +1219,13 @@ export function BillsHub() {
                           What is this payment for?
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Select payment type (Self-pay, Insurance, or Write-off)
+                          Select payment type ({modalClientHasInsurance ? "Self-pay, Insurance, or Write-off" : "Self-pay or Write-off"})
                         </p>
                       </div>
                     </div>
 
                     {/* Payment Type Options */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className={`grid ${modalClientHasInsurance ? "grid-cols-3" : "grid-cols-2"} gap-3`}>
                       <button
                         type="button"
                         onClick={() => setPayType("client")}
@@ -1215,23 +1244,25 @@ export function BillsHub() {
                         </span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setPayType("insurance")}
-                        className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                          payType === "insurance"
-                            ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
-                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                        }`}
-                      >
-                        <FileText className={`size-5 ${payType === "insurance" ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`} />
-                        <span className="font-bold text-xs text-gray-900 dark:text-white">
-                          Insurance
-                        </span>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                          Payer EOB / ERA
-                        </span>
-                      </button>
+                      {modalClientHasInsurance && (
+                        <button
+                          type="button"
+                          onClick={() => setPayType("insurance")}
+                          className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                            payType === "insurance"
+                              ? "bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          <FileText className={`size-5 ${payType === "insurance" ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`} />
+                          <span className="font-bold text-xs text-gray-900 dark:text-white">
+                            Insurance
+                          </span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                            Payer EOB / ERA
+                          </span>
+                        </button>
+                      )}
 
                       <button
                         type="button"

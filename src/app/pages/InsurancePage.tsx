@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { FileText, Plus, Clock } from "lucide-react";
 import { Claims } from "./Claims";
 import { UnbilledSessions } from "./UnbilledSessions";
+import { CreateSuperbillModal } from "../components/billing/CreateSuperbillModal";
 
 interface InsurancePageProps {
   defaultTab?: "unbilled" | "claims";
@@ -14,6 +15,7 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
   const initialTab = subtabParam === "claims" ? "claims" : defaultTab || "unbilled";
   const [activeTab, setActiveTab] = useState<"unbilled" | "claims">(initialTab);
   const [showClientSelectModal, setShowClientSelectModal] = useState(false);
+  const [showSuperbillModal, setShowSuperbillModal] = useState(false);
 
   useEffect(() => {
     const tabParam = (searchParams.get("subtab") || searchParams.get("tab")) as "unbilled" | "claims";
@@ -43,15 +45,24 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
           </p>
         </div>
 
-        {activeTab === "claims" && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowClientSelectModal(true)}
-            className="px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm cursor-pointer shrink-0"
+            onClick={() => setShowSuperbillModal(true)}
+            className="px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-200 rounded-xl font-semibold transition-colors shadow-2xs flex items-center gap-2 text-sm cursor-pointer shrink-0"
           >
-            <Plus className="size-4" />
-            New Claim
+            <FileText className="size-4 text-[#00c0ff]" />
+            <span>Superbill</span>
           </button>
-        )}
+          {activeTab === "claims" && (
+            <button
+              onClick={() => setShowClientSelectModal(true)}
+              className="px-4 py-2.5 bg-[#043570] hover:bg-[#032554] text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm cursor-pointer shrink-0"
+            >
+              <Plus className="size-4" />
+              New Claim
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Pill-Style Tabs */}
@@ -93,6 +104,12 @@ export function InsurancePage({ defaultTab }: InsurancePageProps = {}) {
           />
         )}
       </div>
+
+      {/* Superbill Selection & Generation Modal Flow */}
+      <CreateSuperbillModal
+        isOpen={showSuperbillModal}
+        onClose={() => setShowSuperbillModal(false)}
+      />
     </div>
   );
 }

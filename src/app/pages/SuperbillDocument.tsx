@@ -7,10 +7,17 @@ import { useGoBack } from "../utils/useGoBack";
 export function SuperbillDocument() {
   const { claimId, billId } = useParams();
   const [searchParams] = useSearchParams();
-  const { claims } = useClaims();
-  const { bills, currentProviderId, providers } = usePartnerDashboard();
+  const { claims, unbilledSessions } = useClaims();
+  const { bills, clients, currentProviderId, providers } = usePartnerDashboard();
 
   const claim = claimId ? claims.find((c) => c.id === claimId || c.claimNumber === claimId) : undefined;
+
+  const clientId = searchParams.get("clientId");
+  const sessionIdsParam = searchParams.get("sessionIds") || "";
+  const sessionIds = sessionIdsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // Batch superbill: one or more bill IDs passed via ?billIds=a,b,c
   // (single-bill links keep the legacy :billId route).
@@ -25,9 +32,87 @@ export function SuperbillDocument() {
     ? bills.find((b) => b.id === billId || b.billNumber === billId)
     : undefined;
 
+  // Selected client object
+  const clientObj = clientId
+    ? clients.find((c) => c.id === clientId)
+    : singleBill
+    ? clients.find((c) => c.id === singleBill.clientId || c.name === singleBill.clientName)
+    : batchBills.length > 0
+    ? clients.find((c) => c.id === batchBills[0].clientId || c.name === batchBills[0].clientName)
+    : claim
+    ? clients.find((c) => c.name === claim.clientName)
+    : undefined;
+
   // A bill-based superbill (from the Bill hub) is rendered from a synthetic claim
   // so the printable layout is shared with claim superbills.
   let sourceClaim = claim;
+
+  // If clientId and sessionIds/billIds provided
+  if (!sourceClaim && clientId && (sessionIds.length > 0 || batchBills.length > 0)) {
+    const matchingSessions = sessionIds.map((sId) => {
+      const unbilled = unbilledSessions.find((s) => s.id === sId);
+      if (unbilled) {
+        return {
+          id: unbilled.id,
+          dateOfService: unbilled.dateOfService,
+          cptCode: unbilled.cptCode || "90834",
+          serviceDescription: unbilled.serviceDescription || "Psychotherapy, 45 min",
+          diagnosisCode: unbilled.diagnosisCode || clientObj?.diagnosisCode || "F41.1",
+          chargeAmount: unbilled.amount || 150,
+        };
+      }
+      const b = bills.find((bill) => bill.id === sId || bill.sessionId === sId);
+      if (b) {
+        return {
+          id: b.id,
+          dateOfService: b.dateOfService || "2026-08-20",
+          cptCode: b.cptCode || "90834",
+          serviceDescription: b.serviceType || "Psychotherapy, 45 min",
+          diagnosisCode: b.diagnosisCodes?.[0] || clientObj?.diagnosisCode || "F41.1",
+          chargeAmount: b.amount || 150,
+        };
+      }
+      return {
+        id: sId,
+        dateOfService: "2026-08-20",
+        cptCode: "90834",
+        serviceDescription: "Individual Psychotherapy, 45 min",
+        diagnosisCode: clientObj?.diagnosisCode || "F41.1",
+        chargeAmount: 150,
+      };
+    });
+
+    const matchingBillsLines = batchBills.map((b) => ({
+      id: `sl-${b.id}`,
+      dateOfService: b.dateOfService || "2026-08-20",
+      cptCode: b.cptCode || "90834",
+      serviceDescription: b.serviceType || "Psychotherapy, 45 min",
+      diagnosisCode: b.diagnosisCodes?.[0] || clientObj?.diagnosisCode || "F41.1",
+      chargeAmount: b.amount,
+    }));
+
+    const allLines = [...matchingSessions, ...matchingBillsLines];
+
+    if (allLines.length > 0) {
+      sourceClaim = {
+        id: `superbill-${clientId}-${Date.now()}`,
+        claimNumber: `SB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        clientName: clientObj?.name || "Client",
+        providerId: currentProviderId || "prov-1",
+        diagnosisCodes: allLines.map((l) => l.diagnosisCode),
+        totalAmount: allLines.reduce((acc, l) => acc + l.chargeAmount, 0),
+        serviceLines: allLines.map((l) => ({
+          id: `sl-${l.id}`,
+          sessionId: l.id,
+          dateOfService: l.dateOfService,
+          serviceCode: l.cptCode,
+          units: 1,
+          chargeAmount: l.chargeAmount,
+        })),
+      };
+    }
+  }
+
   if (!sourceClaim && batchBills.length > 0) {
     sourceClaim = {
       id: batchBills.map((b) => b.id).join(","),
@@ -118,7 +203,18 @@ export function SuperbillDocument() {
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Patient</h3>
               <p className="font-medium text-gray-900 dark:text-white">{sourceClaim.clientName}</p>
-              <p className="text-sm text-gray-600">DOB: —</p>
+              {clientObj?.insuranceCompany && (
+                <p className="text-sm text-gray-600">Insurance: {clientObj.insuranceCompany}</p>
+              )}
+              {clientObj?.memberId && (
+                <p className="text-sm text-gray-600">Member ID: {clientObj.memberId}</p>
+              )}
+              {clientObj?.address && (
+                <p className="text-sm text-gray-600">{clientObj.address}</p>
+              )}
+              {clientObj?.phone && (
+                <p className="text-sm text-gray-600">{clientObj.phone}</p>
+              )}
             </div>
           </div>
 

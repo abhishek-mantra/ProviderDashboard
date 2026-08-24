@@ -10,7 +10,8 @@ import {
   Sparkles,
   ShieldCheck,
   Wallet,
-  Lock,
+  Eye,
+  Clock,
 } from "lucide-react";
 import { useClaims } from "../contexts/ClaimContext";
 import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
@@ -45,31 +46,43 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
     return ids;
   }, [bills]);
 
-  const unbilledForClient = useMemo(
+  const unbilledAvailable = useMemo(
     () =>
       unbilledSessions
-        .filter((s) => !clientFilterParam || s.clientId === clientFilterParam)
         .filter((s) => !billedSessionIds.has(s.id)),
-    [unbilledSessions, clientFilterParam, billedSessionIds]
+    [unbilledSessions, billedSessionIds]
   );
 
   const scopedSessions = useMemo(
     () =>
       scope === "all"
-        ? unbilledForClient
-        : unbilledForClient.filter(
-            (s) => predictPayer(s, clients, claims, bills) === scope
-          ),
-    [unbilledForClient, scope, clients, claims, bills]
+        ? unbilledAvailable
+        : unbilledAvailable.filter(
+          (s) => predictPayer(s, clients, claims, bills) === scope
+        ),
+    [unbilledAvailable, scope, clients, claims, bills]
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [clientFilter, setClientFilter] = useState<string>(clientFilterParam || "all");
   const [payerFilter, setPayerFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  const uniqueClients = useMemo(() => {
+    const map = new Map<string, string>();
+    scopedSessions.forEach((s) => map.set(s.clientId, s.clientName));
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [scopedSessions]);
+
   const uniquePayers = useMemo(() => {
     const map = new Map<string, string>();
-    scopedSessions.forEach((s) => map.set(s.payerId, s.payerName));
+    scopedSessions.forEach((s) => {
+      if (s.payerId && s.payerName) {
+        map.set(s.payerId, s.payerName);
+      }
+    });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [scopedSessions]);
 
@@ -82,9 +95,10 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
           s.payerName.toLowerCase().includes(q) ||
           s.cptCode.toLowerCase().includes(q);
         const matchesPayer = payerFilter === "all" || s.payerId === payerFilter;
-        return matchesSearch && matchesPayer;
+        const matchesClient = clientFilter === "all" || s.clientId === clientFilter;
+        return matchesSearch && matchesPayer && matchesClient;
       }),
-    [scopedSessions, searchQuery, payerFilter]
+    [scopedSessions, searchQuery, payerFilter, clientFilter]
   );
 
   const selectedSessions = scopedSessions.filter((s) => selectedIds.has(s.id));
@@ -134,7 +148,7 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
             </button>
             <div>
               <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                {clientFilterParam ? "Client Unbilled Sessions" : "Unbilled Sessions"}
+                {clientFilter !== "all" ? "Client Unbilled Sessions" : "Unbilled Sessions"}
               </h1>
               <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
                 {scope === "insurance"
@@ -164,9 +178,21 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#043570]/20 cursor-pointer"
+              >
+                <option value="all">All Clients</option>
+                {uniqueClients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={payerFilter}
                 onChange={(e) => setPayerFilter(e.target.value)}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#043570]/20"
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#043570]/20 cursor-pointer"
               >
                 <option value="all">All Payers</option>
                 {uniquePayers.map((p) => (
@@ -220,13 +246,14 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                   <th className="text-left py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Service</th>
                   <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Amount</th>
                   <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Age</th>
-                  <th className="text-right py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Action</th>
+                  <th className="text-center py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Bill</th>
+                  <th className="text-center py-3 px-2 font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12">
+                    <td colSpan={9} className="text-center py-12">
                       <FileText className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         No unbilled appointments found.
@@ -237,14 +264,21 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                   filteredSessions.map((session) => {
                     const checked = selectedIds.has(session.id);
                     const payer = predictPayer(session, clients, claims, bills);
-                    const isDraft = session.notesStatus !== "locked";
+                    const isNoteLocked = session.notesStatus === "locked";
                     const isBilled = billedSessionIds.has(session.id);
+                    const clientRecord = clients.find((c) => c.id === session.clientId);
+                    const isPayerPending =
+                      !session.payerName ||
+                      session.payerName.toLowerCase() === "pending" ||
+                      session.payerId === "pending" ||
+                      session.payerId === "unassigned" ||
+                      session.payerName === "Unassigned" ||
+                      (scope === "insurance" && !session.payerName && !clientRecord?.insuranceCompany);
+
                     return (
                       <tr
                         key={session.id}
-                        className={`border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750 ${
-                          isDraft ? "opacity-80" : ""
-                        }`}
+                        className="border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750"
                       >
                         <td className="py-3 px-2">
                           <button
@@ -268,17 +302,20 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                           >
                             {session.clientName}
                           </button>
-                          {isDraft && (
-                            <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-bold">
-                              <Lock className="size-2.5" /> draft
-                            </span>
-                          )}
                         </td>
-                        <td className="py-3 px-2">
-                          {payer === "insurance" ? (
+                        <td className="py-3 px-2 whitespace-nowrap">
+                          {isPayerPending ? (
+                            <span
+                              title="Insurance details pending — client requested to fill details"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60"
+                            >
+                              <Clock className="size-3.5 text-amber-500 shrink-0" />
+                              <span>Pending</span>
+                            </span>
+                          ) : payer === "insurance" ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
                               <ShieldCheck className="size-3.5 text-blue-500 shrink-0" />
-                              <span className="truncate">{session.payerName}</span>
+                              <span className="truncate max-w-[140px]">{session.payerName}</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
@@ -296,39 +333,60 @@ export function UnbilledSessions({ scope: scopeProp = "all", hideHeader }: Unbil
                         <td className="py-3 px-2 text-right text-gray-500 dark:text-gray-400 text-xs">
                           {session.daysSinceService}d
                         </td>
-                        <td className="py-3 px-2 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Notes Icon Button */}
+                        {/* Bill Column */}
+                        <td className="py-3 px-2 text-center whitespace-nowrap">
+                          {isBilled ? (
                             <button
-                              onClick={() => navigate(`/clients/${session.clientId}/notes`)}
-                              title={isDraft ? "Note Missing / Draft — click to complete & sign note" : "Session Note Signed & Locked — click to view"}
-                              className={`size-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs relative ${
-                                isDraft
-                                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                              }`}
+                              onClick={() => {
+                                const matchedBill = bills.find(
+                                  (b) =>
+                                    b.sessionId === session.id ||
+                                    b.serviceLines?.some((l) => l.sessionId === session.id)
+                                );
+                                if (matchedBill) {
+                                  navigate(`/billing/bills/${matchedBill.id}/invoice`);
+                                } else {
+                                  openCreateBill(session.clientId, [session.id]);
+                                }
+                              }}
+                              title="Invoice generated — click to view"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
                             >
-                              <FileText className="size-4" />
-                              {isDraft && (
-                                <span className="absolute -top-1 -right-1 size-3.5 bg-red-600 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs border border-white dark:border-gray-800">
-                                  !
-                                </span>
-                              )}
+                              <Eye className="size-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span>View</span>
                             </button>
-
-                            {/* Bill Icon Button */}
+                          ) : (
                             <button
                               onClick={() => openCreateBill(session.clientId, [session.id])}
-                              title={isBilled ? "Invoice: Generated" : "Invoice: Pending — click to create bill"}
-                              className={`size-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
-                                isBilled
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                                  : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
-                              }`}
+                              title="Invoice pending — click to create bill"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
                             >
-                              <Receipt className="size-4" />
+                              <Clock className="size-3 text-amber-500 shrink-0" />
+                              <span>Pending</span>
                             </button>
-                          </div>
+                          )}
+                        </td>
+                        {/* Notes Column */}
+                        <td className="py-3 px-2 text-center whitespace-nowrap">
+                          {isNoteLocked ? (
+                            <button
+                              onClick={() => navigate(`/clients/${session.clientId}/notes`)}
+                              title="Session note signed & locked — click to view"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+                            >
+                              <Eye className="size-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span>View</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/clients/${session.clientId}/notes`)}
+                              title="Note missing or draft — click to complete & sign note"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                            >
+                              <Clock className="size-3 text-amber-500 shrink-0" />
+                              <span>Pending</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

@@ -400,6 +400,7 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
   const baseClients = [
     { clientId: "1", clientName: "Sarah Johnson", payerId: "us-1", payerName: "UnitedHealthcare" },
     { clientId: "2", clientName: "Michael Chen", payerId: "bupa", payerName: "Bupa" },
+    { clientId: "3", clientName: "Emma Thompson", payerId: "pending", payerName: "Pending" },
     { clientId: "5", clientName: "Olivia Brown", payerId: "us-2", payerName: "Cigna" },
     { clientId: "8", clientName: "Aisha Patel", payerId: "us-4", payerName: "Blue Cross Blue Shield" },
   ];
@@ -444,13 +445,14 @@ export function getMockUnbilledSessions(): UnbilledSession[] {
       d.setDate(d.getDate() - (idCounter * 5 + i * 2));
       const st = serviceTypes[(idCounter + i) % serviceTypes.length];
       const hasNotes = i !== 1;
+      const isPendingPayer = (client.clientId === "1" && i === 1) || client.payerId === "pending";
       sessions.push({
         id: `unbilled-${idCounter}`,
         clientId: client.clientId,
         clientName: client.clientName,
         dateOfService: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-        payerId: client.payerId,
-        payerName: client.payerName,
+        payerId: isPendingPayer ? "pending" : client.payerId,
+        payerName: isPendingPayer ? "Pending" : client.payerName,
         serviceType: st.serviceType,
         duration: st.duration,
         notesStatus: hasNotes ? "locked" : "draft",

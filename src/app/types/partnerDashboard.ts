@@ -7,6 +7,17 @@ export interface Provider {
   rating: number;
   verificationStatus: "unverified" | "pending" | "verified";
   planMode: "provider" | "full-ehr" | "ai-scribe";
+  phone?: string;
+  gender?: string;
+  birthDate?: string;
+  language?: string;
+  country?: string;
+  timezone?: string;
+  avatarUrl?: string;
+  npiNumber?: string;
+  licenseNumber?: string;
+  licenseState?: string;
+  bio?: string;
 }
 
 export const SPECIALTIES = [

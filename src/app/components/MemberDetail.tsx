@@ -201,9 +201,17 @@ export function MemberDetail({ member, practiceId, onClose }: MemberDetailProps)
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="size-20 bg-gradient-to-br from-[#043570] to-[#00c0ff] rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-900/20 flex-shrink-0">
-              {provider.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-            </div>
+            {provider.avatarUrl ? (
+              <img
+                src={provider.avatarUrl}
+                alt={provider.name}
+                className="size-20 rounded-2xl object-cover shadow-lg shadow-blue-900/20 flex-shrink-0 border-2 border-white dark:border-gray-700"
+              />
+            ) : (
+              <div className="size-20 bg-gradient-to-br from-[#043570] to-[#00c0ff] rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-900/20 flex-shrink-0">
+                {provider.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -320,6 +328,14 @@ export function MemberDetail({ member, practiceId, onClose }: MemberDetailProps)
                   {provider.email}
                 </p>
               </div>
+              {provider.phone && (
+                <div>
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Phone Number</span>
+                  <p className="font-medium text-gray-900 dark:text-white mt-0.5">
+                    {provider.phone}
+                  </p>
+                </div>
+              )}
               <div>
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Profession / Specialty</span>
                 <p className="font-medium text-gray-900 dark:text-white flex items-center gap-2 mt-0.5">
@@ -327,6 +343,28 @@ export function MemberDetail({ member, practiceId, onClose }: MemberDetailProps)
                   {provider.profession}
                 </p>
               </div>
+              {(provider.npiNumber || provider.licenseNumber) && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  {provider.npiNumber && (
+                    <div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">NPI Number</span>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-0.5">{provider.npiNumber}</p>
+                    </div>
+                  )}
+                  {provider.licenseNumber && (
+                    <div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">License</span>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-0.5">{provider.licenseNumber} ({provider.licenseState || "Active"})</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {provider.bio && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Practice Bio</span>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">{provider.bio}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700">
                 <div>
                   <span className="text-xs text-gray-500">Invited Date</span>

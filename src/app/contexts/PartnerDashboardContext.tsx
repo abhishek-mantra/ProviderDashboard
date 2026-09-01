@@ -38,6 +38,7 @@ interface PartnerDashboardContextType {
   providerPracticeMemberships: (providerId: string) => PracticeMember[];
   addPracticeMember: (member: PracticeMember) => void;
   addProvider: (provider: Provider) => void;
+  updateProvider: (providerId: string, updates: Partial<Provider>) => void;
   updatePracticeMember: (providerId: string, practiceId: string, updates: Partial<PracticeMember>) => void;
   offboardPracticeMember: (providerId: string, practiceId: string) => void;
   createPractice: (practice: Practice) => void;
@@ -106,7 +107,15 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
   const addCustomRole = useCallback((role: CustomRole) => {
     setCustomRoles((prev) => [...prev, role]);
   }, []);
-  const [providers, setProviders] = useState<Provider[]>(mockProviders);
+
+  const [providers, setProviders] = useState<Provider[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("mantra_provider_profiles") || "{}");
+      return mockProviders.map((p) => (saved[p.id] ? { ...p, ...saved[p.id] } : p));
+    } catch {
+      return mockProviders;
+    }
+  });
   const [careTeamMemberships, setCareTeamMemberships] = useState<CareTeamMembership[]>(mockCareTeamMemberships);
 
   // Clients state: Living Demo Client (Carl Rogers) + any custom clients in New User Mode, full roster in Returning
@@ -421,6 +430,19 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
     setProviders((prev) => (prev.some((p) => p.id === provider.id) ? prev : [...prev, provider]));
   }, []);
 
+  const updateProvider = useCallback((providerId: string, updates: Partial<Provider>) => {
+    setProviders((prev) =>
+      prev.map((p) => (p.id === providerId ? { ...p, ...updates } : p))
+    );
+    try {
+      const saved = JSON.parse(localStorage.getItem("mantra_provider_profiles") || "{}");
+      saved[providerId] = { ...(saved[providerId] || {}), ...updates };
+      localStorage.setItem("mantra_provider_profiles", JSON.stringify(saved));
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const updatePracticeMember = useCallback(
     (providerId: string, practiceId: string, updates: Partial<PracticeMember>) => {
       const existing = practiceMembers.find(
@@ -660,6 +682,7 @@ export function PartnerDashboardProvider({ children }: { children: ReactNode }) 
         providerPracticeMemberships,
         addPracticeMember,
         addProvider,
+        updateProvider,
         updatePracticeMember,
         offboardPracticeMember,
         createPractice,

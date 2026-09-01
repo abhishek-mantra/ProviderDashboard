@@ -1,304 +1,905 @@
-import { useState } from "react";
-import { Edit, Share2, CheckCircle2, DollarSign, Trash2, Facebook, Twitter, Linkedin, Mail, Info, Star, User, Globe, GraduationCap } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
+import {
+  User,
+  Shield,
+  Bell,
+  Mail,
+  Phone,
+  Calendar,
+  Globe,
+  Clock,
+  Lock,
+  Camera,
+  Check,
+  LogOut,
+  Sparkles,
+  Save,
+  RotateCcw,
+  CheckCircle2,
+  Award,
+  FileBadge,
+  Smartphone,
+  Laptop,
+  ShieldAlert,
+} from "lucide-react";
+import { usePartnerDashboard } from "../contexts/PartnerDashboardContext";
+import { SPECIALTIES, Specialty } from "../types/partnerDashboard";
 
 export function Profile() {
   const navigate = useNavigate();
-  const [profileVisibility, setProfileVisibility] = useState(true);
-  const [mantraVisibility, setMantraVisibility] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { currentProviderId, providers, updateProvider } = usePartnerDashboard();
 
-  const profileUrl = "therapists.therapymantra.co/list/therapist/130405/john-wilson?pay=true?pay=yes";
+  const activeProvider = providers.find((p) => p.id === currentProviderId) || providers[0] || {
+    id: "prov-admin",
+    name: "Abhishek Madaan",
+    email: "abhishek.madaan@mantra.care",
+    profession: "Therapy",
+    credentialExpiresAt: "2027-12-31",
+    rating: 4.9,
+    verificationStatus: "verified",
+    planMode: "full-ehr",
+  };
 
-  const experienceCards = [
-    {
-      icon: User,
-      label: "GENDER",
-      value: "Male",
-      color: "blue",
-    },
-    {
-      icon: Globe,
-      label: "ETHNICITY",
-      value: "Caucasian",
-      color: "purple",
-    },
-    {
-      icon: GraduationCap,
-      label: "EXPERIENCE",
-      value: "Practicing since 2020",
-      color: "teal",
-    },
-  ];
+  const [activeTab, setActiveTab] = useState<"personal" | "security" | "notifications">("personal");
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    name: activeProvider.name || "Abhishek Madaan",
+    email: activeProvider.email || "abhishek.madaan@mantra.care",
+    countryCode: "+1",
+    phoneNumber: activeProvider.phone || "555-019-2834",
+    gender: activeProvider.gender || "Male",
+    birthDate: activeProvider.birthDate || "1988-06-15",
+    language: activeProvider.language || "English (English)",
+    country: activeProvider.country || "United States",
+    timezone: activeProvider.timezone || "Asia/Kolkata",
+    profession: (activeProvider.profession || "Therapy") as Specialty,
+    npiNumber: activeProvider.npiNumber || "1948204918",
+    licenseNumber: activeProvider.licenseNumber || "LCSW-98412",
+    licenseState: activeProvider.licenseState || "NY",
+    bio: activeProvider.bio || "Licensed Clinical Psychologist specializing in Cognitive Behavioral Therapy and Mindfulness-based interventions.",
+    avatarUrl: activeProvider.avatarUrl || "",
+  });
+
+  // Password & Security State
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+
+  // Notification State
+  const [notifications, setNotifications] = useState({
+    emailAppointments: true,
+    emailReferrals: true,
+    emailBilling: true,
+    smsAppointments: true,
+    smsUrgentAlerts: false,
+    clinicalReminders: true,
+  });
+
+  // Sync if activeProvider changes
+  useEffect(() => {
+    if (activeProvider) {
+      setFormData((prev) => ({
+        ...prev,
+        name: activeProvider.name || prev.name,
+        email: activeProvider.email || prev.email,
+        phoneNumber: activeProvider.phone || prev.phoneNumber,
+        gender: activeProvider.gender || prev.gender,
+        birthDate: activeProvider.birthDate || prev.birthDate,
+        language: activeProvider.language || prev.language,
+        country: activeProvider.country || prev.country,
+        timezone: activeProvider.timezone || prev.timezone,
+        profession: (activeProvider.profession || prev.profession) as Specialty,
+        npiNumber: activeProvider.npiNumber || prev.npiNumber,
+        licenseNumber: activeProvider.licenseNumber || prev.licenseNumber,
+        licenseState: activeProvider.licenseState || prev.licenseState,
+        bio: activeProvider.bio || prev.bio,
+        avatarUrl: activeProvider.avatarUrl || prev.avatarUrl,
+      }));
+    }
+  }, [activeProvider]);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2) || "AM";
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setFormData((prev) => ({ ...prev, avatarUrl: url }));
+      triggerToast("Profile photo updated successfully!");
+    }
+  };
+
+  const handleSavePersonal = () => {
+    updateProvider(activeProvider.id, {
+      name: formData.name,
+      phone: formData.phoneNumber,
+      gender: formData.gender,
+      birthDate: formData.birthDate,
+      language: formData.language,
+      country: formData.country,
+      timezone: formData.timezone,
+      profession: formData.profession,
+      npiNumber: formData.npiNumber,
+      licenseNumber: formData.licenseNumber,
+      licenseState: formData.licenseState,
+      bio: formData.bio,
+      avatarUrl: formData.avatarUrl,
+    });
+    triggerToast("Profile updated successfully!");
+  };
+
+  const handleDiscard = () => {
+    setFormData({
+      name: activeProvider.name || "Abhishek Madaan",
+      email: activeProvider.email || "abhishek.madaan@mantra.care",
+      countryCode: "+1",
+      phoneNumber: activeProvider.phone || "555-019-2834",
+      gender: activeProvider.gender || "Male",
+      birthDate: activeProvider.birthDate || "1988-06-15",
+      language: activeProvider.language || "English (English)",
+      country: activeProvider.country || "United States",
+      timezone: activeProvider.timezone || "Asia/Kolkata",
+      profession: (activeProvider.profession || "Therapy") as Specialty,
+      npiNumber: activeProvider.npiNumber || "1948204918",
+      licenseNumber: activeProvider.licenseNumber || "LCSW-98412",
+      licenseState: activeProvider.licenseState || "NY",
+      bio: activeProvider.bio || "",
+      avatarUrl: activeProvider.avatarUrl || "",
+    });
+    triggerToast("Changes discarded.");
+  };
+
+  const handlePasswordUpdate = () => {
+    if (!newPassword || newPassword !== confirmPassword) {
+      triggerToast("Passwords do not match or are invalid.");
+      return;
+    }
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    triggerToast("Password changed successfully!");
+  };
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem("mantra_logged_in");
+    navigate("/get-started");
+  };
 
   return (
-    <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen p-3 md:p-6">
-      <div className="max-w-[1000px]">
-        {/* Profile Header */}
-        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 md:p-8 shadow-lg border border-gray-100 dark:border-gray-700 mb-4 md:mb-6">
-          {/* Mobile Layout */}
-          <div className="md:hidden">
-            <div className="flex flex-col items-center text-center mb-4">
-              <div className="relative group mb-3">
-                <img
-                  src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0aGVyYXBpc3QlMjBoZWFkc2hvdHxlbnwxfHx8fDE3NzQyNDI5MDV8MA&ixlib=rb-4.1.0&q=80&w=1080"
-                  alt="John Wilson"
-                  className="size-24 rounded-2xl object-cover ring-4 ring-white dark:ring-gray-700 shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 size-5 bg-green-500 rounded-full border-4 border-white dark:border-gray-800 shadow-sm"></div>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">John Wilson</h1>
-                <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                  <Edit className="size-4 text-gray-500 dark:text-gray-400" />
-                </button>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Therapist</span>
-                <div className="h-3 w-px bg-gray-300 dark:bg-gray-600"></div>
-                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
-                  <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-semibold text-sm text-amber-700 dark:text-amber-400">5.0</span>
-                </div>
-              </div>
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#00c0ff] focus:border-transparent bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-sm">
-                <option>Therapy</option>
-                <option>Diet</option>
-                <option>Physiotherapy</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Desktop Layout */}
-          <div className="hidden md:flex items-start gap-6">
-            <div className="relative group">
-              <img
-                src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0aGVyYXBpc3QlMjBoZWFkc2hvdHxlbnwxfHx8fDE3NzQyNDI5MDV8MA&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="John Wilson"
-                className="size-24 rounded-2xl object-cover ring-4 ring-white dark:ring-gray-700 shadow-md transition-transform group-hover:scale-105"
-              />
-              <div className="absolute bottom-2 right-2 size-5 bg-green-500 rounded-full border-4 border-white dark:border-gray-800 shadow-sm"></div>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">John Wilson</h1>
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <Edit className="size-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                </div>
-                <select className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#00c0ff] focus:border-transparent bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-sm">
-                  <option>Therapy</option>
-                  <option>Diet</option>
-                  <option>Physiotherapy</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-gray-600 dark:text-gray-400 font-medium">Therapist</span>
-                <div className="h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
-                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full">
-                  <Star className="size-4 fill-amber-400 text-amber-400" />
-                  <span className="font-semibold text-amber-700 dark:text-amber-400">5.0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Profile Card - Redesigned */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 md:p-8 shadow-lg border border-gray-100 dark:border-gray-700 mb-4 md:mb-6">
-          {/* Profile Heading with Toggle */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Profile Settings</h2>
-
-            {/* Profile Visibility Toggle with Tooltip */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Profile Visibility</span>
-                <div className="group relative">
-                  <Info className="size-4 text-gray-400 cursor-help hover:text-gray-600 transition-colors" />
-                  <div className="absolute right-0 md:right-auto md:left-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
-                    Make your profile visible to everyone on the platform
-                    <div className="absolute -top-1 right-4 md:left-4 w-2 h-2 bg-gray-900 rotate-45"></div>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setProfileVisibility(!profileVisibility)}
-                className={`relative w-14 h-7 rounded-full transition-all shadow-inner ${
-                  profileVisibility ? "bg-gradient-to-r from-[#00c0ff] to-[#0099cc]" : "bg-gray-300 dark:bg-gray-600"
-                }`}
-              >
-                <div
-                  className={`absolute top-0.5 left-0.5 size-6 bg-white rounded-full transition-transform shadow-md ${
-                    profileVisibility ? "translate-x-7" : ""
-                  }`}
-                ></div>
-              </button>
-            </div>
-          </div>
-
-          {/* Profile URL with Edit Profile Button */}
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 p-3 md:p-5 rounded-xl mb-6 flex flex-col md:flex-row md:items-center gap-3 border border-blue-100 dark:border-blue-800">
-            <input
-              type="text"
-              value={profileUrl}
-              readOnly
-              className="flex-1 bg-transparent text-blue-700 dark:text-blue-300 text-xs md:text-sm outline-none font-medium overflow-x-auto"
-            />
-            <button
-              onClick={() => navigate("/edit-profile")}
-              className="w-full md:w-auto px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg whitespace-nowrap"
-            >
-              <Edit className="size-4" />
-              Edit Profile
-            </button>
-          </div>
-
-          {/* Social Share and Quick Actions */}
-          <div className="space-y-4">
-            {/* Social Share Buttons */}
-            <div className="flex items-center justify-center md:justify-start gap-2">
-              <button className="p-2.5 md:p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110" title="Share">
-                <Share2 className="size-4 md:size-5 text-gray-600 dark:text-gray-400" />
-              </button>
-              <button className="p-2.5 md:p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all hover:scale-110" title="Facebook">
-                <Facebook className="size-4 md:size-5 text-blue-600" />
-              </button>
-              <button className="p-2.5 md:p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all hover:scale-110" title="Twitter">
-                <Twitter className="size-4 md:size-5 text-blue-400" />
-              </button>
-              <button className="p-2.5 md:p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all hover:scale-110" title="LinkedIn">
-                <Linkedin className="size-4 md:size-5 text-blue-700" />
-              </button>
-              <button className="p-2.5 md:p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-110" title="Email">
-                <Mail className="size-4 md:size-5 text-gray-600 dark:text-gray-400" />
-              </button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
-              {/* Verified Button */}
-              <button onClick={() => navigate("/verification")} className="px-4 md:px-5 py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30 rounded-xl transition-all flex items-center justify-center gap-2 border border-green-200 dark:border-green-700 shadow-sm hover:shadow-md" title="Verified">
-                <CheckCircle2 className="size-4 md:size-5 text-green-600 dark:text-green-400" />
-                <span className="text-sm font-semibold text-green-700 dark:text-green-400">Verified</span>
-              </button>
-
-              {/* Bank & Tax Button */}
-              <button onClick={() => navigate("/billing", { state: { tab: "banktax" } })} className="px-4 md:px-5 py-2.5 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 hover:from-cyan-100 hover:to-blue-100 dark:hover:from-cyan-900/30 dark:hover:to-blue-900/30 rounded-xl transition-all flex items-center justify-center gap-2 border border-cyan-200 dark:border-cyan-700 shadow-sm hover:shadow-md" title="Bank & Tax">
-                <DollarSign className="size-4 md:size-5 text-cyan-600 dark:text-cyan-400" />
-                <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-400">Bank & Tax</span>
-              </button>
-
-              {/* Delete Account Button */}
-              <button onClick={() => setShowDeleteModal(true)} className="px-4 md:px-5 py-2.5 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 hover:from-red-100 hover:to-rose-100 dark:hover:from-red-900/30 dark:hover:to-rose-900/30 rounded-xl transition-all flex items-center justify-center gap-2 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-md" title="Delete Account">
-                <Trash2 className="size-4 md:size-5 text-red-600 dark:text-red-400" />
-                <span className="text-sm font-semibold text-red-700 dark:text-red-400">Delete Account</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* About */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 md:p-8 shadow-lg border border-gray-100 dark:border-gray-700 mb-4 md:mb-6">
-          <div className="flex items-center gap-3 mb-4 md:mb-5">
-            <div className="size-9 md:size-10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 rounded-xl flex items-center justify-center shadow-sm">
-              <User className="size-4 md:size-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">About</h2>
-          </div>
-          <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">
-            I'm a self-proclaimed emotional wizard who can totally read your feelings... sometimes.
-            Specialties include unsolicited life advice, judging your coping mechanisms, and making you
-            question why you came here in the first place. I charge in Monopoly money and guarantee 0%
-            improvement—but 100% awkward laughs.
-          </p>
-        </div>
-
-        {/* Experience Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {experienceCards.map((card, index) => {
-            const Icon = card.icon;
-            const colors = {
-              blue: {
-                bg: "from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30",
-                iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
-                border: "border-blue-200 dark:border-blue-700",
-              },
-              purple: {
-                bg: "from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30",
-                iconBg: "bg-gradient-to-br from-purple-500 to-purple-600",
-                border: "border-purple-200 dark:border-purple-700",
-              },
-              teal: {
-                bg: "from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30",
-                iconBg: "bg-gradient-to-br from-teal-500 to-teal-600",
-                border: "border-teal-200 dark:border-teal-700",
-              },
-            };
-            const colorScheme = colors[card.color as keyof typeof colors];
-
-            return (
-              <div
-                key={index}
-                className={`bg-gradient-to-br ${colorScheme.bg} rounded-2xl p-5 md:p-6 shadow-lg border ${colorScheme.border} hover:shadow-xl transition-all md:hover:-translate-y-1`}
-              >
-                <div className="flex items-center gap-3 mb-3 md:mb-4">
-                  <div className={`size-10 md:size-12 ${colorScheme.iconBg} rounded-xl flex items-center justify-center shadow-md`}>
-                    <Icon className="size-5 md:size-6 text-white" />
-                  </div>
-                  <span className="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wider">{card.label}</span>
-                </div>
-                <div className="text-gray-900 dark:text-white font-semibold text-base md:text-lg">{card.value}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Delete Account Modal */}
-      {showDeleteModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6 md:p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
-              Wait! Are you sure you want to delete your account?
-            </h2>
-
-            <div className="space-y-3 mb-6">
-              <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 text-center">
-                Once deleted, you won't be able to create a provider account with us again.
-              </p>
-              <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 text-center">
-                If you just need a break, you can hide your profile instead and come back anytime!
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  // Handle delete account logic here
-                  setShowDeleteModal(false);
-                }}
-                className="w-full py-3.5 bg-[#EF4444] hover:bg-[#DC2626] text-white rounded-xl font-semibold transition-colors"
-              >
-                Yes, delete my account
-              </button>
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="w-full py-3.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-xl font-semibold transition-colors"
-              >
-                No, hide my profile instead
-              </button>
-            </div>
-          </div>
+    <div className="bg-[#f8fafc] dark:bg-gray-950 min-h-screen p-4 sm:p-6 lg:p-8 text-slate-900 dark:text-slate-100">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-[#043570] text-white px-4 py-3 rounded-xl shadow-2xl border border-sky-400/30 animate-in fade-in slide-in-from-top-3 duration-200">
+          <CheckCircle2 className="size-5 text-[#00c0ff]" />
+          <span className="text-sm font-medium">{toastMessage}</span>
         </div>
       )}
+
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Page Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+              Profile Settings
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Manage your personal information and preferences
+            </p>
+          </div>
+
+          <button
+            onClick={handleSignOut}
+            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-sm font-semibold transition-colors"
+          >
+            <LogOut className="size-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+
+        {/* Main Grid: Left Account Card + Right Multi-Tab Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column (4 cols): User Profile Summary */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 text-center relative">
+              {/* Avatar & Upload */}
+              <div className="flex justify-center mb-4 relative">
+                <div className="relative group">
+                  {formData.avatarUrl ? (
+                    <img
+                      src={formData.avatarUrl}
+                      alt={formData.name}
+                      className="size-24 rounded-full object-cover shadow-lg border-2 border-white dark:border-gray-800"
+                    />
+                  ) : (
+                    <div className="size-24 rounded-full bg-[#043570] text-white flex items-center justify-center text-2xl font-bold tracking-wider shadow-lg border-2 border-white dark:border-gray-800">
+                      {getInitials(formData.name)}
+                    </div>
+                  )}
+                  {/* Status Indicator */}
+                  <div className="absolute bottom-1 right-1 size-4 bg-[#00c0ff] border-2 border-white dark:border-gray-900 rounded-full shadow-sm" />
+                </div>
+              </div>
+
+              {/* Name & Title */}
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{formData.name}</h2>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 dark:bg-sky-950/60 text-[#043570] dark:text-sky-400 rounded-full text-xs font-semibold mt-1.5 mb-4">
+                <Award className="size-3.5" />
+                <span>{formData.profession}</span>
+              </div>
+
+              {/* Upload Button */}
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-[#043570] hover:bg-[#032652] text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+                >
+                  <Camera className="size-3.5" />
+                  <span>Upload</span>
+                </button>
+              </div>
+
+              {/* Account Info Details List */}
+              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 text-left space-y-3.5">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  Account Info
+                </p>
+
+                {/* Email */}
+                <div className="flex items-start gap-3 text-xs">
+                  <div className="size-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 text-gray-500">
+                    <Mail className="size-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] text-gray-400 block">EMAIL</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200 truncate block">
+                      {formData.email}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Country */}
+                <div className="flex items-start gap-3 text-xs">
+                  <div className="size-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 text-gray-500">
+                    <Globe className="size-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 block">COUNTRY</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {formData.country}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timezone */}
+                <div className="flex items-start gap-3 text-xs">
+                  <div className="size-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 text-gray-500">
+                    <Clock className="size-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 block">TIMEZONE</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {formData.timezone}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Language */}
+                <div className="flex items-start gap-3 text-xs">
+                  <div className="size-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 text-gray-500">
+                    <FileBadge className="size-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 block">LANGUAGE</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {formData.language}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column (8 cols): Tabbed Settings Container */}
+          <div className="lg:col-span-8 bg-white dark:bg-gray-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+            {/* Top Tabs */}
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-3 mb-6 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab("personal")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                  activeTab === "personal"
+                    ? "bg-[#043570] text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                <User className="size-4" />
+                <span>Personal Info</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("security")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                  activeTab === "security"
+                    ? "bg-[#043570] text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                <Shield className="size-4" />
+                <span>Security</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("notifications")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                  activeTab === "notifications"
+                    ? "bg-[#043570] text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                <Bell className="size-4" />
+                <span>Notifications</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Personal Info */}
+            {activeTab === "personal" && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Profile Information
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Update your account details, preferences and clinical credentials
+                  </p>
+                </div>
+
+                {/* Section 1: Personal Information */}
+                <div className="space-y-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    Personal Information
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        NAME *
+                      </label>
+                      <div className="relative">
+                        <User className="size-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                          placeholder="Your Full Name"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email (Locked) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        EMAIL
+                      </label>
+                      <div className="relative">
+                        <Mail className="size-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="email"
+                          value={formData.email}
+                          disabled
+                          className="w-full pl-10 pr-10 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-500 cursor-not-allowed"
+                        />
+                        <Lock className="size-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                    </div>
+
+                    {/* Phone Number */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        PHONE NUMBER
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={formData.countryCode}
+                          onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                          className="w-24 px-2 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        >
+                          <option value="+1">🇺🇸 +1</option>
+                          <option value="+91">🇮🇳 +91</option>
+                          <option value="+44">🇬🇧 +44</option>
+                          <option value="+61">🇦🇺 +61</option>
+                          <option value="+49">🇩🇪 +49</option>
+                        </select>
+                        <input
+                          type="tel"
+                          value={formData.phoneNumber}
+                          onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                          className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                          placeholder="Phone number"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Gender */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        GENDER
+                      </label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Non-Binary">Non-Binary</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+
+                    {/* Birth Date */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        BIRTH DATE
+                      </label>
+                      <div className="relative max-w-sm">
+                        <Calendar className="size-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="date"
+                          value={formData.birthDate}
+                          onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Preferences */}
+                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    Preferences
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Language */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        LANGUAGE
+                      </label>
+                      <select
+                        value={formData.language}
+                        onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                      >
+                        <option value="English (English)">English (English)</option>
+                        <option value="Spanish (Español)">Spanish (Español)</option>
+                        <option value="French (Français)">French (Français)</option>
+                        <option value="German (Deutsch)">German (Deutsch)</option>
+                        <option value="Hindi (हिन्दी)">Hindi (हिन्दी)</option>
+                      </select>
+                    </div>
+
+                    {/* Country */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        COUNTRY
+                      </label>
+                      <select
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                      >
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Australia">Australia</option>
+                        <option value="India">India</option>
+                        <option value="Germany">Germany</option>
+                      </select>
+                    </div>
+
+                    {/* Timezone */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        TIMEZONE
+                      </label>
+                      <select
+                        value={formData.timezone}
+                        onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                      >
+                        <option value="Asia/Kolkata">Asia/Kolkata (IST - GMT+5:30)</option>
+                        <option value="America/New_York">America/New_York (EST - GMT-5:00)</option>
+                        <option value="America/Chicago">America/Chicago (CST - GMT-6:00)</option>
+                        <option value="America/Denver">America/Denver (MST - GMT-7:00)</option>
+                        <option value="America/Los_Angeles">America/Los_Angeles (PST - GMT-8:00)</option>
+                        <option value="Europe/London">Europe/London (GMT / BST)</option>
+                        <option value="Europe/Paris">Europe/Paris (CET - GMT+1:00)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Clinical & Professional Credentials */}
+                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      Clinical & Practice Credentials
+                    </p>
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 rounded">
+                      Syncs with Organization
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Profession / Specialty */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        PRIMARY SPECIALTY / PROFESSION
+                      </label>
+                      <select
+                        value={formData.profession}
+                        onChange={(e) => setFormData({ ...formData, profession: e.target.value as Specialty })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                      >
+                        {SPECIALTIES.map((spec) => (
+                          <option key={spec} value={spec}>
+                            {spec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* NPI Number */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        NPI NUMBER (10 DIGITS)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.npiNumber}
+                        onChange={(e) => setFormData({ ...formData, npiNumber: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        placeholder="e.g. 1948204918"
+                      />
+                    </div>
+
+                    {/* License Number */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        LICENSE NUMBER
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.licenseNumber}
+                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        placeholder="e.g. LCSW-98412"
+                      />
+                    </div>
+
+                    {/* License State */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        LICENSE STATE
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.licenseState}
+                        onChange={(e) => setFormData({ ...formData, licenseState: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        placeholder="e.g. NY, CA, TX"
+                      />
+                    </div>
+
+                    {/* Bio */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        PROFESSIONAL BIO & PRACTICE SUMMARY
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={formData.bio}
+                        onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00c0ff] text-gray-900 dark:text-white"
+                        placeholder="Describe your clinical focus, treatment modalities, and background..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons */}
+                <div className="flex items-center gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    onClick={handleSavePersonal}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#043570] hover:bg-[#032652] active:scale-[0.98] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md hover:shadow-lg transition-all"
+                  >
+                    <Save className="size-4" />
+                    <span>Save Changes</span>
+                  </button>
+
+                  <button
+                    onClick={handleDiscard}
+                    className="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs sm:text-sm font-medium rounded-xl transition-colors"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Security */}
+            {activeTab === "security" && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Security & Credentials
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Manage your password, login methods, and session security
+                  </p>
+                </div>
+
+                {/* Password Change Form */}
+                <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 space-y-4">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Lock className="size-4 text-[#00c0ff]" />
+                    <span>Change Password</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Current Password
+                      </label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Confirm Password
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handlePasswordUpdate}
+                    className="px-4 py-2 bg-[#043570] hover:bg-[#032652] text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                  >
+                    Update Password
+                  </button>
+                </div>
+
+                {/* Two-Factor Authentication */}
+                <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="size-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600">
+                      <Shield className="size-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                        Two-Factor Authentication (2FA)
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Add an extra layer of HIPAA-compliant protection with SMS or Authenticator App.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setTwoFactorEnabled(!twoFactorEnabled);
+                      triggerToast(`Two-factor authentication ${!twoFactorEnabled ? "enabled" : "disabled"}.`);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      twoFactorEnabled
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {twoFactorEnabled ? "Enabled" : "Enable 2FA"}
+                  </button>
+                </div>
+
+                {/* Active Sessions */}
+                <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 space-y-3">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                    Active Devices & Sessions
+                  </h4>
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <div className="py-2.5 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <Laptop className="size-4 text-[#00c0ff]" />
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white block">
+                            Chrome on macOS · Current Session
+                          </span>
+                          <span className="text-[11px] text-gray-400">New York, NY · IP: 198.51.100.42</span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded">
+                        Active Now
+                      </span>
+                    </div>
+
+                    <div className="py-2.5 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <Smartphone className="size-4 text-gray-400" />
+                        <div>
+                          <span className="font-medium text-gray-800 dark:text-gray-200 block">
+                            Mantra Provider iOS App
+                          </span>
+                          <span className="text-[11px] text-gray-400">Austin, TX · 2 hours ago</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => triggerToast("Session revoked.")}
+                        className="text-red-500 hover:text-red-600 font-semibold"
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Notifications */}
+            {activeTab === "notifications" && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Notification Preferences
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Customize alerts and updates regarding your clients, sessions, and billing
+                  </p>
+                </div>
+
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {/* Item 1 */}
+                  <div className="py-3.5 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                        Appointment & Schedule Reminders
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Receive email alerts 15 minutes before scheduled appointments.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.emailAppointments}
+                      onChange={(e) =>
+                        setNotifications({ ...notifications, emailAppointments: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#043570] rounded focus:ring-[#00c0ff] cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Item 2 */}
+                  <div className="py-3.5 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                        New Client Referrals & Requests
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Instant notifications when a new individual or corporate client books.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.emailReferrals}
+                      onChange={(e) =>
+                        setNotifications({ ...notifications, emailReferrals: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#043570] rounded focus:ring-[#00c0ff] cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Item 3 */}
+                  <div className="py-3.5 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                        Clinical Documentation & Note Signing
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Daily summaries of uncompleted or unsigned session notes.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.clinicalReminders}
+                      onChange={(e) =>
+                        setNotifications({ ...notifications, clinicalReminders: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#043570] rounded focus:ring-[#00c0ff] cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Item 4 */}
+                  <div className="py-3.5 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                        Billing & Direct Payout Notifications
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Monthly remittance advice and electronic claims status updates.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.emailBilling}
+                      onChange={(e) =>
+                        setNotifications({ ...notifications, emailBilling: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#043570] rounded focus:ring-[#00c0ff] cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => triggerToast("Notification settings saved!")}
+                  className="px-6 py-2.5 bg-[#043570] hover:bg-[#032652] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md transition-all"
+                >
+                  Save Notification Settings
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

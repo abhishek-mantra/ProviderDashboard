@@ -4,6 +4,7 @@ import { GetStarted } from "./pages/GetStarted";
 import { OTPVerify } from "./pages/OTPVerify";
 import { Onboarding } from "./pages/Onboarding";
 import { OnboardingEHRAIScribe } from "./pages/OnboardingEHRAIScribe";
+import { ProfileSubmitted } from "./pages/ProfileSubmitted";
 import { Dashboard } from "./pages/Dashboard";
 import { LearnMantra } from "./pages/LearnMantra";
 import { Requests } from "./pages/Requests";
@@ -94,6 +95,7 @@ export const router = createBrowserRouter([
   { path: "/verify", element: <ErrorBoundary><OTPVerify /></ErrorBoundary> },
   { path: "/onboarding", element: <ErrorBoundary><Onboarding /></ErrorBoundary> },
   { path: "/onboarding-ehr-ai-scribe", element: <ErrorBoundary><OnboardingEHRAIScribe /></ErrorBoundary> },
+  { path: "/profile-submitted", element: <ErrorBoundary><ProfileSubmitted /></ErrorBoundary> },
   { path: "/my-forms/:clientId", element: <ErrorBoundary><MyForms /></ErrorBoundary> },
   { path: "/intake-preview/:formEntryId", element: <ErrorBoundary><IntakePreview /></ErrorBoundary> },
   {

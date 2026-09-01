@@ -6,6 +6,8 @@ import { usePlanMode } from "../contexts/PlanModeContext";
 import { useUserMode } from "../contexts/UserModeContext";
 import { SPECIALTIES } from "../types/partnerDashboard";
 
+import { ProfileSubmitted } from "./ProfileSubmitted";
+
 type Step = 1 | 2 | 3 | 4 | 5;
 
 const THERAPY_ONLY_PROFESSIONS = new Set([
@@ -33,6 +35,24 @@ export function Onboarding() {
   const [showProfessionDropdown, setShowProfessionDropdown] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [showAcknowledgement, setShowAcknowledgement] = useState(false);
+
+  const setupUserPreferences = () => {
+    const therapyOnly = isTherapyOnly(formData.profession ? [formData.profession] : []);
+    if (therapyOnly) {
+      localStorage.setItem("ai_scribe_prescription_pref", "no");
+      const existingCards: string[] = JSON.parse(localStorage.getItem("dashboard_hidden_cards") || "[]");
+      localStorage.setItem("dashboard_hidden_cards", JSON.stringify(Array.from(new Set([...existingCards, "prescriptions"]))));
+    } else {
+      localStorage.setItem("ai_scribe_prescription_pref", "yes");
+    }
+    const signupMode = (location.state as any)?.signupMode || localStorage.getItem("mantra_signup_mode");
+    if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
+      setUserMode("new");
+    }
+    if (signupMode === "full-ehr") setPlanMode("full-ehr");
+    else if (signupMode === "ai-scribe") setPlanMode("transcriber-only");
+    else setPlanMode("provider");
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -167,70 +187,16 @@ export function Onboarding() {
   // Show acknowledgement screen
   if (showAcknowledgement) {
     return (
-      <div className="bg-[#F8FAFC] dark:bg-gray-900 min-h-screen flex items-center justify-center p-4 md:p-6">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-xl w-full p-10 md:p-16 text-center border border-gray-100 dark:border-gray-700">
-          {/* Success Icon */}
-          <div className="flex justify-center mb-8 md:mb-10">
-            <div className="relative">
-              {/* Decorative dots with cyan color */}
-              <div className="absolute -top-3 left-6 size-3 bg-[#5DADE2] rounded-full animate-pulse"></div>
-              <div className="absolute -top-4 left-14 size-2.5 bg-[#85C1E2] rounded-full animate-pulse delay-100"></div>
-              <div className="absolute top-4 -right-4 size-3 bg-[#5DADE2] rounded-full animate-pulse delay-200"></div>
-              <div className="absolute -bottom-3 left-2 size-2 bg-[#85C1E2] rounded-full animate-pulse delay-300"></div>
-
-              {/* Main checkmark circle */}
-              <div className="size-28 md:size-32 bg-[#043570] rounded-full flex items-center justify-center shadow-2xl">
-                <Check className="size-14 md:size-16 text-white" strokeWidth={3.5} />
-              </div>
-            </div>
-          </div>
-
-          {/* Title */}
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-            You're all set,<br />Welcome aboard!
-          </h2>
-
-          {/* Description */}
-          <div className="space-y-4 mb-10 text-sm md:text-base text-gray-600 dark:text-gray-400 leading-relaxed max-w-md mx-auto">
-            <p>
-              Your provider profile is being reviewed by our team.
-            </p>
-            <p>
-              Approval usually takes <span className="font-bold text-gray-900 dark:text-white">24-48 hours</span>.
-            </p>
-            <p>
-              Once approved, you'll receive a confirmation email and get full access.
-            </p>
-          </div>
-
-          {/* Action Button */}
-          <button
-            onClick={() => {
-              const therapyOnly = isTherapyOnly(formData.profession ? [formData.profession] : []);
-              if (therapyOnly) {
-                localStorage.setItem("ai_scribe_prescription_pref", "no");
-                const existingCards: string[] = JSON.parse(localStorage.getItem("dashboard_hidden_cards") || "[]");
-                localStorage.setItem("dashboard_hidden_cards", JSON.stringify(Array.from(new Set([...existingCards, "prescriptions"]))));
-              } else {
-                localStorage.setItem("ai_scribe_prescription_pref", "yes");
-              }
-              // Do NOT write to sidebar_hidden_items — Layout.tsx reads ai_scribe_prescription_pref directly
-              const signupMode = (location.state as any)?.signupMode || localStorage.getItem("mantra_signup_mode");
-              if (signupMode === "full-ehr" || signupMode === "ai-scribe") {
-                setUserMode("new");
-              }
-              if (signupMode === "full-ehr") setPlanMode("full-ehr");
-              else if (signupMode === "ai-scribe") setPlanMode("transcriber-only");
-              else setPlanMode("provider");
-
-              navigate("/");
-            }}
-            className="px-12 py-4 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-bold transition-all text-base md:text-lg shadow-lg hover:shadow-xl hover:scale-105"
-          >
-            Get Started →
-          </button>
-        </div>
-      </div>
+      <ProfileSubmitted
+        onEditProfile={() => {
+          setShowAcknowledgement(false);
+          setCurrentStep(1);
+        }}
+        onStartVerification={() => {
+          setupUserPreferences();
+          navigate("/verification");
+        }}
+      />
     );
   }
 
@@ -1465,7 +1431,10 @@ export function Onboarding() {
                     Previous
                   </button>
                   <button
-                    onClick={() => setShowAcknowledgement(true)}
+                    onClick={() => {
+                      setupUserPreferences();
+                      setShowAcknowledgement(true);
+                    }}
                     className="w-full md:w-auto px-6 py-3 bg-[#043570] hover:bg-[#032a57] text-white rounded-xl font-medium transition-colors"
                   >
                     Submit

@@ -18,7 +18,46 @@ export interface Provider {
   licenseNumber?: string;
   licenseState?: string;
   bio?: string;
+
+  // Eligibility & Claim Submission (837 / CMS-1500) Fields
+  organizationName?: string;
+  practicePhone?: string;
+  taxIdType?: "EIN" | "SSN";
+  taxId?: string;
+  npiType?: "Type 1 (Individual)" | "Type 2 (Organization)";
+  taxonomyCode?: string;
+  billingAddressLine1?: string;
+  billingAddressCity?: string;
+  billingAddressState?: string;
+  billingAddressZip?: string;
+
+  // Conditional Fields
+  hasSupervisor?: boolean;
+  supervisorName?: string;
+  supervisorNpi?: string;
+  referringProviderName?: string;
+  referringProviderNpi?: string;
+
+  // Supplementary Payer Identifiers
+  medicarePtan?: string;
+  medicaidState?: string;
+  medicaidProviderId?: string;
+  payerGroupNumber?: string;
 }
+
+export const PROVIDER_TAXONOMIES: { code: string; label: string; specialtyMatch?: string }[] = [
+  { code: "101YM0800X", label: "101YM0800X — Mental Health Counselor", specialtyMatch: "Therapy" },
+  { code: "101YP2500X", label: "101YP2500X — Professional Counselor", specialtyMatch: "Therapy" },
+  { code: "1041C0700X", label: "1041C0700X — Clinical Social Worker (LCSW)", specialtyMatch: "Therapy" },
+  { code: "103T00000X", label: "103T00000X — Clinical Psychologist (PhD / PsyD)", specialtyMatch: "Therapy" },
+  { code: "106H00000X", label: "106H00000X — Marriage & Family Therapist (LMFT)", specialtyMatch: "Therapy" },
+  { code: "2084P0800X", label: "2084P0800X — Physician: Psychiatry", specialtyMatch: "Psychiatrist" },
+  { code: "207Q00000X", label: "207Q00000X — Physician: Family Medicine", specialtyMatch: "General Physician" },
+  { code: "207RE0101X", label: "207RE0101X — Physician: Endocrinology", specialtyMatch: "Endocrinologist" },
+  { code: "133V00000X", label: "133V00000X — Registered Dietitian / Nutritionist", specialtyMatch: "Diet" },
+  { code: "225100000X", label: "225100000X — Physical Therapist", specialtyMatch: "Physiotherapy" },
+  { code: "101YA0400X", label: "101YA0400X — Addiction / Substance Abuse Counselor", specialtyMatch: "Addiction Treatment" },
+];
 
 export const SPECIALTIES = [
   "Therapy", "Endocrinologist", "Yoga", "Diet", "Physiotherapy", "Women Wellness",
